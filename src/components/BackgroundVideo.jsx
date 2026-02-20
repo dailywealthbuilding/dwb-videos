@@ -31,6 +31,8 @@ const PEXELS_VIDEO_MAP = {
   "productive workspace morning": staticFile("videos/6985580.mp4"),
 };
 
+import { AbsoluteFill } from "remotion";
+
 export const BackgroundVideo = ({ pexelsSearchTerms }) => {
   return (
     <AbsoluteFill style={{
