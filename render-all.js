@@ -23,12 +23,14 @@ console.log("🎬 Daily Wealth Building — Week 4 Render Starting...\n");
 let successCount = 0;
 let failCount = 0;
 
+const chromeBin = execSync('which google-chrome-stable').toString().trim();
+
 for (const video of VIDEOS) {
   const outputPath = path.join(OUTPUT_DIR, video.filename);
   console.log(`⏳ Rendering ${video.id}...`);
   try {
     execSync(
-      `npx remotion render src/index.jsx ${video.id} ${outputPath} --codec=h264 --quality=85 --log=error --browser-executable=$(which google-chrome-stable) --chrome-mode=new-headless`
+      `npx remotion render src/index.jsx ${video.id} ${outputPath} --codec=h264 --quality=85 --log=error --browser-executable=${chromeBin} --chrome-mode=new-headless`,
       { stdio: "inherit", timeout: 300000,
         env: { ...process.env, REMOTION_HEADLESS: "new" } }
     );
