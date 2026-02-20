@@ -1,67 +1,38 @@
-import { AbsoluteFill, Video } from "remotion";
+import { AbsoluteFill, Video, staticFile } from "remotion";
 
 const PEXELS_VIDEO_MAP = {
-  "entrepreneur working laptop":
-    "https://videos.pexels.com/video-files/3194038/3194038-uhd_2560_1440_25fps.mp4",
-  "person thinking":
-    "https://videos.pexels.com/video-files/3252459/3252459-uhd_2560_1440_25fps.mp4",
-  "writing notes desk":
-    "https://videos.pexels.com/video-files/4065982/4065982-hd_1920_1080_25fps.mp4",
-  "online business setup":
-    "https://videos.pexels.com/video-files/6985580/6985580-uhd_2560_1440_30fps.mp4",
-  "person writing notebook":
-    "https://videos.pexels.com/video-files/4065982/4065982-hd_1920_1080_25fps.mp4",
-  "timer stopwatch":
-    "https://videos.pexels.com/video-files/4481316/4481316-hd_1920_1080_25fps.mp4",
-  "content creator laptop":
-    "https://videos.pexels.com/video-files/3196007/3196007-uhd_2560_1440_25fps.mp4",
-  "social media phone":
-    "https://videos.pexels.com/video-files/8371648/8371648-uhd_3840_2160_25fps.mp4",
-  "social media statistics screen":
-    "https://videos.pexels.com/video-files/6963944/6963944-uhd_2560_1440_25fps.mp4",
-  "small business owner":
-    "https://videos.pexels.com/video-files/3252453/3252453-uhd_2560_1440_25fps.mp4",
-  "person on phone":
-    "https://videos.pexels.com/video-files/7564710/7564710-hd_1920_1080_25fps.mp4",
-  "online income laptop":
-    "https://videos.pexels.com/video-files/7688336/7688336-uhd_3840_2160_30fps.mp4",
-  "frustrated person laptop":
-    "https://videos.pexels.com/video-files/5699456/5699456-hd_1920_1080_25fps.mp4",
-  "person thinking desk":
-    "https://videos.pexels.com/video-files/3252459/3252459-uhd_2560_1440_25fps.mp4",
-  "content creator phone":
-    "https://videos.pexels.com/video-files/8371648/8371648-uhd_3840_2160_25fps.mp4",
-  "editing video computer":
-    "https://videos.pexels.com/video-files/3296467/3296467-uhd_2560_1440_25fps.mp4",
-  "tiktok phone screen":
-    "https://videos.pexels.com/video-files/8371648/8371648-uhd_3840_2160_25fps.mp4",
-  "youtube laptop screen":
-    "https://videos.pexels.com/video-files/3196007/3196007-uhd_2560_1440_25fps.mp4",
-  "person deciding options":
-    "https://videos.pexels.com/video-files/3252453/3252453-uhd_2560_1440_25fps.mp4",
-  "social media marketing":
-    "https://videos.pexels.com/video-files/6963944/6963944-uhd_2560_1440_25fps.mp4",
-  "person editing video laptop":
-    "https://videos.pexels.com/video-files/3296467/3296467-uhd_2560_1440_25fps.mp4",
-  "home office workspace":
-    "https://videos.pexels.com/video-files/6985580/6985580-uhd_2560_1440_30fps.mp4",
-  "content creator desk setup":
-    "https://videos.pexels.com/video-files/3194038/3194038-uhd_2560_1440_25fps.mp4",
-  "phone filming setup":
-    "https://videos.pexels.com/video-files/6890254/6890254-uhd_2560_1440_25fps.mp4",
-  "clock time management":
-    "https://videos.pexels.com/video-files/4481316/4481316-hd_1920_1080_25fps.mp4",
-  "person stressed busy":
-    "https://videos.pexels.com/video-files/5699456/5699456-hd_1920_1080_25fps.mp4",
-  "calendar planning desk":
-    "https://videos.pexels.com/video-files/4065982/4065982-hd_1920_1080_25fps.mp4",
-  "productive workspace morning":
-    "https://videos.pexels.com/video-files/6985580/6985580-uhd_2560_1440_30fps.mp4",
+  "entrepreneur working laptop": staticFile("videos/3194038.mp4"),
+  "person thinking": staticFile("videos/3252459.mp4"),
+  "writing notes desk": staticFile("videos/4065982.mp4"),
+  "online business setup": staticFile("videos/6985580.mp4"),
+  "person writing notebook": staticFile("videos/4065982.mp4"),
+  "timer stopwatch": staticFile("videos/4481316.mp4"),
+  "content creator laptop": staticFile("videos/3196007.mp4"),
+  "social media phone": staticFile("videos/8371648.mp4"),
+  "social media statistics screen": staticFile("videos/6963944.mp4"),
+  "small business owner": staticFile("videos/3252453.mp4"),
+  "person on phone": staticFile("videos/7564710.mp4"),
+  "online income laptop": staticFile("videos/7688336.mp4"),
+  "frustrated person laptop": staticFile("videos/5699456.mp4"),
+  "person thinking desk": staticFile("videos/3252459.mp4"),
+  "content creator phone": staticFile("videos/8371648.mp4"),
+  "editing video computer": staticFile("videos/3296467.mp4"),
+  "tiktok phone screen": staticFile("videos/8371648.mp4"),
+  "youtube laptop screen": staticFile("videos/3196007.mp4"),
+  "person deciding options": staticFile("videos/3252453.mp4"),
+  "social media marketing": staticFile("videos/6963944.mp4"),
+  "person editing video laptop": staticFile("videos/3296467.mp4"),
+  "home office workspace": staticFile("videos/6985580.mp4"),
+  "content creator desk setup": staticFile("videos/3194038.mp4"),
+  "phone filming setup": staticFile("videos/6890254.mp4"),
+  "clock time management": staticFile("videos/4481316.mp4"),
+  "person stressed busy": staticFile("videos/5699456.mp4"),
+  "calendar planning desk": staticFile("videos/4065982.mp4"),
+  "productive workspace morning": staticFile("videos/6985580.mp4"),
 };
 
 export const BackgroundVideo = ({ pexelsSearchTerms }) => {
   const videoUrl = PEXELS_VIDEO_MAP[pexelsSearchTerms[0]];
-
   if (!videoUrl) {
     return (
       <AbsoluteFill style={{
@@ -69,7 +40,6 @@ export const BackgroundVideo = ({ pexelsSearchTerms }) => {
       }} />
     );
   }
-
   return (
     <AbsoluteFill>
       <Video
