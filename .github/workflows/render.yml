@@ -41,25 +41,7 @@ jobs:
     
       - name: Create output directory
         run: mkdir -p output
-
-      - name: Download Pexels videos
-        run: |
-          mkdir -p src/assets/videos
-          wget -q -O src/assets/videos/3194038.mp4 "https://videos.pexels.com/video-files/3194038/3194038-uhd_2560_1440_25fps.mp4"
-          wget -q -O src/assets/videos/3252459.mp4 "https://videos.pexels.com/video-files/3252459/3252459-uhd_2560_1440_25fps.mp4"
-          wget -q -O src/assets/videos/4065982.mp4 "https://videos.pexels.com/video-files/4065982/4065982-hd_1920_1080_25fps.mp4"
-          wget -q -O src/assets/videos/6985580.mp4 "https://videos.pexels.com/video-files/6985580/6985580-uhd_2560_1440_30fps.mp4"
-          wget -q -O src/assets/videos/4481316.mp4 "https://videos.pexels.com/video-files/4481316/4481316-hd_1920_1080_25fps.mp4"
-          wget -q -O src/assets/videos/3196007.mp4 "https://videos.pexels.com/video-files/3196007/3196007-uhd_2560_1440_25fps.mp4"
-          wget -q -O src/assets/videos/8371648.mp4 "https://videos.pexels.com/video-files/8371648/8371648-uhd_3840_2160_25fps.mp4"
-          wget -q -O src/assets/videos/6963944.mp4 "https://videos.pexels.com/video-files/6963944/6963944-uhd_2560_1440_25fps.mp4"
-          wget -q -O src/assets/videos/3252453.mp4 "https://videos.pexels.com/video-files/3252453/3252453-uhd_2560_1440_25fps.mp4"
-          wget -q -O src/assets/videos/7564710.mp4 "https://videos.pexels.com/video-files/7564710/7564710-hd_1920_1080_25fps.mp4"
-          wget -q -O src/assets/videos/7688336.mp4 "https://videos.pexels.com/video-files/7688336/7688336-uhd_3840_2160_30fps.mp4"
-          wget -q -O src/assets/videos/5699456.mp4 "https://videos.pexels.com/video-files/5699456/5699456-hd_1920_1080_25fps.mp4"
-          wget -q -O src/assets/videos/3296467.mp4 "https://videos.pexels.com/video-files/3296467/3296467-uhd_2560_1440_25fps.mp4"
-          wget -q -O src/assets/videos/6890254.mp4 "https://videos.pexels.com/video-files/6890254/6890254-uhd_2560_1440_25fps.mp4"
-
+        
       - name: Render videos
         run: |
           npx remotion browser ensure --browser-executable=$(which google-chrome-stable)
