@@ -43,7 +43,8 @@ jobs:
 
       - name: Render videos
         run: |
-          npx remotion browser ensure
+          npx remotion browser ensure --browser-executable=$(which google-chrome)
+          export CHROME_FLAGS="--headless=new"
           if [ -z "${{ github.event.inputs.video_id }}" ]; then
             node render-all.js
           else
