@@ -1,0 +1,64 @@
+name: Render Week 4 Videos
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "Render one video (e.g. day22) or leave blank for ALL"
+        required: false
+        default: ""
+
+jobs:
+  render:
+    name: Render Videos with Remotion
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chrome dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libnss3 libatk1.0-0 libatk-bridge2.0-0 \
+            libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
+            libxdamage1 libxfixes3 libxrandr2 libgbm1 \
+            libasound2 libpango-1.0-0 libcairo2
+
+      - name: Create output directory
+        run: mkdir -p output
+
+      - name: Render videos
+        run: |
+          npx remotion browser ensure
+          if [ -z "${{ github.event.inputs.video_id }}" ]; then
+            node render-all.js
+          else
+            npx remotion render src/index.jsx \
+              ${{ github.event.inputs.video_id }} \
+              output/${{ github.event.inputs.video_id }}_final.mp4 \
+              --codec=h264 --quality=85
+          fi
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+
+      - name: Upload rendered videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: week4-videos-${{ github.run_number }}
+          path: output/*.mp4
+          retention-days: 7
+          if-no-files-found: error

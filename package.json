@@ -1,0 +1,17 @@
+{
+  "name": "daily-wealth-building-videos",
+  "version": "1.0.0",
+  "description": "Automated faceless video generator for Daily Wealth Building",
+  "scripts": {
+    "start": "remotion studio",
+    "render-all": "node render-all.js"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.180",
+    "@remotion/compositor-linux-x64-gnu": "4.0.180",
+    "remotion": "4.0.180"
+  },
+  "remotion": {
+    "entryPoint": "src/index.jsx"
+  }
+}
