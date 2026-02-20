@@ -28,7 +28,7 @@ for (const video of VIDEOS) {
   console.log(`⏳ Rendering ${video.id}...`);
   try {
     execSync(
-      `npx remotion render src/index.jsx ${video.id} ${outputPath} --codec=h264 --quality=85 --log=error --browser-executable=$(which google-chrome)`,
+      `npx remotion render src/index.jsx ${video.id} ${outputPath} --codec=h264 --quality=85 --log=error --browser-executable=$(which google-chrome-stable) --chrome-mode=new-headless`
       { stdio: "inherit", timeout: 300000,
         env: { ...process.env, REMOTION_HEADLESS: "new" } }
     );
