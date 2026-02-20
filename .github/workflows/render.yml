@@ -31,19 +31,20 @@ jobs:
 
       - name: Install Chrome dependencies
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            libnss3 libatk1.0-0 libatk-bridge2.0-0 \
-            libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
-            libxdamage1 libxfixes3 libxrandr2 libgbm1 \
-            libasound2t64 libpango-1.0-0 libcairo2
+           sudo apt-get update -qq
+           sudo apt-get install -y wget gnupg \
+           libnss3 libatk-bridge2.0-0 \
+           libcups2 libdrm2 libxcomposite1 libxdamage1 \
+           libxrandr2 libgbm1 libasound2
+           wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+           sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
 
       - name: Create output directory
         run: mkdir -p output
 
       - name: Render videos
         run: |
-          npx remotion browser ensure --browser-executable=$(which google-chrome)
+          npx remotion browser ensure --browser-executable=$(which google-chrome-stable)
           export CHROME_FLAGS="--headless=new"
           if [ -z "${{ github.event.inputs.video_id }}" ]; then
             node render-all.js
