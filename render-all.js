@@ -28,8 +28,9 @@ for (const video of VIDEOS) {
   console.log(`⏳ Rendering ${video.id}...`);
   try {
     execSync(
-      `npx remotion render src/index.jsx ${video.id} ${outputPath} --codec=h264 --quality=85 --log=error`,
-      { stdio: "inherit", timeout: 300000 }
+      `npx remotion render src/index.jsx ${video.id} ${outputPath} --codec=h264 --quality=85 --log=error --browser-executable=$(which google-chrome)`,
+      { stdio: "inherit", timeout: 300000,
+        env: { ...process.env, REMOTION_HEADLESS: "new" } }
     );
     console.log(`✅ ${video.filename} done!\n`);
     successCount++;
@@ -40,9 +41,3 @@ for (const video of VIDEOS) {
 }
 
 console.log(`✅ Success: ${successCount}/7  ❌ Failed: ${failCount}/7`);
-if (successCount > 0) {
-  console.log(`\n📁 Videos are in: ${path.resolve(OUTPUT_DIR)}`);
-}
-if (failCount > 0) {
-  console.log("⚠️  Screenshot the error above and send to Ashley.");
-}
