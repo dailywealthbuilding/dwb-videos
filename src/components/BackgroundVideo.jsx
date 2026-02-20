@@ -32,22 +32,9 @@ const PEXELS_VIDEO_MAP = {
 };
 
 export const BackgroundVideo = ({ pexelsSearchTerms }) => {
-  const videoUrl = PEXELS_VIDEO_MAP[pexelsSearchTerms[0]];
-  if (!videoUrl) {
-    return (
-      <AbsoluteFill style={{
-        background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)"
-      }} />
-    );
-  }
   return (
-    <AbsoluteFill>
-      <Video
-        src={videoUrl}
-        style={{ width:"100%", height:"100%", objectFit:"cover" }}
-        startFrom={0}
-        muted
-      />
-    </AbsoluteFill>
+    <AbsoluteFill style={{
+      background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)"
+    }} />
   );
 };
