@@ -54,6 +54,7 @@ jobs:
           fi
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
+          REMOTION_CHROME_FLAGS: "--headless=new"
 
       - name: Upload rendered videos
         uses: actions/upload-artifact@v4
