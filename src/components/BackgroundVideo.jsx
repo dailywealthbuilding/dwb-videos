@@ -1,59 +1,56 @@
 import { OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
 
-const CLOUD = 'defyg5zro8';
-const F = `https://res.cloudinary.com/${CLOUD}/video/upload/dwb`;
-
+// Direct Pixabay CDN URLs — no Cloudinary needed
 const VIDEO_SETS = {
   day22: [
-    `${F}/entrepreneur_laptop.mp4`,
-    `${F}/person_thinking.mp4`,
-    `${F}/laptop_income.mp4`,
-    `${F}/desk_workspace.mp4`,
+    'https://cdn.pixabay.com/video/2017/07/23/10822-226624975_medium.mp4',
+    'https://cdn.pixabay.com/video/2018/03/09/14105-259487534_medium.mp4',
+    'https://cdn.pixabay.com/video/2019/04/04/22654-328405267_medium.mp4',
+    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
   ],
   day23: [
-    `${F}/social_media_phone.mp4`,
-    `${F}/social_media_phone.mp4`,
-    `${F}/content_creator.mp4`,
-    `${F}/social_media_phone.mp4`,
+    'https://cdn.pixabay.com/video/2020/05/25/40846-424680913_medium.mp4',
+    'https://cdn.pixabay.com/video/2018/10/15/18706-295017227_medium.mp4',
+    'https://cdn.pixabay.com/video/2019/09/16/27060-360554070_medium.mp4',
+    'https://cdn.pixabay.com/video/2020/05/25/40846-424680913_medium.mp4',
   ],
   day24: [
-    `${F}/content_creator.mp4`,
-    `${F}/laptop_income.mp4`,
-    `${F}/content_creator.mp4`,
-    `${F}/desk_workspace.mp4`,
+    'https://cdn.pixabay.com/video/2019/09/16/27060-360554070_medium.mp4',
+    'https://cdn.pixabay.com/video/2017/07/23/10822-226624975_medium.mp4',
+    'https://cdn.pixabay.com/video/2018/03/09/14105-259487534_medium.mp4',
+    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
   ],
   day25: [
-    `${F}/person_thinking.mp4`,
-    `${F}/writing_notes.mp4`,
-    `${F}/person_thinking.mp4`,
-    `${F}/desk_workspace.mp4`,
+    'https://cdn.pixabay.com/video/2018/03/09/14105-259487534_medium.mp4',
+    'https://cdn.pixabay.com/video/2017/07/23/10822-226624975_medium.mp4',
+    'https://cdn.pixabay.com/video/2019/04/04/22654-328405267_medium.mp4',
+    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
   ],
   day26: [
-    `${F}/frustrated_laptop.mp4`,
-    `${F}/frustrated_laptop.mp4`,
-    `${F}/small_business.mp4`,
-    `${F}/business_setup.mp4`,
+    'https://cdn.pixabay.com/video/2019/04/04/22654-328405267_medium.mp4',
+    'https://cdn.pixabay.com/video/2018/10/15/18706-295017227_medium.mp4',
+    'https://cdn.pixabay.com/video/2017/07/23/10822-226624975_medium.mp4',
+    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
   ],
   day27: [
-    `${F}/clock_time.mp4`,
-    `${F}/stopwatch_timer.mp4`,
-    `${F}/calendar_planning.mp4`,
-    `${F}/phone_filming.mp4`,
+    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
+    'https://cdn.pixabay.com/video/2018/03/09/14105-259487534_medium.mp4',
+    'https://cdn.pixabay.com/video/2020/05/25/40846-424680913_medium.mp4',
+    'https://cdn.pixabay.com/video/2019/09/16/27060-360554070_medium.mp4',
   ],
   day28: [
-    `${F}/phone_filming.mp4`,
-    `${F}/business_statistics.mp4`,
-    `${F}/desk_workspace.mp4`,
-    `${F}/entrepreneur_laptop.mp4`,
+    'https://cdn.pixabay.com/video/2018/10/15/18706-295017227_medium.mp4',
+    'https://cdn.pixabay.com/video/2019/04/04/22654-328405267_medium.mp4',
+    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
+    'https://cdn.pixabay.com/video/2017/07/23/10822-226624975_medium.mp4',
   ],
 };
 
-const CLIP_DURATION_FRAMES = 225; // 7.5s at 30fps
+const CLIP_DURATION_FRAMES = 225;
 const CROSSFADE_FRAMES = 8;
 
 export const BackgroundVideo = ({ videoId }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
   const clips = VIDEO_SETS[videoId] || VIDEO_SETS['day22'];
 
   return (
@@ -78,15 +75,13 @@ export const BackgroundVideo = ({ videoId }) => {
 
         return (
           <Sequence key={i} from={startFrame} durationInFrames={CLIP_DURATION_FRAMES}>
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                opacity,
-                transform: `scale(${zoom})`,
-                transformOrigin: 'center center',
-              }}
-            >
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              opacity,
+              transform: `scale(${zoom})`,
+              transformOrigin: 'center center',
+            }}>
               <OffthreadVideo
                 src={src}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
