@@ -97,10 +97,17 @@ jobs:
           function uploadToCloudinary(filePath, publicId) {
             const timestamp = Math.floor(Date.now() / 1000);
             const fullPublicId = 'dwb/' + publicId;
-            const params = { public_id: fullPublicId, timestamp };
+            const params = { invalidate: 'true', overwrite: 'true', public_id: fullPublicId, timestamp };
             const signature = cloudinarySign(params);
             const result = execSync(
-              `curl -s -X POST https://api.cloudinary.com/v1_1/${CLOUD}/video/upload -F "file=@${filePath}" -F "public_id=${fullPublicId}" -F "timestamp=${timestamp}" -F "api_key=${API_KEY}" -F "signature=${signature}"`
+              `curl -s -X POST https://api.cloudinary.com/v1_1/${CLOUD}/video/upload \
+              -F "file=@${filePath}" \
+              -F "public_id=${fullPublicId}" \
+              -F "timestamp=${timestamp}" \
+              -F "overwrite=true" \
+              -F "invalidate=true" \
+              -F "api_key=${API_KEY}" \
+              -F "signature=${signature}"`
             ).toString();
             const json = JSON.parse(result);
             if (json.error) throw new Error(json.error.message);
@@ -130,6 +137,9 @@ jobs:
             }
           })();
           EOF
+
+      - name: Wait for Cloudinary CDN propagation
+        run: sleep 15
 
       - name: Verify Cloudinary URLs (dwb/ folder)
         env:
@@ -188,11 +198,18 @@ jobs:
             if (!fs.existsSync(filePath)) { console.log('Missing: ' + filePath); continue; }
             const timestamp = Math.floor(Date.now() / 1000);
             const publicId = 'dwb/rendered/' + day;
-            const params = { public_id: publicId, timestamp };
+            const params = { invalidate: 'true', overwrite: 'true', public_id: publicId, timestamp };
             const signature = cloudinarySign(params);
             try {
               const result = execSync(
-                `curl -s -X POST https://api.cloudinary.com/v1_1/${CLOUD}/video/upload -F "file=@${filePath}" -F "public_id=${publicId}" -F "timestamp=${timestamp}" -F "api_key=${API_KEY}" -F "signature=${signature}"`
+                `curl -s -X POST https://api.cloudinary.com/v1_1/${CLOUD}/video/upload \
+                -F "file=@${filePath}" \
+                -F "public_id=${publicId}" \
+                -F "timestamp=${timestamp}" \
+                -F "overwrite=true" \
+                -F "invalidate=true" \
+                -F "api_key=${API_KEY}" \
+                -F "signature=${signature}"`
               ).toString();
               const json = JSON.parse(result);
               if (json.error) { console.error('❌ Failed ' + day + ': ' + json.error.message); }
