@@ -1,215 +1,228 @@
-name: Render Week 4 Videos
+name: Render DWB Videos
 
 on:
-  push:
-    branches:
-      - main
+  schedule:
+    - cron: '0 6 * * 1'
   workflow_dispatch:
-    inputs:
-      video_id:
-        description: "Render one video (e.g. day22) or leave blank for ALL"
-        required: false
-        default: ""
 
 jobs:
   render:
-    name: Render Videos with Remotion
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Install Chrome dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y wget gnupg \
-            libnss3 libatk-bridge2.0-0 \
-            libcups2 libdrm2 libxcomposite1 libxdamage1 \
-            libxrandr2 libgbm1 libxfixes3 libxkbcommon0 \
-            libpango-1.0-0 libcairo2 libasound2t64
-          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
+      - name: Install Chromium
+        run: npx remotion browser ensure
 
-      - name: Fetch and upload videos to Cloudinary
-        run: |
-          npm install cloudinary node-fetch@2
-          node -e "
-          const cloudinary = require('cloudinary').v2;
-          const fetch = require('node-fetch');
-
-          cloudinary.config({
-            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-            api_key: process.env.CLOUDINARY_API_KEY,
-            api_secret: process.env.CLOUDINARY_API_SECRET
-          });
-
-          console.log('Cloud name:', process.env.CLOUDINARY_CLOUD_NAME);
-          console.log('API key set:', !!process.env.CLOUDINARY_API_KEY);
-          console.log('API secret set:', !!process.env.CLOUDINARY_API_SECRET);
-          console.log('Pixabay key set:', !!process.env.PIXABAY_API_KEY);
-
-          const PIXABAY_KEY = process.env.PIXABAY_API_KEY;
-
-          async function run() {
-            // Step 1: Test Pixabay API
-            console.log('\n--- Testing Pixabay API ---');
-            const testUrl = \`https://pixabay.com/api/videos/?key=\${PIXABAY_KEY}&q=laptop&per_page=3\`;
-            console.log('Fetching Pixabay (key hidden)...');
-            const testRes = await fetch(testUrl);
-            console.log('Pixabay HTTP status:', testRes.status);
-            const testData = await testRes.json();
-            console.log('Pixabay response preview:', JSON.stringify(testData).substring(0, 400));
-
-            if (!testData.hits || testData.hits.length === 0) {
-              console.log('💥 Pixabay returned no results — check your API key secret');
-              process.exit(1);
-            }
-
-            console.log('✅ Pixabay working, totalHits:', testData.totalHits);
-            console.log('Sample video URL:', testData.hits[0].videos.medium.url);
-
-            // Step 2: Test Cloudinary with first video
-            console.log('\n--- Testing Cloudinary upload ---');
-            const sampleVideoUrl = testData.hits[0].videos.medium.url;
-            try {
-              const result = await cloudinary.uploader.upload(sampleVideoUrl, {
-                public_id: 'entrepreneur_laptop',
-                resource_type: 'video',
-                overwrite: true
-              });
-              console.log('✅ Cloudinary upload success!');
-              console.log('Cloudinary URL:', result.secure_url);
-            } catch(e) {
-              console.log('❌ Cloudinary upload FAILED:', e.message);
-              process.exit(1);
-            }
-
-            // Step 3: Upload the remaining 14 videos
-            console.log('\n--- Uploading remaining videos ---');
-            const searches = [
-              { q: 'person thinking',      id: 'person_thinking' },
-              { q: 'writing notes',        id: 'writing_notes' },
-              { q: 'business setup',       id: 'business_setup' },
-              { q: 'stopwatch timer',      id: 'stopwatch_timer' },
-              { q: 'content creator',      id: 'content_creator' },
-              { q: 'social media phone',   id: 'social_media_phone' },
-              { q: 'business statistics',  id: 'business_statistics' },
-              { q: 'small business',       id: 'small_business' },
-              { q: 'laptop income',        id: 'laptop_income' },
-              { q: 'frustrated laptop',    id: 'frustrated_laptop' },
-              { q: 'desk workspace',       id: 'desk_workspace' },
-              { q: 'phone filming',        id: 'phone_filming' },
-              { q: 'clock time',           id: 'clock_time' },
-              { q: 'calendar planning',    id: 'calendar_planning' }
-            ];
-
-            let failed = 0;
-            for (const item of searches) {
-              try {
-                const url = \`https://pixabay.com/api/videos/?key=\${PIXABAY_KEY}&q=\${encodeURIComponent(item.q)}&per_page=3\`;
-                const res = await fetch(url);
-                const data = await res.json();
-                if (!data.hits || !data.hits[0]) {
-                  console.log('⚠️  No Pixabay results for:', item.q, '| Full response:', JSON.stringify(data));
-                  failed++;
-                  continue;
-                }
-                const videoUrl = data.hits[0].videos.medium.url;
-                await cloudinary.uploader.upload(videoUrl, {
-                  public_id: item.id,
-                  resource_type: 'video',
-                  overwrite: true
-                });
-                console.log('✅', item.id);
-              } catch(e) {
-                console.log('❌', item.id, ':', e.message);
-                failed++;
-              }
-            }
-
-            if (failed > 0) {
-              console.log('\n💥', failed, 'uploads failed — fix above errors before rendering');
-              process.exit(1);
-            }
-            console.log('\n🎉 All 15 videos uploaded to Cloudinary successfully');
-          }
-
-          run().catch(e => {
-            console.log('💥 Fatal error:', e.message);
-            process.exit(1);
-          });
-          "
+      - name: Upload background videos to Cloudinary (dwb/ folder)
         env:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-
-      - name: Verify Cloudinary videos exist
         run: |
-          npm install node-fetch@2
           node -e "
-          const fetch = require('node-fetch');
-          const ids = [
-            'entrepreneur_laptop','person_thinking','writing_notes','business_setup',
-            'stopwatch_timer','content_creator','social_media_phone','business_statistics',
-            'small_business','laptop_income','frustrated_laptop','desk_workspace',
-            'phone_filming','clock_time','calendar_planning'
-          ];
+          const https = require('https');
+          const crypto = require('crypto');
+          const fs = require('fs');
+
           const CLOUD = process.env.CLOUDINARY_CLOUD_NAME;
-          async function verify() {
-            let missing = 0;
-            for (const id of ids) {
-              const url = \`https://res.cloudinary.com/\${CLOUD}/video/upload/\${id}.mp4\`;
-              const res = await fetch(url, { method: 'HEAD' });
-              if (res.ok) {
-                console.log('✅', id);
-              } else {
-                console.log('❌ MISSING:', id, '(HTTP', res.status + ')');
-                missing++;
+          const API_KEY = process.env.CLOUDINARY_API_KEY;
+          const API_SECRET = process.env.CLOUDINARY_API_SECRET;
+          const PIXABAY_KEY = process.env.PIXABAY_API_KEY;
+
+          const ASSETS = [
+            { id: 'entrepreneur_laptop', query: 'entrepreneur working laptop' },
+            { id: 'person_thinking', query: 'person thinking' },
+            { id: 'writing_notes', query: 'writing notes desk' },
+            { id: 'business_setup', query: 'online business setup' },
+            { id: 'stopwatch_timer', query: 'timer stopwatch' },
+            { id: 'content_creator', query: 'content creator desk setup' },
+            { id: 'social_media_phone', query: 'social media phone' },
+            { id: 'business_statistics', query: 'social media statistics screen' },
+            { id: 'small_business', query: 'small business owner' },
+            { id: 'laptop_income', query: 'online income laptop' },
+            { id: 'frustrated_laptop', query: 'frustrated person laptop' },
+            { id: 'desk_workspace', query: 'home office workspace' },
+            { id: 'phone_filming', query: 'phone filming setup' },
+            { id: 'clock_time', query: 'clock time management' },
+            { id: 'calendar_planning', query: 'calendar planning' },
+          ];
+
+          function cloudinarySign(params) {
+            const sorted = Object.keys(params).sort().map(k => k + '=' + params[k]).join('&');
+            return crypto.createHash('sha256').update(sorted + API_SECRET).digest('hex');
+          }
+
+          async function fetchJSON(url) {
+            return new Promise((resolve, reject) => {
+              https.get(url, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => resolve(JSON.parse(data)));
+              }).on('error', reject);
+            });
+          }
+
+          async function downloadFile(url, dest) {
+            return new Promise((resolve, reject) => {
+              const file = fs.createWriteStream(dest);
+              https.get(url, res => {
+                if (res.statusCode === 301 || res.statusCode === 302) {
+                  fs.unlinkSync(dest);
+                  downloadFile(res.headers.location, dest).then(resolve).catch(reject);
+                  return;
+                }
+                res.pipe(file);
+                file.on('finish', () => { file.close(); resolve(); });
+              }).on('error', reject);
+            });
+          }
+
+          async function uploadToCloudinary(filePath, publicId) {
+            const timestamp = Math.floor(Date.now() / 1000);
+            const params = { public_id: 'dwb/' + publicId, timestamp };
+            const signature = cloudinarySign(params);
+            const { default: fd } = await import('form-data');
+            const form = new fd();
+            form.append('file', fs.createReadStream(filePath));
+            form.append('public_id', 'dwb/' + publicId);
+            form.append('timestamp', timestamp.toString());
+            form.append('api_key', API_KEY);
+            form.append('signature', signature);
+            return new Promise((resolve, reject) => {
+              const req = https.request({
+                hostname: 'api.cloudinary.com',
+                path: '/v1_1/' + CLOUD + '/video/upload',
+                method: 'POST',
+                headers: form.getHeaders(),
+              }, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => {
+                  const json = JSON.parse(data);
+                  if (json.error) reject(new Error(json.error.message));
+                  else resolve(json);
+                });
+              });
+              req.on('error', reject);
+              form.pipe(req);
+            });
+          }
+
+          (async () => {
+            for (const item of ASSETS) {
+              try {
+                console.log('Processing: ' + item.id);
+                const pixabayUrl = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY + '&q=' + encodeURIComponent(item.query) + '&per_page=3';
+                const data = await fetchJSON(pixabayUrl);
+                if (!data.hits || data.hits.length === 0) { console.log('No results for ' + item.query); continue; }
+                const videoUrl = data.hits[0].videos.medium.url;
+                const tmpFile = '/tmp/' + item.id + '.mp4';
+                await downloadFile(videoUrl, tmpFile);
+                const result = await uploadToCloudinary(tmpFile, item.id);
+                console.log('Uploaded: dwb/' + item.id + ' -> ' + result.secure_url);
+                fs.unlinkSync(tmpFile);
+              } catch(e) {
+                console.error('Failed ' + item.id + ': ' + e.message);
               }
             }
-            if (missing > 0) {
-              console.log('\n💥', missing, 'videos missing from Cloudinary — cannot render');
-              process.exit(1);
-            }
-            console.log('\n✅ All', ids.length, 'videos confirmed in Cloudinary');
-          }
-          verify().catch(e => {
-            console.log('💥 Verify error:', e.message);
-            process.exit(1);
-          });
+          })();
           "
+
+      - name: Verify Cloudinary URLs (dwb/ folder)
         env:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-
-      - name: Create output directory
-        run: mkdir -p output
-
-      - name: Render videos
         run: |
-          if [ -z "${{ github.event.inputs.video_id }}" ]; then
-            node render-all.js
-          else
-            node render-all.js ${{ github.event.inputs.video_id }}
-          fi
-        env:
-          NODE_OPTIONS: "--max-old-space-size=4096"
+          node -e "
+          const https = require('https');
+          const CLOUD = process.env.CLOUDINARY_CLOUD_NAME;
+          const ids = ['entrepreneur_laptop','person_thinking','writing_notes','business_setup','stopwatch_timer','content_creator','social_media_phone','business_statistics','small_business','laptop_income','frustrated_laptop','desk_workspace','phone_filming','clock_time','calendar_planning'];
+          let failed = 0;
+          const checks = ids.map(id => new Promise(resolve => {
+            const url = 'https://res.cloudinary.com/' + CLOUD + '/video/upload/dwb/' + id + '.mp4';
+            https.get(url, res => {
+              if (res.statusCode === 200) { console.log('✅ ' + id); resolve(true); }
+              else { console.log('❌ ' + id + ' — ' + res.statusCode); failed++; resolve(false); }
+            }).on('error', e => { console.log('❌ ' + id + ' — ' + e.message); failed++; resolve(false); });
+          }));
+          Promise.all(checks).then(() => { if (failed > 0) { console.error(failed + ' assets failed'); process.exit(1); } else console.log('All assets verified ✅'); });
+          "
 
-      - name: Upload rendered videos
-        uses: actions/upload-artifact@v4
-        with:
-          name: week4-videos-${{ github.run_number }}
-          path: output/*.mp4
-          retention-days: 7
-          if-no-files-found: error
+      - name: Render all videos
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: node render-all.js
+
+      - name: Upload rendered videos to Cloudinary
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const https = require('https');
+          const crypto = require('crypto');
+
+          const CLOUD = process.env.CLOUDINARY_CLOUD_NAME;
+          const API_KEY = process.env.CLOUDINARY_API_KEY;
+          const API_SECRET = process.env.CLOUDINARY_API_SECRET;
+
+          function cloudinarySign(params) {
+            const sorted = Object.keys(params).sort().map(k => k + '=' + params[k]).join('&');
+            return crypto.createHash('sha256').update(sorted + API_SECRET).digest('hex');
+          }
+
+          const videos = ['day22','day23','day24','day25','day26','day27','day28'];
+
+          (async () => {
+            const { default: fd } = await import('form-data');
+            for (const day of videos) {
+              const filePath = 'out/' + day + '.mp4';
+              if (!fs.existsSync(filePath)) { console.log('Missing: ' + filePath); continue; }
+              const timestamp = Math.floor(Date.now() / 1000);
+              const publicId = 'dwb/rendered/' + day;
+              const params = { public_id: publicId, timestamp };
+              const signature = cloudinarySign(params);
+              const form = new fd();
+              form.append('file', fs.createReadStream(filePath));
+              form.append('public_id', publicId);
+              form.append('timestamp', timestamp.toString());
+              form.append('api_key', API_KEY);
+              form.append('signature', signature);
+              await new Promise((resolve, reject) => {
+                const req = https.request({
+                  hostname: 'api.cloudinary.com',
+                  path: '/v1_1/' + CLOUD + '/video/upload',
+                  method: 'POST',
+                  headers: form.getHeaders(),
+                }, res => {
+                  let data = '';
+                  res.on('data', d => data += d);
+                  res.on('end', () => {
+                    const json = JSON.parse(data);
+                    if (json.error) { console.error('Failed ' + day + ': ' + json.error.message); reject(); }
+                    else { console.log('✅ Uploaded ' + day + ': ' + json.secure_url); resolve(); }
+                  });
+                });
+                req.on('error', reject);
+                form.pipe(req);
+              });
+            }
+          })();
+          "
