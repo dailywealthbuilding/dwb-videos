@@ -1,9 +1,9 @@
-import { Composition } from 'remotion';
+import { registerRoot, Composition } from 'remotion';
 import { VideoComposition } from './compositions/VideoComposition.jsx';
 
-export const RemotionRoot = () => {
-  const days = ['day22','day23','day24','day25','day26','day27','day28'];
+const days = ['day22','day23','day24','day25','day26','day27','day28'];
 
+export const RemotionRoot = () => {
   return (
     <>
       {days.map(dayId => (
@@ -21,3 +21,5 @@ export const RemotionRoot = () => {
     </>
   );
 };
+
+registerRoot(RemotionRoot);
