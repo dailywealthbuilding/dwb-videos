@@ -1,129 +1,39 @@
-import { AbsoluteFill, OffthreadVideo, Sequence, useVideoConfig, useCurrentFrame, interpolate } from "remotion";
-
 const CLOUD = "defyg5zro8";
+const F = `https://res.cloudinary.com/${CLOUD}/video/upload/dwb`;
 
-// Keys here must exactly match the Cloudinary public_id values uploaded in render.yml
 const VIDEO_MAP = {
-  "entrepreneur working laptop": `https://res.cloudinary.com/${CLOUD}/video/upload/entrepreneur_laptop.mp4`,
-  "person thinking":             `https://res.cloudinary.com/${CLOUD}/video/upload/person_thinking.mp4`,
-  "writing notes desk":          `https://res.cloudinary.com/${CLOUD}/video/upload/writing_notes.mp4`,
-  "writing notes":               `https://res.cloudinary.com/${CLOUD}/video/upload/writing_notes.mp4`,
-  "online income laptop":        `https://res.cloudinary.com/${CLOUD}/video/upload/laptop_income.mp4`,
-  "social media phone":          `https://res.cloudinary.com/${CLOUD}/video/upload/social_media_phone.mp4`,
-  "social media marketing":      `https://res.cloudinary.com/${CLOUD}/video/upload/business_statistics.mp4`,
-  "content creator desk setup":  `https://res.cloudinary.com/${CLOUD}/video/upload/content_creator.mp4`,
-  "editing video computer":      `https://res.cloudinary.com/${CLOUD}/video/upload/desk_workspace.mp4`,
-  "frustrated person laptop":    `https://res.cloudinary.com/${CLOUD}/video/upload/frustrated_laptop.mp4`,
-  "home office workspace":       `https://res.cloudinary.com/${CLOUD}/video/upload/desk_workspace.mp4`,
-  "clock time management":       `https://res.cloudinary.com/${CLOUD}/video/upload/clock_time.mp4`,
-  "calendar planning":           `https://res.cloudinary.com/${CLOUD}/video/upload/calendar_planning.mp4`,
-  "productive workspace morning":`https://res.cloudinary.com/${CLOUD}/video/upload/desk_workspace.mp4`,
-  "online business setup":       `https://res.cloudinary.com/${CLOUD}/video/upload/business_setup.mp4`,
-  "small business owner":        `https://res.cloudinary.com/${CLOUD}/video/upload/small_business.mp4`,
-  "person on phone":             `https://res.cloudinary.com/${CLOUD}/video/upload/social_media_phone.mp4`,
-  "tiktok phone screen":         `https://res.cloudinary.com/${CLOUD}/video/upload/social_media_phone.mp4`,
-  "youtube laptop screen":       `https://res.cloudinary.com/${CLOUD}/video/upload/content_creator.mp4`,
-  "person deciding options":     `https://res.cloudinary.com/${CLOUD}/video/upload/person_thinking.mp4`,
-  "person editing video laptop": `https://res.cloudinary.com/${CLOUD}/video/upload/laptop_income.mp4`,
-  "phone filming setup":         `https://res.cloudinary.com/${CLOUD}/video/upload/phone_filming.mp4`,
-  "person stressed busy":        `https://res.cloudinary.com/${CLOUD}/video/upload/frustrated_laptop.mp4`,
-  "social media statistics screen": `https://res.cloudinary.com/${CLOUD}/video/upload/business_statistics.mp4`,
-  "timer stopwatch":             `https://res.cloudinary.com/${CLOUD}/video/upload/stopwatch_timer.mp4`,
-  "person thinking desk":        `https://res.cloudinary.com/${CLOUD}/video/upload/person_thinking.mp4`,
+  "entrepreneur working laptop": `${F}/entrepreneur_laptop.mp4`,
+  "person thinking":             `${F}/person_thinking.mp4`,
+  "writing notes desk":          `${F}/writing_notes.mp4`,
+  "writing notes":               `${F}/writing_notes.mp4`,
+  "online income laptop":        `${F}/laptop_income.mp4`,
+  "social media phone":          `${F}/social_media_phone.mp4`,
+  "social media marketing":      `${F}/business_statistics.mp4`,
+  "content creator desk setup":  `${F}/content_creator.mp4`,
+  "editing video computer":      `${F}/desk_workspace.mp4`,
+  "frustrated person laptop":    `${F}/frustrated_laptop.mp4`,
+  "home office workspace":       `${F}/desk_workspace.mp4`,
+  "clock time management":       `${F}/clock_time.mp4`,
+  "calendar planning":           `${F}/calendar_planning.mp4`,
+  "productive workspace morning":`${F}/desk_workspace.mp4`,
+  "online business setup":       `${F}/business_setup.mp4`,
+  "small business owner":        `${F}/small_business.mp4`,
+  "person on phone":             `${F}/social_media_phone.mp4`,
+  "tiktok phone screen":         `${F}/social_media_phone.mp4`,
+  "youtube laptop screen":       `${F}/content_creator.mp4`,
+  "person deciding options":     `${F}/person_thinking.mp4`,
+  "person editing video laptop": `${F}/laptop_income.mp4`,
+  "phone filming setup":         `${F}/phone_filming.mp4`,
+  "person stressed busy":        `${F}/frustrated_laptop.mp4`,
+  "social media statistics screen": `${F}/business_statistics.mp4`,
+  "timer stopwatch":             `${F}/stopwatch_timer.mp4`,
+  "person thinking desk":        `${F}/person_thinking.mp4`,
 };
 
 const FALLBACKS = [
-  `https://res.cloudinary.com/${CLOUD}/video/upload/entrepreneur_laptop.mp4`,
-  `https://res.cloudinary.com/${CLOUD}/video/upload/person_thinking.mp4`,
-  `https://res.cloudinary.com/${CLOUD}/video/upload/desk_workspace.mp4`,
-  `https://res.cloudinary.com/${CLOUD}/video/upload/laptop_income.mp4`,
-  `https://res.cloudinary.com/${CLOUD}/video/upload/business_statistics.mp4`,
+  `${F}/entrepreneur_laptop.mp4`,
+  `${F}/person_thinking.mp4`,
+  `${F}/desk_workspace.mp4`,
+  `${F}/laptop_income.mp4`,
+  `${F}/business_statistics.mp4`,
 ];
-
-const FADE_FRAMES = 8;
-
-function resolveUrl(term, index) {
-  const key = Object.keys(VIDEO_MAP).find(
-    (k) => k.toLowerCase() === String(term).toLowerCase()
-  );
-  return key ? VIDEO_MAP[key] : FALLBACKS[index % FALLBACKS.length];
-}
-
-export const BackgroundVideo = ({ pixabaySearchTerms }) => {
-  const { durationInFrames } = useVideoConfig();
-  const frame = useCurrentFrame();
-
-  const terms = Array.isArray(pixabaySearchTerms)
-    ? pixabaySearchTerms
-    : [pixabaySearchTerms];
-
-  const clipCount = terms.length;
-  const framesPerClip = Math.floor(durationInFrames / clipCount);
-
-  const clips = terms.map((term, i) => ({
-    src: resolveUrl(term, i),
-    startFrame: i * framesPerClip,
-    durationFrames:
-      i === clipCount - 1
-        ? durationInFrames - i * framesPerClip
-        : framesPerClip,
-  }));
-
-  return (
-    <AbsoluteFill>
-      {clips.map((clip, i) => {
-        const clipFrame = frame - clip.startFrame;
-
-        const scale = interpolate(
-          clipFrame,
-          [0, clip.durationFrames],
-          [1.0, 1.08],
-          { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-        );
-
-        const fadeIn = i === 0
-          ? 1
-          : interpolate(
-              frame,
-              [clip.startFrame, clip.startFrame + FADE_FRAMES],
-              [0, 1],
-              { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-            );
-
-        const fadeOut = i === clipCount - 1
-          ? 1
-          : interpolate(
-              frame,
-              [clip.startFrame + clip.durationFrames - FADE_FRAMES, clip.startFrame + clip.durationFrames],
-              [1, 0],
-              { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-            );
-
-        const opacity = Math.min(fadeIn, fadeOut);
-
-        return (
-          <Sequence
-            key={`clip-${i}`}
-            from={clip.startFrame}
-            durationInFrames={clip.durationFrames}
-          >
-            <AbsoluteFill style={{ overflow: "hidden", opacity }}>
-              <OffthreadVideo
-                src={clip.src}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  transform: `scale(${scale})`,
-                  transformOrigin: "center center",
-                }}
-                startFrom={0}
-                muted
-              />
-            </AbsoluteFill>
-          </Sequence>
-        );
-      })}
-    </AbsoluteFill>
-  );
-};
