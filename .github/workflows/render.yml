@@ -46,54 +46,152 @@ jobs:
           node -e "
           const cloudinary = require('cloudinary').v2;
           const fetch = require('node-fetch');
+
           cloudinary.config({
             cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
             api_key: process.env.CLOUDINARY_API_KEY,
             api_secret: process.env.CLOUDINARY_API_SECRET
           });
+
+          console.log('Cloud name:', process.env.CLOUDINARY_CLOUD_NAME);
+          console.log('API key set:', !!process.env.CLOUDINARY_API_KEY);
+          console.log('API secret set:', !!process.env.CLOUDINARY_API_SECRET);
+          console.log('Pixabay key set:', !!process.env.PIXABAY_API_KEY);
+
           const PIXABAY_KEY = process.env.PIXABAY_API_KEY;
-          const searches = [
-            { q: 'entrepreneur laptop',  id: 'entrepreneur_laptop' },
-            { q: 'person thinking',      id: 'person_thinking' },
-            { q: 'writing notes',        id: 'writing_notes' },
-            { q: 'business setup',       id: 'business_setup' },
-            { q: 'stopwatch timer',      id: 'stopwatch_timer' },
-            { q: 'content creator',      id: 'content_creator' },
-            { q: 'social media phone',   id: 'social_media_phone' },
-            { q: 'business statistics',  id: 'business_statistics' },
-            { q: 'small business',       id: 'small_business' },
-            { q: 'laptop income',        id: 'laptop_income' },
-            { q: 'frustrated laptop',    id: 'frustrated_laptop' },
-            { q: 'desk workspace',       id: 'desk_workspace' },
-            { q: 'phone filming',        id: 'phone_filming' },
-            { q: 'clock time',           id: 'clock_time' },
-            { q: 'calendar planning',    id: 'calendar_planning' }
-          ];
+
           async function run() {
+            // Step 1: Test Pixabay API
+            console.log('\n--- Testing Pixabay API ---');
+            const testUrl = \`https://pixabay.com/api/videos/?key=\${PIXABAY_KEY}&q=laptop&per_page=3\`;
+            console.log('Fetching Pixabay (key hidden)...');
+            const testRes = await fetch(testUrl);
+            console.log('Pixabay HTTP status:', testRes.status);
+            const testData = await testRes.json();
+            console.log('Pixabay response preview:', JSON.stringify(testData).substring(0, 400));
+
+            if (!testData.hits || testData.hits.length === 0) {
+              console.log('💥 Pixabay returned no results — check your API key secret');
+              process.exit(1);
+            }
+
+            console.log('✅ Pixabay working, totalHits:', testData.totalHits);
+            console.log('Sample video URL:', testData.hits[0].videos.medium.url);
+
+            // Step 2: Test Cloudinary with first video
+            console.log('\n--- Testing Cloudinary upload ---');
+            const sampleVideoUrl = testData.hits[0].videos.medium.url;
+            try {
+              const result = await cloudinary.uploader.upload(sampleVideoUrl, {
+                public_id: 'entrepreneur_laptop',
+                resource_type: 'video',
+                overwrite: true
+              });
+              console.log('✅ Cloudinary upload success!');
+              console.log('Cloudinary URL:', result.secure_url);
+            } catch(e) {
+              console.log('❌ Cloudinary upload FAILED:', e.message);
+              process.exit(1);
+            }
+
+            // Step 3: Upload the remaining 14 videos
+            console.log('\n--- Uploading remaining videos ---');
+            const searches = [
+              { q: 'person thinking',      id: 'person_thinking' },
+              { q: 'writing notes',        id: 'writing_notes' },
+              { q: 'business setup',       id: 'business_setup' },
+              { q: 'stopwatch timer',      id: 'stopwatch_timer' },
+              { q: 'content creator',      id: 'content_creator' },
+              { q: 'social media phone',   id: 'social_media_phone' },
+              { q: 'business statistics',  id: 'business_statistics' },
+              { q: 'small business',       id: 'small_business' },
+              { q: 'laptop income',        id: 'laptop_income' },
+              { q: 'frustrated laptop',    id: 'frustrated_laptop' },
+              { q: 'desk workspace',       id: 'desk_workspace' },
+              { q: 'phone filming',        id: 'phone_filming' },
+              { q: 'clock time',           id: 'clock_time' },
+              { q: 'calendar planning',    id: 'calendar_planning' }
+            ];
+
+            let failed = 0;
             for (const item of searches) {
-              const url = \`https://pixabay.com/api/videos/?key=\${PIXABAY_KEY}&q=\${encodeURIComponent(item.q)}&per_page=3\`;
-              const res = await fetch(url);
-              const data = await res.json();
-              if (data.hits && data.hits[0]) {
+              try {
+                const url = \`https://pixabay.com/api/videos/?key=\${PIXABAY_KEY}&q=\${encodeURIComponent(item.q)}&per_page=3\`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (!data.hits || !data.hits[0]) {
+                  console.log('⚠️  No Pixabay results for:', item.q, '| Full response:', JSON.stringify(data));
+                  failed++;
+                  continue;
+                }
                 const videoUrl = data.hits[0].videos.medium.url;
                 await cloudinary.uploader.upload(videoUrl, {
                   public_id: item.id,
                   resource_type: 'video',
                   overwrite: true
-                }).then(() => console.log('✅ ' + item.id))
-                  .catch(e => console.log('❌ ' + item.id + ': ' + e.message));
-              } else {
-                console.log('⚠️ No results for: ' + item.q);
+                });
+                console.log('✅', item.id);
+              } catch(e) {
+                console.log('❌', item.id, ':', e.message);
+                failed++;
               }
             }
+
+            if (failed > 0) {
+              console.log('\n💥', failed, 'uploads failed — fix above errors before rendering');
+              process.exit(1);
+            }
+            console.log('\n🎉 All 15 videos uploaded to Cloudinary successfully');
           }
-          run();
+
+          run().catch(e => {
+            console.log('💥 Fatal error:', e.message);
+            process.exit(1);
+          });
           "
         env:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+
+      - name: Verify Cloudinary videos exist
+        run: |
+          npm install node-fetch@2
+          node -e "
+          const fetch = require('node-fetch');
+          const ids = [
+            'entrepreneur_laptop','person_thinking','writing_notes','business_setup',
+            'stopwatch_timer','content_creator','social_media_phone','business_statistics',
+            'small_business','laptop_income','frustrated_laptop','desk_workspace',
+            'phone_filming','clock_time','calendar_planning'
+          ];
+          const CLOUD = process.env.CLOUDINARY_CLOUD_NAME;
+          async function verify() {
+            let missing = 0;
+            for (const id of ids) {
+              const url = \`https://res.cloudinary.com/\${CLOUD}/video/upload/\${id}.mp4\`;
+              const res = await fetch(url, { method: 'HEAD' });
+              if (res.ok) {
+                console.log('✅', id);
+              } else {
+                console.log('❌ MISSING:', id, '(HTTP', res.status + ')');
+                missing++;
+              }
+            }
+            if (missing > 0) {
+              console.log('\n💥', missing, 'videos missing from Cloudinary — cannot render');
+              process.exit(1);
+            }
+            console.log('\n✅ All', ids.length, 'videos confirmed in Cloudinary');
+          }
+          verify().catch(e => {
+            console.log('💥 Verify error:', e.message);
+            process.exit(1);
+          });
+          "
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
 
       - name: Create output directory
         run: mkdir -p output
