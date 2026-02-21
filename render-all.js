@@ -17,13 +17,19 @@ const OUT_DIR = path.resolve('./out');
 
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
+// Use chrome-headless-shell installed by Remotion, fallback to system chrome
+const browserExecutable = process.env.REMOTION_CHROME || undefined;
+
 const CHROMIUM_OPTIONS = {
+  disableWebSecurity: true,
+  ignoreCertificateErrors: true,
   headless: true,
-  args: ['--headless=new', '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
 };
 
 (async () => {
-  console.log(`🎬 Daily Wealth Building — Rendering ${VIDEOS.length} video(s)...\n`);
+  console.log(`🎬 Daily Wealth Building — Rendering ${VIDEOS.length} video(s)...`);
+  if (browserExecutable) console.log(`🌐 Using browser: ${browserExecutable}\n`);
+
   let success = 0;
   let failed = 0;
 
@@ -36,6 +42,7 @@ const CHROMIUM_OPTIONS = {
         serveUrl: ENTRY_POINT,
         id: video.compositionId,
         inputProps: { videoId: video.id },
+        ...(browserExecutable && { browserExecutable }),
         chromiumOptions: CHROMIUM_OPTIONS,
       });
 
@@ -45,6 +52,7 @@ const CHROMIUM_OPTIONS = {
         codec: 'h264',
         outputLocation,
         inputProps: { videoId: video.id },
+        ...(browserExecutable && { browserExecutable }),
         chromiumOptions: CHROMIUM_OPTIONS,
       });
 
