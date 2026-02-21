@@ -25,6 +25,112 @@ jobs:
       - name: Install chrome-headless-shell
         run: npx remotion browser ensure
 
+      - name: Download background videos from Pixabay
+        env:
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+        run: |
+          mkdir -p public/videos
+          node << 'EOF'
+          const https = require('https');
+          const fs = require('fs');
+
+          const PIXABAY_KEY = process.env.PIXABAY_API_KEY;
+
+          const ASSETS = [
+            { id: 'entrepreneur_laptop',  q: 'entrepreneur laptop' },
+            { id: 'person_thinking',      q: 'person thinking' },
+            { id: 'writing_notes',        q: 'writing notes' },
+            { id: 'business_setup',       q: 'business setup' },
+            { id: 'stopwatch_timer',      q: 'stopwatch timer' },
+            { id: 'content_creator',      q: 'content creator' },
+            { id: 'social_media_phone',   q: 'social media phone' },
+            { id: 'business_statistics',  q: 'business statistics' },
+            { id: 'small_business',       q: 'small business' },
+            { id: 'laptop_income',        q: 'laptop income' },
+            { id: 'frustrated_laptop',    q: 'frustrated laptop' },
+            { id: 'desk_workspace',       q: 'desk workspace' },
+            { id: 'phone_filming',        q: 'phone filming' },
+            { id: 'clock_time',           q: 'clock time' },
+            { id: 'calendar_planning',    q: 'calendar planning' },
+          ];
+
+          function fetchJSON(url) {
+            return new Promise((resolve, reject) => {
+              https.get(url, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+              }).on('error', reject);
+            });
+          }
+
+          function downloadFile(url, dest) {
+            return new Promise((resolve, reject) => {
+              const file = fs.createWriteStream(dest);
+              const get = (u) => {
+                https.get(u, res => {
+                  if (res.statusCode === 301 || res.statusCode === 302) {
+                    file.close();
+                    return get(res.headers.location);
+                  }
+                  if (res.statusCode !== 200) {
+                    reject(new Error('HTTP ' + res.statusCode + ' for ' + u));
+                    return;
+                  }
+                  res.pipe(file);
+                  file.on('finish', () => { file.close(); resolve(); });
+                }).on('error', reject);
+              };
+              get(url);
+            });
+          }
+
+          (async () => {
+            let failed = 0;
+            for (const item of ASSETS) {
+              const dest = 'public/videos/' + item.id + '.mp4';
+              if (fs.existsSync(dest)) {
+                console.log('⏭  Already exists: ' + item.id);
+                continue;
+              }
+              try {
+                const url = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY + '&q=' + encodeURIComponent(item.q) + '&per_page=5&video_type=film';
+                const data = await fetchJSON(url);
+                if (!data.hits || data.hits.length === 0) {
+                  throw new Error('No Pixabay results for: ' + item.q);
+                }
+                // Try hits in order until one downloads successfully
+                let downloaded = false;
+                for (const hit of data.hits) {
+                  const videoUrl = hit.videos.medium.url;
+                  try {
+                    console.log('⬇️  Downloading ' + item.id + ' from ' + videoUrl);
+                    await downloadFile(videoUrl, dest);
+                    const size = fs.statSync(dest).size;
+                    if (size < 10000) throw new Error('File too small: ' + size);
+                    console.log('✅ ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
+                    downloaded = true;
+                    break;
+                  } catch(e) {
+                    console.log('⚠️  Failed hit, trying next: ' + e.message);
+                    if (fs.existsSync(dest)) fs.unlinkSync(dest);
+                  }
+                }
+                if (!downloaded) {
+                  console.log('❌ All hits failed for: ' + item.id);
+                  failed++;
+                }
+              } catch(e) {
+                console.log('❌ ' + item.id + ': ' + e.message);
+                failed++;
+              }
+            }
+            console.log('\nDownloaded to public/videos/');
+            fs.readdirSync('public/videos').forEach(f => console.log(' - ' + f));
+            if (failed > 0) process.exit(1);
+          })();
+          EOF
+
       - name: Render all videos
         run: |
           BROWSER="./node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell"
