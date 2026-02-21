@@ -168,8 +168,18 @@ jobs:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-          REMOTION_CHROME: ${{ env.REMOTION_CHROME }}
-        run: node render-all.js
+        run: |
+          BROWSER="./node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell"
+          mkdir -p out
+          for DAY in day22 day23 day24 day25 day26 day27 day28; do
+            echo "⚙ Rendering ${DAY}..."
+            npx remotion render src/index.jsx VideoComposition out/${DAY}_final.mp4 \
+              --props="{\"videoId\":\"${DAY}\"}" \
+              --browser-executable="$BROWSER" \
+              --codec=h264 \
+              --log=verbose \
+            && echo "✅ ${DAY} done" || echo "❌ ${DAY} FAILED"
+          done
 
       - name: Upload rendered videos to Cloudinary
         env:
