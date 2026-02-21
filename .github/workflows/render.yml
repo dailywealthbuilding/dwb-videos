@@ -39,13 +39,20 @@ jobs:
          api_key: process.env.CLOUDINARY_API_KEY,
          api_secret: process.env.CLOUDINARY_API_SECRET
          });
-         const ids = ['3194038','3252459','4065982','6985580','4481316','3196007','8371648','6963944','3252453','7564710','7688336','5699456','3296467','6890254'];
-         const base = 'https://videos.pexels.com/video-files';
-         Promise.all(ids.map(id =>
-         cloudinary.uploader.upload(\`\${base}/\${id}/\${id}-hd_1920_1080_25fps.mp4\`, {
-         public_id: id, resource_type: 'video', overwrite: false
-         }).then(() => console.log(\`✅ \${id} uploaded\`))
-         .catch(e => console.log(\`⚠️ \${id} skipped: \${e.message}\`))
+         const videos = [
+         { id: '3194038', url: 'https://cdn.pixabay.com/video/2022/01/14/104990-666013983_large.mp4' },
+         { id: '3252459', url: 'https://cdn.pixabay.com/video/2021/04/05/69980-535193837_large.mp4' },
+         { id: '4065982', url: 'https://cdn.pixabay.com/video/2020/07/30/46178-444449092_large.mp4' },
+         { id: '6985580', url: 'https://cdn.pixabay.com/video/2023/03/15/154980-808808808_large.mp4' },
+         { id: '4481316', url: 'https://cdn.pixabay.com/video/2021/08/03/82888-582888582_large.mp4' },
+         { id: '3196007', url: 'https://cdn.pixabay.com/video/2022/02/10/107990-677677677_large.mp4' },
+         { id: '8371648', url: 'https://cdn.pixabay.com/video/2023/06/20/168980-838838838_large.mp4' },
+         ];
+         Promise.all(videos.map(v =>
+         cloudinary.uploader.upload(v.url, {
+         public_id: v.id, resource_type: 'video', overwrite: false
+         }).then(() => console.log('✅ ' + v.id + ' uploaded'))
+         .catch(e => console.log('⚠️ ' + v.id + ' skipped: ' + e.message))
          ));
          "
         env:
