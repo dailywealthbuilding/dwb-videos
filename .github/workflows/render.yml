@@ -22,6 +22,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install chrome-headless-shell
+        run: npx remotion browser ensure
+
       - name: Install Chromium
         run: npx remotion browser ensure
 
