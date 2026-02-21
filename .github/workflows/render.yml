@@ -29,6 +29,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Upload videos to Cloudinary
+        run: |
+          npm install -g cloudinary-cli
+          for VIDEO_ID in 3194038 3252459 4065982 6985580 4481316 3196007 8371648 6963944 3252453 7564710 7688336 5699456 3296467 6890254; do
+          wget -q -O /tmp/${VIDEO_ID}.mp4 "https://videos.pexels.com/video-files/${VIDEO_ID}/${VIDEO_ID}-hd_1920_1080_25fps.mp4" || \
+          wget -q -O /tmp/${VIDEO_ID}.mp4 "https://videos.pexels.com/video-files/${VIDEO_ID}/${VIDEO_ID}-uhd_2560_1440_25fps.mp4"
+          cld uploader upload /tmp/${VIDEO_ID}.mp4 public_id=${VIDEO_ID} resource_type=video overwrite=false || true
+          done
+        env:
+          CLOUDINARY_URL: cloudinary://${{ secrets.CLOUDINARY_API_KEY }}:${{ secrets.CLOUDINARY_API_SECRET }}@${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          
       - name: Install Chrome dependencies
         run: |
            sudo apt-get update -qq
