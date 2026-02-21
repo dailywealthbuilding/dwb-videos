@@ -53,23 +53,37 @@ jobs:
           });
           const PIXABAY_KEY = process.env.PIXABAY_API_KEY;
           const searches = [
-            'entrepreneur laptop','person thinking','writing notes','business setup',
-            'stopwatch timer','content creator','social media phone','business statistics',
-            'small business','person phone','laptop income','frustrated laptop',
-            'desk workspace','phone filming','clock time','calendar planning'
+            { q: 'entrepreneur laptop',  id: 'entrepreneur_laptop' },
+            { q: 'person thinking',      id: 'person_thinking' },
+            { q: 'writing notes',        id: 'writing_notes' },
+            { q: 'business setup',       id: 'business_setup' },
+            { q: 'stopwatch timer',      id: 'stopwatch_timer' },
+            { q: 'content creator',      id: 'content_creator' },
+            { q: 'social media phone',   id: 'social_media_phone' },
+            { q: 'business statistics',  id: 'business_statistics' },
+            { q: 'small business',       id: 'small_business' },
+            { q: 'laptop income',        id: 'laptop_income' },
+            { q: 'frustrated laptop',    id: 'frustrated_laptop' },
+            { q: 'desk workspace',       id: 'desk_workspace' },
+            { q: 'phone filming',        id: 'phone_filming' },
+            { q: 'clock time',           id: 'clock_time' },
+            { q: 'calendar planning',    id: 'calendar_planning' }
           ];
           async function run() {
-            for (const q of searches) {
-              const id = q.replace(/\s+/g,'_');
-              const url = \`https://pixabay.com/api/videos/?key=\${PIXABAY_KEY}&q=\${encodeURIComponent(q)}&per_page=3\`;
+            for (const item of searches) {
+              const url = \`https://pixabay.com/api/videos/?key=\${PIXABAY_KEY}&q=\${encodeURIComponent(item.q)}&per_page=3\`;
               const res = await fetch(url);
               const data = await res.json();
               if (data.hits && data.hits[0]) {
                 const videoUrl = data.hits[0].videos.medium.url;
                 await cloudinary.uploader.upload(videoUrl, {
-                  public_id: id, resource_type: 'video', overwrite: false
-                }).then(() => console.log('✅ ' + id))
-                  .catch(e => console.log('⚠️ ' + id + ': ' + e.message));
+                  public_id: item.id,
+                  resource_type: 'video',
+                  overwrite: true
+                }).then(() => console.log('✅ ' + item.id))
+                  .catch(e => console.log('❌ ' + item.id + ': ' + e.message));
+              } else {
+                console.log('⚠️ No results for: ' + item.q);
               }
             }
           }
