@@ -1,8 +1,7 @@
-import { AbsoluteFill, useCurrentFrame, Sequence, Video } from "remotion";
+import { AbsoluteFill, Sequence } from "remotion";
 import { TextOverlay } from "../components/TextOverlay.jsx";
 import { BackgroundVideo } from "../components/BackgroundVideo.jsx";
 
-// Content data uses 420-frame scale, we scale to 900 (30 seconds at 30fps)
 const SCALE = 900 / 420;
 
 export const VideoComposition = ({ video }) => {
@@ -14,12 +13,11 @@ export const VideoComposition = ({ video }) => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000000" }}>
-      <BackgroundVideo pexelsSearchTerms={video.pexelsSearchTerms} />
+      <BackgroundVideo pixabaySearchTerms={video.pixabaySearchTerms} />
 
-      {/* Dark overlay for readability */}
-      <AbsoluteFill style={{ backgroundColor: "rgba(0,0,0,0.45)" }} />
+      {/* Lightened from 0.45 → 0.35 so background shows through more */}
+      <AbsoluteFill style={{ backgroundColor: "rgba(0,0,0,0.35)" }} />
 
-      {/* Text overlays */}
       {scaledOverlays.map((overlay, index) => (
         <Sequence
           key={index}
@@ -30,12 +28,25 @@ export const VideoComposition = ({ video }) => {
         </Sequence>
       ))}
 
-      {/* Branding watermark */}
-      <AbsoluteFill style={{ display:"flex", alignItems:"flex-end",
-        justifyContent:"flex-end", padding:"40px" }}>
-        <div style={{ fontFamily:"Montserrat,sans-serif", fontSize:"28px",
-          color:"rgba(255,255,255,0.6)", fontWeight:"bold",
-          textShadow:"1px 1px 3px rgba(0,0,0,0.8)" }}>
+      {/* Watermark */}
+      <AbsoluteFill
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "flex-end",
+          padding: "0 40px 40px 0",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "'Montserrat', sans-serif",
+            fontSize: "28px",
+            color: "rgba(255,255,255,0.85)",
+            fontWeight: "bold",
+            textShadow: "0 2px 8px rgba(0,0,0,0.8)",
+            letterSpacing: "0.5px",
+          }}
+        >
           @DailyWealthBuilding
         </div>
       </AbsoluteFill>
