@@ -1,27 +1,23 @@
-import { registerRoot, Composition } from "remotion";
-import { VideoComposition } from "./compositions/VideoComposition.jsx";
-import { WEEK4_VIDEOS } from "./week4-content.js";
-
-const DURATION_IN_FRAMES = 900;
-const FPS = 30;
+import { Composition } from 'remotion';
+import { VideoComposition } from './compositions/VideoComposition.jsx';
 
 export const RemotionRoot = () => {
+  const days = ['day22','day23','day24','day25','day26','day27','day28'];
+
   return (
     <>
-      {WEEK4_VIDEOS.map((video) => (
+      {days.map(dayId => (
         <Composition
-          key={video.id}
-          id={video.id}
+          key={dayId}
+          id={dayId}
           component={VideoComposition}
-          durationInFrames={DURATION_IN_FRAMES}
-          fps={FPS}
+          durationInFrames={900}
+          fps={30}
           width={1080}
           height={1920}
-          defaultProps={{ video }}
+          defaultProps={{ videoId: dayId }}
         />
       ))}
     </>
   );
 };
-
-registerRoot(RemotionRoot);
