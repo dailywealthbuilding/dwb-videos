@@ -7,9 +7,10 @@
     "render-all": "node render-all.js"
   },
   "dependencies": {
-    "@remotion/cli": "4.0.180",
-    "@remotion/compositor-linux-x64-gnu": "4.0.180",
-    "remotion": "4.0.180"
+    "@remotion/cli": "4.0.220",
+    "@remotion/compositor-linux-x64-gnu": "4.0.220",
+    "@remotion/renderer": "4.0.220",
+    "remotion": "4.0.220"
   },
   "remotion": {
     "entryPoint": "src/index.jsx"
