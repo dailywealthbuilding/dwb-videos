@@ -98,12 +98,7 @@ jobs:
             const params = { public_id: fullPublicId, timestamp };
             const signature = cloudinarySign(params);
             const result = execSync(
-              `curl -s -X POST https://api.cloudinary.com/v1_1/${CLOUD}/video/upload \
-              -F "file=@${filePath}" \
-              -F "public_id=${fullPublicId}" \
-              -F "timestamp=${timestamp}" \
-              -F "api_key=${API_KEY}" \
-              -F "signature=${signature}"`
+              `curl -s -X POST https://api.cloudinary.com/v1_1/${CLOUD}/video/upload -F "file=@${filePath}" -F "public_id=${fullPublicId}" -F "timestamp=${timestamp}" -F "api_key=${API_KEY}" -F "signature=${signature}"`
             ).toString();
             const json = JSON.parse(result);
             if (json.error) throw new Error(json.error.message);
@@ -194,12 +189,7 @@ jobs:
             const signature = cloudinarySign(params);
             try {
               const result = execSync(
-                `curl -s -X POST https://api.cloudinary.com/v1_1/${CLOUD}/video/upload \
-                -F "file=@${filePath}" \
-                -F "public_id=${publicId}" \
-                -F "timestamp=${timestamp}" \
-                -F "api_key=${API_KEY}" \
-                -F "signature=${signature}"`
+                `curl -s -X POST https://api.cloudinary.com/v1_1/${CLOUD}/video/upload -F "file=@${filePath}" -F "public_id=${publicId}" -F "timestamp=${timestamp}" -F "api_key=${API_KEY}" -F "signature=${signature}"`
               ).toString();
               const json = JSON.parse(result);
               if (json.error) { console.error('❌ Failed ' + day + ': ' + json.error.message); }
