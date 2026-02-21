@@ -29,6 +29,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install Chrome dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y wget gnupg \
+            libnss3 libatk-bridge2.0-0 \
+            libcups2 libdrm2 libxcomposite1 libxdamage1 \
+            libxrandr2 libgbm1 libxfixes3 libxkbcommon0 \
+            libpango-1.0-0 libcairo2 libasound2
+          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
+
       - name: Fetch and upload videos to Cloudinary
         run: |
           npm install cloudinary node-fetch@2
@@ -36,31 +47,31 @@ jobs:
           const cloudinary = require('cloudinary').v2;
           const fetch = require('node-fetch');
           cloudinary.config({
-           cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-           api_key: process.env.CLOUDINARY_API_KEY,
-           api_secret: process.env.CLOUDINARY_API_SECRET
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET
           });
           const PIXABAY_KEY = process.env.PIXABAY_API_KEY;
           const searches = [
-           'entrepreneur laptop','person thinking','writing notes','business setup',
-           'stopwatch timer','content creator','social media phone','business statistics',
-           'small business','person phone','laptop income','frustrated laptop',
-           'desk workspace','phone filming','clock time','calendar planning'
+            'entrepreneur laptop','person thinking','writing notes','business setup',
+            'stopwatch timer','content creator','social media phone','business statistics',
+            'small business','person phone','laptop income','frustrated laptop',
+            'desk workspace','phone filming','clock time','calendar planning'
           ];
           async function run() {
-           for (const q of searches) {
-             const id = q.replace(/\s+/g,'_');
-             const url = \`https://pixabay.com/api/videos/?key=\${PIXABAY_KEY}&q=\${encodeURIComponent(q)}&per_page=3\`;
-             const res = await fetch(url);
-             const data = await res.json();
-             if (data.hits && data.hits[0]) {
-               const videoUrl = data.hits[0].videos.medium.url;
-               await cloudinary.uploader.upload(videoUrl, {
-                public_id: id, resource_type: 'video', overwrite: false
-               }).then(() => console.log('✅ ' + id))
-                 .catch(e => console.log('⚠️ ' + id + ': ' + e.message));
-             }
-           }
+            for (const q of searches) {
+              const id = q.replace(/\s+/g,'_');
+              const url = \`https://pixabay.com/api/videos/?key=\${PIXABAY_KEY}&q=\${encodeURIComponent(q)}&per_page=3\`;
+              const res = await fetch(url);
+              const data = await res.json();
+              if (data.hits && data.hits[0]) {
+                const videoUrl = data.hits[0].videos.medium.url;
+                await cloudinary.uploader.upload(videoUrl, {
+                  public_id: id, resource_type: 'video', overwrite: false
+                }).then(() => console.log('✅ ' + id))
+                  .catch(e => console.log('⚠️ ' + id + ': ' + e.message));
+              }
+            }
           }
           run();
           "
@@ -69,35 +80,19 @@ jobs:
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-          
-      - name: Install Chrome dependencies
-        run: |
-           sudo apt-get update -qq
-           sudo apt-get install -y wget gnupg \
-           libnss3 libatk-bridge2.0-0 \
-           libcups2 libdrm2 libxcomposite1 libxdamage1 \
-           libxrandr2 libgbm1
-           wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-           sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
-    
+
       - name: Create output directory
         run: mkdir -p output
-        
+
       - name: Render videos
         run: |
-          npx remotion browser ensure --browser-executable=$(which google-chrome-stable)
-          export CHROME_FLAGS="--headless=new"
           if [ -z "${{ github.event.inputs.video_id }}" ]; then
             node render-all.js
           else
-            npx remotion render src/index.jsx \
-              ${{ github.event.inputs.video_id }} \
-              output/${{ github.event.inputs.video_id }}_final.mp4 \
-              --codec=h264 --quality=85
+            node render-all.js ${{ github.event.inputs.video_id }}
           fi
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
-          REMOTION_CHROME_FLAGS: "--headless=new"
 
       - name: Upload rendered videos
         uses: actions/upload-artifact@v4
