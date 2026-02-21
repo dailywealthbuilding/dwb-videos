@@ -32,10 +32,11 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
-          node -e "
+          node << 'EOF'
           const https = require('https');
           const crypto = require('crypto');
           const fs = require('fs');
+          const { execSync } = require('child_process');
 
           const CLOUD = process.env.CLOUDINARY_CLOUD_NAME;
           const API_KEY = process.env.CLOUDINARY_API_KEY;
@@ -65,7 +66,7 @@ jobs:
             return crypto.createHash('sha256').update(sorted + API_SECRET).digest('hex');
           }
 
-          async function fetchJSON(url) {
+          function fetchJSON(url) {
             return new Promise((resolve, reject) => {
               https.get(url, res => {
                 let data = '';
@@ -75,11 +76,12 @@ jobs:
             });
           }
 
-          async function downloadFile(url, dest) {
+          function downloadFile(url, dest) {
             return new Promise((resolve, reject) => {
               const file = fs.createWriteStream(dest);
               https.get(url, res => {
                 if (res.statusCode === 301 || res.statusCode === 302) {
+                  file.close();
                   fs.unlinkSync(dest);
                   downloadFile(res.headers.location, dest).then(resolve).catch(reject);
                   return;
@@ -90,35 +92,22 @@ jobs:
             });
           }
 
-          async function uploadToCloudinary(filePath, publicId) {
+          function uploadToCloudinary(filePath, publicId) {
             const timestamp = Math.floor(Date.now() / 1000);
-            const params = { public_id: 'dwb/' + publicId, timestamp };
+            const fullPublicId = 'dwb/' + publicId;
+            const params = { public_id: fullPublicId, timestamp };
             const signature = cloudinarySign(params);
-            const { default: fd } = await import('form-data');
-            const form = new fd();
-            form.append('file', fs.createReadStream(filePath));
-            form.append('public_id', 'dwb/' + publicId);
-            form.append('timestamp', timestamp.toString());
-            form.append('api_key', API_KEY);
-            form.append('signature', signature);
-            return new Promise((resolve, reject) => {
-              const req = https.request({
-                hostname: 'api.cloudinary.com',
-                path: '/v1_1/' + CLOUD + '/video/upload',
-                method: 'POST',
-                headers: form.getHeaders(),
-              }, res => {
-                let data = '';
-                res.on('data', d => data += d);
-                res.on('end', () => {
-                  const json = JSON.parse(data);
-                  if (json.error) reject(new Error(json.error.message));
-                  else resolve(json);
-                });
-              });
-              req.on('error', reject);
-              form.pipe(req);
-            });
+            const result = execSync(
+              `curl -s -X POST https://api.cloudinary.com/v1_1/${CLOUD}/video/upload \
+              -F "file=@${filePath}" \
+              -F "public_id=${fullPublicId}" \
+              -F "timestamp=${timestamp}" \
+              -F "api_key=${API_KEY}" \
+              -F "signature=${signature}"`
+            ).toString();
+            const json = JSON.parse(result);
+            if (json.error) throw new Error(json.error.message);
+            return json;
           }
 
           (async () => {
@@ -127,25 +116,29 @@ jobs:
                 console.log('Processing: ' + item.id);
                 const pixabayUrl = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY + '&q=' + encodeURIComponent(item.query) + '&per_page=3';
                 const data = await fetchJSON(pixabayUrl);
-                if (!data.hits || data.hits.length === 0) { console.log('No results for ' + item.query); continue; }
+                if (!data.hits || data.hits.length === 0) {
+                  console.log('No Pixabay results for: ' + item.query);
+                  continue;
+                }
                 const videoUrl = data.hits[0].videos.medium.url;
                 const tmpFile = '/tmp/' + item.id + '.mp4';
+                console.log('Downloading: ' + videoUrl);
                 await downloadFile(videoUrl, tmpFile);
-                const result = await uploadToCloudinary(tmpFile, item.id);
-                console.log('Uploaded: dwb/' + item.id + ' -> ' + result.secure_url);
+                const result = uploadToCloudinary(tmpFile, item.id);
+                console.log('✅ Uploaded: dwb/' + item.id + ' -> ' + result.secure_url);
                 fs.unlinkSync(tmpFile);
               } catch(e) {
-                console.error('Failed ' + item.id + ': ' + e.message);
+                console.error('❌ Failed ' + item.id + ': ' + e.message);
               }
             }
           })();
-          "
+          EOF
 
       - name: Verify Cloudinary URLs (dwb/ folder)
         env:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
         run: |
-          node -e "
+          node << 'EOF'
           const https = require('https');
           const CLOUD = process.env.CLOUDINARY_CLOUD_NAME;
           const ids = ['entrepreneur_laptop','person_thinking','writing_notes','business_setup','stopwatch_timer','content_creator','social_media_phone','business_statistics','small_business','laptop_income','frustrated_laptop','desk_workspace','phone_filming','clock_time','calendar_planning'];
@@ -157,8 +150,11 @@ jobs:
               else { console.log('❌ ' + id + ' — ' + res.statusCode); failed++; resolve(false); }
             }).on('error', e => { console.log('❌ ' + id + ' — ' + e.message); failed++; resolve(false); });
           }));
-          Promise.all(checks).then(() => { if (failed > 0) { console.error(failed + ' assets failed'); process.exit(1); } else console.log('All assets verified ✅'); });
-          "
+          Promise.all(checks).then(() => {
+            if (failed > 0) { console.error(failed + ' assets failed'); process.exit(1); }
+            else console.log('All assets verified ✅');
+          });
+          EOF
 
       - name: Render all videos
         env:
@@ -173,10 +169,10 @@ jobs:
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: |
-          node -e "
+          node << 'EOF'
           const fs = require('fs');
-          const https = require('https');
           const crypto = require('crypto');
+          const { execSync } = require('child_process');
 
           const CLOUD = process.env.CLOUDINARY_CLOUD_NAME;
           const API_KEY = process.env.CLOUDINARY_API_KEY;
@@ -189,39 +185,27 @@ jobs:
 
           const videos = ['day22','day23','day24','day25','day26','day27','day28'];
 
-          (async () => {
-            const { default: fd } = await import('form-data');
-            for (const day of videos) {
-              const filePath = 'out/' + day + '.mp4';
-              if (!fs.existsSync(filePath)) { console.log('Missing: ' + filePath); continue; }
-              const timestamp = Math.floor(Date.now() / 1000);
-              const publicId = 'dwb/rendered/' + day;
-              const params = { public_id: publicId, timestamp };
-              const signature = cloudinarySign(params);
-              const form = new fd();
-              form.append('file', fs.createReadStream(filePath));
-              form.append('public_id', publicId);
-              form.append('timestamp', timestamp.toString());
-              form.append('api_key', API_KEY);
-              form.append('signature', signature);
-              await new Promise((resolve, reject) => {
-                const req = https.request({
-                  hostname: 'api.cloudinary.com',
-                  path: '/v1_1/' + CLOUD + '/video/upload',
-                  method: 'POST',
-                  headers: form.getHeaders(),
-                }, res => {
-                  let data = '';
-                  res.on('data', d => data += d);
-                  res.on('end', () => {
-                    const json = JSON.parse(data);
-                    if (json.error) { console.error('Failed ' + day + ': ' + json.error.message); reject(); }
-                    else { console.log('✅ Uploaded ' + day + ': ' + json.secure_url); resolve(); }
-                  });
-                });
-                req.on('error', reject);
-                form.pipe(req);
-              });
+          for (const day of videos) {
+            const filePath = 'out/' + day + '.mp4';
+            if (!fs.existsSync(filePath)) { console.log('Missing: ' + filePath); continue; }
+            const timestamp = Math.floor(Date.now() / 1000);
+            const publicId = 'dwb/rendered/' + day;
+            const params = { public_id: publicId, timestamp };
+            const signature = cloudinarySign(params);
+            try {
+              const result = execSync(
+                `curl -s -X POST https://api.cloudinary.com/v1_1/${CLOUD}/video/upload \
+                -F "file=@${filePath}" \
+                -F "public_id=${publicId}" \
+                -F "timestamp=${timestamp}" \
+                -F "api_key=${API_KEY}" \
+                -F "signature=${signature}"`
+              ).toString();
+              const json = JSON.parse(result);
+              if (json.error) { console.error('❌ Failed ' + day + ': ' + json.error.message); }
+              else { console.log('✅ Uploaded ' + day + ': ' + json.secure_url); }
+            } catch(e) {
+              console.error('❌ Failed ' + day + ': ' + e.message);
             }
-          })();
-          "
+          }
+          EOF
