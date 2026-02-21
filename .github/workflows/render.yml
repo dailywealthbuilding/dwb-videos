@@ -23,10 +23,9 @@ jobs:
         run: npm install
 
       - name: Install chrome-headless-shell
-        run: npx remotion browser ensure
-
-      - name: Install Chromium
-        run: npx remotion browser ensure
+        run: |
+          npx remotion browser ensure
+          echo "REMOTION_CHROME=$(npx remotion browser which)" >> $GITHUB_ENV
 
       - name: Upload background videos to Cloudinary (dwb/ folder)
         env:
@@ -159,6 +158,7 @@ jobs:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          REMOTION_CHROME: ${{ env.REMOTION_CHROME }}
         run: node render-all.js
 
       - name: Upload rendered videos to Cloudinary
@@ -184,7 +184,7 @@ jobs:
           const videos = ['day22','day23','day24','day25','day26','day27','day28'];
 
           for (const day of videos) {
-            const filePath = 'out/' + day + '.mp4';
+            const filePath = 'out/' + day + '_final.mp4';
             if (!fs.existsSync(filePath)) { console.log('Missing: ' + filePath); continue; }
             const timestamp = Math.floor(Date.now() / 1000);
             const publicId = 'dwb/rendered/' + day;
