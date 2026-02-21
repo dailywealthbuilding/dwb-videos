@@ -17,19 +17,22 @@ const OUT_DIR = path.resolve('./out');
 
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
-// Use chrome-headless-shell installed by Remotion, fallback to system chrome
-const browserExecutable = process.env.REMOTION_CHROME || undefined;
+// Hardcoded path where Remotion installs chrome-headless-shell on Linux
+const HEADLESS_SHELL = path.resolve('./node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell');
+
+const browserExecutable = fs.existsSync(HEADLESS_SHELL)
+  ? HEADLESS_SHELL
+  : process.env.REMOTION_CHROME || undefined;
+
+console.log(`🌐 Browser: ${browserExecutable || 'system default'}`);
 
 const CHROMIUM_OPTIONS = {
   disableWebSecurity: true,
   ignoreCertificateErrors: true,
-  headless: true,
 };
 
 (async () => {
-  console.log(`🎬 Daily Wealth Building — Rendering ${VIDEOS.length} video(s)...`);
-  if (browserExecutable) console.log(`🌐 Using browser: ${browserExecutable}\n`);
-
+  console.log(`🎬 Daily Wealth Building — Rendering ${VIDEOS.length} video(s)...\n`);
   let success = 0;
   let failed = 0;
 
@@ -42,7 +45,7 @@ const CHROMIUM_OPTIONS = {
         serveUrl: ENTRY_POINT,
         id: video.compositionId,
         inputProps: { videoId: video.id },
-        ...(browserExecutable && { browserExecutable }),
+        browserExecutable,
         chromiumOptions: CHROMIUM_OPTIONS,
       });
 
@@ -52,7 +55,7 @@ const CHROMIUM_OPTIONS = {
         codec: 'h264',
         outputLocation,
         inputProps: { videoId: video.id },
-        ...(browserExecutable && { browserExecutable }),
+        browserExecutable,
         chromiumOptions: CHROMIUM_OPTIONS,
       });
 
@@ -68,3 +71,8 @@ const CHROMIUM_OPTIONS = {
   console.log(`\n🏁 Success: ${success}/${VIDEOS.length}  ❌ Failed: ${failed}/${VIDEOS.length}`);
   if (failed > 0) process.exit(1);
 })();
+```
+
+The key change is this line hardcoding the exact path Remotion uses:
+```
+node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell
