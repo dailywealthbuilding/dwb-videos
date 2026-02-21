@@ -1,49 +1,16 @@
-import { OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import { OffthreadVideo, Sequence, useCurrentFrame, interpolate, staticFile } from 'remotion';
 
-// Direct Pixabay CDN URLs — no Cloudinary needed
+// Local files downloaded to public/videos/ before render
+const V = (name) => staticFile('videos/' + name + '.mp4');
+
 const VIDEO_SETS = {
-  day22: [
-    'https://cdn.pixabay.com/video/2017/07/23/10822-226624975_medium.mp4',
-    'https://cdn.pixabay.com/video/2018/03/09/14105-259487534_medium.mp4',
-    'https://cdn.pixabay.com/video/2019/04/04/22654-328405267_medium.mp4',
-    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
-  ],
-  day23: [
-    'https://cdn.pixabay.com/video/2020/05/25/40846-424680913_medium.mp4',
-    'https://cdn.pixabay.com/video/2018/10/15/18706-295017227_medium.mp4',
-    'https://cdn.pixabay.com/video/2019/09/16/27060-360554070_medium.mp4',
-    'https://cdn.pixabay.com/video/2020/05/25/40846-424680913_medium.mp4',
-  ],
-  day24: [
-    'https://cdn.pixabay.com/video/2019/09/16/27060-360554070_medium.mp4',
-    'https://cdn.pixabay.com/video/2017/07/23/10822-226624975_medium.mp4',
-    'https://cdn.pixabay.com/video/2018/03/09/14105-259487534_medium.mp4',
-    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
-  ],
-  day25: [
-    'https://cdn.pixabay.com/video/2018/03/09/14105-259487534_medium.mp4',
-    'https://cdn.pixabay.com/video/2017/07/23/10822-226624975_medium.mp4',
-    'https://cdn.pixabay.com/video/2019/04/04/22654-328405267_medium.mp4',
-    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
-  ],
-  day26: [
-    'https://cdn.pixabay.com/video/2019/04/04/22654-328405267_medium.mp4',
-    'https://cdn.pixabay.com/video/2018/10/15/18706-295017227_medium.mp4',
-    'https://cdn.pixabay.com/video/2017/07/23/10822-226624975_medium.mp4',
-    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
-  ],
-  day27: [
-    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
-    'https://cdn.pixabay.com/video/2018/03/09/14105-259487534_medium.mp4',
-    'https://cdn.pixabay.com/video/2020/05/25/40846-424680913_medium.mp4',
-    'https://cdn.pixabay.com/video/2019/09/16/27060-360554070_medium.mp4',
-  ],
-  day28: [
-    'https://cdn.pixabay.com/video/2018/10/15/18706-295017227_medium.mp4',
-    'https://cdn.pixabay.com/video/2019/04/04/22654-328405267_medium.mp4',
-    'https://cdn.pixabay.com/video/2016/12/22/6782-196664429_medium.mp4',
-    'https://cdn.pixabay.com/video/2017/07/23/10822-226624975_medium.mp4',
-  ],
+  day22: [ V('entrepreneur_laptop'), V('person_thinking'),     V('laptop_income'),       V('desk_workspace')       ],
+  day23: [ V('social_media_phone'),  V('content_creator'),     V('social_media_phone'),  V('business_statistics')  ],
+  day24: [ V('content_creator'),     V('laptop_income'),       V('desk_workspace'),      V('entrepreneur_laptop')  ],
+  day25: [ V('person_thinking'),     V('writing_notes'),       V('desk_workspace'),      V('person_thinking')      ],
+  day26: [ V('frustrated_laptop'),   V('small_business'),      V('business_setup'),      V('frustrated_laptop')    ],
+  day27: [ V('clock_time'),          V('stopwatch_timer'),     V('calendar_planning'),   V('desk_workspace')       ],
+  day28: [ V('phone_filming'),       V('business_statistics'), V('desk_workspace'),      V('entrepreneur_laptop')  ],
 };
 
 const CLIP_DURATION_FRAMES = 225;
