@@ -159,13 +159,11 @@ jobs:
         run: |
           BROWSER="./node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell"
           echo "🌐 Browser: $BROWSER"
-          ls -la $BROWSER
           mkdir -p out
           FAILED=0
           for DAY in day22 day23 day24 day25 day26 day27 day28; do
             echo "⚙ Rendering ${DAY}..."
-            npx remotion render src/index.jsx VideoComposition out/${DAY}_final.mp4 \
-              --props="{\"videoId\":\"${DAY}\"}" \
+            npx remotion render src/index.jsx ${DAY} out/${DAY}_final.mp4 \
               --browser-executable="$BROWSER" \
               --codec=h264 \
             && echo "✅ ${DAY} done" || { echo "❌ ${DAY} FAILED"; FAILED=1; }
