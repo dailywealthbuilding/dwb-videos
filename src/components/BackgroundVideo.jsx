@@ -35,6 +35,7 @@ const VIDEO_MAP = {
 
 export const BackgroundVideo = ({ pexelsSearchTerms }) => {
   const videoUrl = VIDEO_MAP[pexelsSearchTerms[0]];
+
   if (!videoUrl) {
     return (
       <AbsoluteFill style={{
@@ -42,6 +43,7 @@ export const BackgroundVideo = ({ pexelsSearchTerms }) => {
       }} />
     );
   }
+
   return (
     <AbsoluteFill>
       <Video
@@ -49,6 +51,7 @@ export const BackgroundVideo = ({ pexelsSearchTerms }) => {
         style={{ width:"100%", height:"100%", objectFit:"cover" }}
         startFrom={0}
         muted
+        delayPlayback={5000}
       />
     </AbsoluteFill>
   );
