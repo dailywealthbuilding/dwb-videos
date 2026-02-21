@@ -8,23 +8,78 @@ if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
-// pixabaySearchTerms is now an ARRAY
-// 2 terms = 2 clips × 15s each | 3 terms = 3 clips × 10s each
+// 4 search terms per video = 4 clips × 7.5s each = 30s total
 const VIDEOS = [
-  { id: "day22", filename: "day22_final.mp4",
-    pixabaySearchTerms: ["entrepreneur working laptop", "person thinking"] },
-  { id: "day23", filename: "day23_final.mp4",
-    pixabaySearchTerms: ["online income laptop", "social media marketing"] },
-  { id: "day24", filename: "day24_final.mp4",
-    pixabaySearchTerms: ["content creator desk setup", "editing video computer"] },
-  { id: "day25", filename: "day25_final.mp4",
-    pixabaySearchTerms: ["person thinking", "writing notes desk"] },
-  { id: "day26", filename: "day26_final.mp4",
-    pixabaySearchTerms: ["social media phone", "frustrated person laptop"] },
-  { id: "day27", filename: "day27_final.mp4",
-    pixabaySearchTerms: ["home office workspace", "clock time management"] },
-  { id: "day28", filename: "day28_final.mp4",
-    pixabaySearchTerms: ["calendar planning", "productive workspace morning"] },
+  {
+    id: "day22",
+    filename: "day22_final.mp4",
+    pixabaySearchTerms: [
+      "entrepreneur working laptop",
+      "person thinking",
+      "online income laptop",
+      "home office workspace",
+    ],
+  },
+  {
+    id: "day23",
+    filename: "day23_final.mp4",
+    pixabaySearchTerms: [
+      "social media phone",
+      "social media marketing",
+      "content creator desk setup",
+      "tiktok phone screen",
+    ],
+  },
+  {
+    id: "day24",
+    filename: "day24_final.mp4",
+    pixabaySearchTerms: [
+      "editing video computer",
+      "youtube laptop screen",
+      "person editing video laptop",
+      "productive workspace morning",
+    ],
+  },
+  {
+    id: "day25",
+    filename: "day25_final.mp4",
+    pixabaySearchTerms: [
+      "person thinking",
+      "writing notes desk",
+      "person deciding options",
+      "person thinking desk",
+    ],
+  },
+  {
+    id: "day26",
+    filename: "day26_final.mp4",
+    pixabaySearchTerms: [
+      "frustrated person laptop",
+      "person stressed busy",
+      "small business owner",
+      "online business setup",
+    ],
+  },
+  {
+    id: "day27",
+    filename: "day27_final.mp4",
+    pixabaySearchTerms: [
+      "clock time management",
+      "timer stopwatch",
+      "calendar planning",
+      "person on phone",
+    ],
+  },
+  {
+    id: "day28",
+    filename: "day28_final.mp4",
+    pixabaySearchTerms: [
+      "phone filming setup",
+      "social media statistics screen",
+      "home office workspace",
+      "entrepreneur working laptop",
+    ],
+  },
 ];
 
 console.log("🎬 Daily Wealth Building — Week 4 Render Starting...\n");
