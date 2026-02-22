@@ -1,95 +1,66 @@
-import { AbsoluteFill, Sequence } from 'remotion';
-import { TextOverlay } from '../components/TextOverlay.jsx';
-import { BackgroundVideo } from '../components/BackgroundVideo.jsx';
-
-const SCALE = 900 / 420;
-
 const VIDEO_DATA = {
   day22: { overlays: [
-    { text: "Most people scroll past\nthe opportunity", font: "Anton", color: "#FFD700", position: "middle", animation: "fade", startFrame: 0, endFrame: 90 },
-    { text: "While you could be\nearning from it", font: "Anton", color: "#FFFFFF", position: "middle", animation: "slide-left", startFrame: 90, endFrame: 180 },
-    { text: "Daily Wealth Building\nshows you how", font: "Montserrat", color: "#FFD700", position: "middle", animation: "fade", startFrame: 180, endFrame: 280 },
-    { text: "Follow for daily\nwealth tips 💰", font: "Anton", color: "#FFFFFF", position: "middle", animation: "bounce", startFrame: 280, endFrame: 420 },
+    { text: "I wasted 2 weeks\non the wrong niche 😬", font: "Anton", color: "#FF0000", position: "top", animation: "pop", startFrame: 0, endFrame: 90 },
+    { text: "Mistake 1: I picked\n5 niches at once", font: "Montserrat", color: "#FF6600", position: "middle", animation: "slide-left", startFrame: 90, endFrame: 210 },
+    { text: "Fix: ONE niche.\nONE month. Go deep ✅", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 210, endFrame: 330 },
+    { text: "Mistake 2: 'Make money online'\ntoo broad, zero traction", font: "Montserrat", color: "#FF6600", position: "middle", animation: "slide-left", startFrame: 330, endFrame: 510 },
+    { text: "Fix: Get specific.\nBroad = invisible 🎯", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 510, endFrame: 630 },
+    { text: "Mistake 3: Chose a niche\nI didn't care about", font: "Montserrat", color: "#FF6600", position: "middle", animation: "slide-left", startFrame: 630, endFrame: 780 },
+    { text: "Fix: Teach what\nyou're actually learning 💡", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 780, endFrame: 870 },
+    { text: "Drop 🔥 if you've\nbeen here too!", font: "Anton", color: "#9933FF", position: "bottom", animation: "bounce", startFrame: 870, endFrame: 900 },
   ]},
   day23: { overlays: [
-    { text: "Your phone is a\ngoldmine", font: "Anton", color: "#FFD700", position: "middle", animation: "pop", startFrame: 0, endFrame: 105 },
-    { text: "Most people just\ndon't know it yet", font: "Anton", color: "#FFFFFF", position: "middle", animation: "fade", startFrame: 105, endFrame: 210 },
-    { text: "Here's how to turn\nscrolling into income", font: "Montserrat", color: "#FFD700", position: "middle", animation: "slide-left", startFrame: 210, endFrame: 315 },
-    { text: "Follow @DailyWealthBuilding\nfor the blueprint 🚀", font: "Anton", color: "#FFFFFF", position: "middle", animation: "bounce", startFrame: 315, endFrame: 420 },
+    { text: "Your hook decides\nif anyone watches 👀", font: "Anton", color: "#0066FF", position: "top", animation: "pop", startFrame: 0, endFrame: 90 },
+    { text: "Step 1: Open with\na curiosity gap", font: "Montserrat", color: "#FFFFFF", position: "middle", animation: "slide-left", startFrame: 90, endFrame: 240 },
+    { text: "'3 mistakes you're making'\nnot '3 tips for success'", font: "Montserrat", color: "#FFFF00", position: "middle", animation: "fade", startFrame: 240, endFrame: 390 },
+    { text: "Step 2: Add urgency\nmake it feel personal", font: "Montserrat", color: "#00FF00", position: "middle", animation: "slide-left", startFrame: 390, endFrame: 540 },
+    { text: "Step 3: Write 3 versions\nyour first idea is always generic", font: "Montserrat", color: "#FF6600", position: "middle", animation: "slide-left", startFrame: 540, endFrame: 720 },
+    { text: "Total time: 5 minutes\nif you follow the system ⏱️", font: "Montserrat", color: "#FFD700", position: "middle", animation: "fade", startFrame: 720, endFrame: 810 },
+    { text: "Reply 'HOOKS'\nI'll review yours 👇", font: "Anton", color: "#9933FF", position: "bottom", animation: "bounce", startFrame: 810, endFrame: 900 },
   ]},
   day24: { overlays: [
-    { text: "You don't need a\nbig audience", font: "Anton", color: "#FFD700", position: "middle", animation: "fade", startFrame: 0, endFrame: 105 },
-    { text: "To make real money\nonline", font: "Anton", color: "#FFFFFF", position: "middle", animation: "pop", startFrame: 105, endFrame: 210 },
-    { text: "You need the right\nsystem", font: "Montserrat", color: "#FFD700", position: "middle", animation: "slide-left", startFrame: 210, endFrame: 315 },
-    { text: "Follow to learn\nthe system 🎯", font: "Anton", color: "#FFFFFF", position: "middle", animation: "bounce", startFrame: 315, endFrame: 420 },
+    { text: "Hot take: 10K followers\nis NOT the starting line", font: "Anton", color: "#FF0000", position: "top", animation: "pop", startFrame: 0, endFrame: 120 },
+    { text: "Everyone's waiting\nfor 'enough followers'", font: "Montserrat", color: "#FFFFFF", position: "middle", animation: "fade", startFrame: 120, endFrame: 270 },
+    { text: "I started building\nat 10 followers. Day 24 now.", font: "Montserrat", color: "#FF6600", position: "middle", animation: "slide-left", startFrame: 270, endFrame: 450 },
+    { text: "By the time I hit 10K\nI'll have 90 days of reps 💪", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 450, endFrame: 630 },
+    { text: "Waiting = starting from scratch\nwith a bigger audience watching", font: "Montserrat", color: "#00FFFF", position: "middle", animation: "slide-left", startFrame: 630, endFrame: 780 },
+    { text: "Agree or disagree?\nBe honest 👇", font: "Anton", color: "#9933FF", position: "bottom", animation: "bounce", startFrame: 780, endFrame: 900 },
   ]},
   day25: { overlays: [
-    { text: "Stop trading time\nfor money", font: "Anton", color: "#FFD700", position: "middle", animation: "fade", startFrame: 0, endFrame: 105 },
-    { text: "Build systems that\npay you while you sleep", font: "Anton", color: "#FFFFFF", position: "middle", animation: "slide-left", startFrame: 105, endFrame: 210 },
-    { text: "Passive income is\nnot a myth", font: "Montserrat", color: "#FFD700", position: "middle", animation: "pop", startFrame: 210, endFrame: 315 },
-    { text: "Follow for the\nroadmap 🗺️", font: "Anton", color: "#FFFFFF", position: "middle", animation: "bounce", startFrame: 315, endFrame: 420 },
+    { text: "Day 25 and I'm still\nmaking these mistakes 😅", font: "Anton", color: "#FF6600", position: "top", animation: "pop", startFrame: 0, endFrame: 90 },
+    { text: "Mistake 1: Overthinking\n2 hours on a 30-sec video", font: "Montserrat", color: "#FF0000", position: "middle", animation: "slide-left", startFrame: 90, endFrame: 270 },
+    { text: "Fix: Ship it.\nPerfect never posts 🚀", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 270, endFrame: 390 },
+    { text: "Mistake 2: Comparing\nmy Day 25 to their Day 500", font: "Montserrat", color: "#FF0000", position: "middle", animation: "slide-left", startFrame: 390, endFrame: 570 },
+    { text: "Fix: They were here once.\nRun your own race 🏃", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 570, endFrame: 690 },
+    { text: "Mistake 3: Posting with typos\nbecause I skipped the review", font: "Montserrat", color: "#FF0000", position: "middle", animation: "slide-left", startFrame: 690, endFrame: 810 },
+    { text: "Fix: Watch it 3x.\n2 mins saves the embarrassment ✅", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 810, endFrame: 870 },
+    { text: "Reply 'SAME'\nif this is you too!", font: "Anton", color: "#9933FF", position: "bottom", animation: "bounce", startFrame: 870, endFrame: 900 },
   ]},
   day26: { overlays: [
-    { text: "Frustrated with\nyour 9 to 5?", font: "Anton", color: "#FFD700", position: "middle", animation: "pop", startFrame: 0, endFrame: 105 },
-    { text: "There is a way out\nand it works", font: "Anton", color: "#FFFFFF", position: "middle", animation: "fade", startFrame: 105, endFrame: 210 },
-    { text: "Thousands have already\nmade the switch", font: "Montserrat", color: "#FFD700", position: "middle", animation: "slide-left", startFrame: 210, endFrame: 315 },
-    { text: "Follow to see\nhow they did it 🔥", font: "Anton", color: "#FFFFFF", position: "middle", animation: "bounce", startFrame: 315, endFrame: 420 },
+    { text: "I genuinely can't decide\nand I need your help 🤔", font: "Anton", color: "#9933FF", position: "top", animation: "pop", startFrame: 0, endFrame: 120 },
+    { text: "Day 26. Posting daily\nto BOTH TikTok + YouTube", font: "Montserrat", color: "#FFFFFF", position: "middle", animation: "fade", startFrame: 120, endFrame: 270 },
+    { text: "TikTok: Results in 24hrs\ntop video = 186 views", font: "Montserrat", color: "#00FFFF", position: "middle", animation: "slide-left", startFrame: 270, endFrame: 450 },
+    { text: "YouTube: Slower but stickier\ntop video = 760 views (still climbing)", font: "Montserrat", color: "#FF0000", position: "middle", animation: "slide-left", startFrame: 450, endFrame: 630 },
+    { text: "Should I go all in\non ONE platform first?", font: "Montserrat", color: "#FFFF00", position: "middle", animation: "fade", startFrame: 630, endFrame: 780 },
+    { text: "Comment 'TIKTOK'\nor 'YOUTUBE' 🗳️", font: "Anton", color: "#FFD700", position: "bottom", animation: "bounce", startFrame: 780, endFrame: 900 },
   ]},
   day27: { overlays: [
-    { text: "Time is your\nmost valuable asset", font: "Anton", color: "#FFD700", position: "middle", animation: "fade", startFrame: 0, endFrame: 105 },
-    { text: "Are you spending it\nor investing it?", font: "Anton", color: "#FFFFFF", position: "middle", animation: "pop", startFrame: 105, endFrame: 210 },
-    { text: "Every hour can\nwork for you", font: "Montserrat", color: "#FFD700", position: "middle", animation: "slide-left", startFrame: 210, endFrame: 315 },
-    { text: "Follow for daily\nwealth strategies ⏰", font: "Anton", color: "#FFFFFF", position: "middle", animation: "bounce", startFrame: 315, endFrame: 420 },
+    { text: "The boring routine that's\nkept me posting 27 days straight", font: "Anton", color: "#0066FF", position: "top", animation: "pop", startFrame: 0, endFrame: 90 },
+    { text: "4:00 PM: 4 clips downloaded\nfrom Pexels (20 mins)", font: "Montserrat", color: "#FFFFFF", position: "middle", animation: "slide-left", startFrame: 90, endFrame: 240 },
+    { text: "4:20 PM: Trending audio found\non TikTok Discover (5 mins)", font: "Montserrat", color: "#FFFF00", position: "middle", animation: "slide-left", startFrame: 240, endFrame: 390 },
+    { text: "4:25 PM: Full edit in CapCut\ntext, audio, effects (90 mins)", font: "Montserrat", color: "#FF6600", position: "middle", animation: "slide-left", startFrame: 390, endFrame: 540 },
+    { text: "6:00 PM: Watch it 3x\ncatch every typo (10 mins)", font: "Montserrat", color: "#00FF00", position: "middle", animation: "slide-left", startFrame: 540, endFrame: 690 },
+    { text: "6:10 PM: Export, backup,\nready to post at 9 PM ✅", font: "Montserrat", color: "#FFD700", position: "middle", animation: "fade", startFrame: 690, endFrame: 780 },
+    { text: "What time do YOU\nstart creating? ⏰", font: "Anton", color: "#9933FF", position: "bottom", animation: "bounce", startFrame: 780, endFrame: 900 },
   ]},
   day28: { overlays: [
-    { text: "One phone\nOne camera", font: "Anton", color: "#FFD700", position: "middle", animation: "pop", startFrame: 0, endFrame: 105 },
-    { text: "That's all it took\nto start", font: "Anton", color: "#FFFFFF", position: "middle", animation: "fade", startFrame: 105, endFrame: 210 },
-    { text: "Now it's your\nturn", font: "Montserrat", color: "#FFD700", position: "middle", animation: "slide-left", startFrame: 210, endFrame: 315 },
-    { text: "Follow @DailyWealthBuilding\nand start today 📱", font: "Anton", color: "#FFFFFF", position: "middle", animation: "bounce", startFrame: 315, endFrame: 420 },
+    { text: "These 3 habits are\nstealing hours from you daily", font: "Anton", color: "#FF0000", position: "top", animation: "pop", startFrame: 0, endFrame: 90 },
+    { text: "Mistake 1: Editing\nwith no deadline", font: "Montserrat", color: "#FF6600", position: "middle", animation: "slide-left", startFrame: 90, endFrame: 240 },
+    { text: "Fix: 2-hour timer.\nWhen it rings, you're done ⏰", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 240, endFrame: 360 },
+    { text: "Mistake 2: 'Quick research'\nthat turns into 1 hour of scrolling", font: "Montserrat", color: "#FF6600", position: "middle", animation: "slide-left", startFrame: 360, endFrame: 540 },
+    { text: "Fix: 5-min timer for audio.\nApp closes when it rings 📱", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 540, endFrame: 660 },
+    { text: "Mistake 3: Downloading clips\nevery single day (140 mins wasted)", font: "Montserrat", color: "#FF6600", position: "middle", animation: "slide-left", startFrame: 660, endFrame: 810 },
+    { text: "Fix: One Sunday batch session\n= whole week done in 60 mins 💪", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 810, endFrame: 870 },
+    { text: "Which one hits hardest?\nComment 1, 2, or 3 👇", font: "Anton", color: "#9933FF", position: "bottom", animation: "bounce", startFrame: 870, endFrame: 900 },
   ]},
-};
-
-export const VideoComposition = ({ videoId }) => {
-  const data = VIDEO_DATA[videoId] || VIDEO_DATA.day22;
-
-  const scaledOverlays = data.overlays.map((overlay) => ({
-    ...overlay,
-    startFrame: Math.round(overlay.startFrame * SCALE),
-    endFrame: Math.round(overlay.endFrame * SCALE),
-  }));
-
-  return (
-    <AbsoluteFill style={{ backgroundColor: '#000000' }}>
-      <BackgroundVideo videoId={videoId} />
-
-      <AbsoluteFill style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} />
-
-      {scaledOverlays.map((overlay, index) => (
-        <Sequence
-          key={index}
-          from={overlay.startFrame}
-          durationInFrames={overlay.endFrame - overlay.startFrame}
-        >
-          <TextOverlay overlay={overlay} />
-        </Sequence>
-      ))}
-
-      <AbsoluteFill style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'flex-end',
-        padding: '0 40px 40px 0',
-      }}>
-        <div style={{
-          fontFamily: "'Montserrat', sans-serif",
-          fontSize: '28px',
-          color: 'rgba(255,255,255,0.85)',
-          fontWeight: 'bold',
-          textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-        }}>
-          @DailyWealthBuilding
-        </div>
-      </AbsoluteFill>
-    </AbsoluteFill>
-  );
 };
