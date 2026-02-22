@@ -1,3 +1,7 @@
+import { AbsoluteFill, Sequence, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import { BackgroundVideo } from '../components/BackgroundVideo.jsx';
+import { TextOverlay } from '../components/TextOverlay.jsx';
+
 const VIDEO_DATA = {
   day22: { overlays: [
     { text: "I wasted 2 weeks\non the wrong niche 😬", font: "Anton", color: "#FF0000", position: "top", animation: "pop", startFrame: 0, endFrame: 90 },
@@ -63,4 +67,50 @@ const VIDEO_DATA = {
     { text: "Fix: One Sunday batch session\n= whole week done in 60 mins 💪", font: "Montserrat", color: "#00FF00", position: "middle", animation: "fade", startFrame: 810, endFrame: 870 },
     { text: "Which one hits hardest?\nComment 1, 2, or 3 👇", font: "Anton", color: "#9933FF", position: "bottom", animation: "bounce", startFrame: 870, endFrame: 900 },
   ]},
+};
+
+export const VideoComposition = ({ videoId }) => {
+  const data = VIDEO_DATA[videoId] || VIDEO_DATA.day22;
+
+  const getPosition = (position) => {
+    switch (position) {
+      case 'top': return { top: '10%', transform: 'translateX(-50%)' };
+      case 'bottom': return { bottom: '10%', transform: 'translateX(-50%)' };
+      default: return { top: '50%', transform: 'translate(-50%, -50%)' };
+    }
+  };
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: '#000000' }}>
+      <BackgroundVideo videoId={videoId} />
+      <AbsoluteFill style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} />
+
+      {data.overlays.map((overlay, index) => (
+        <Sequence
+          key={index}
+          from={overlay.startFrame}
+          durationInFrames={overlay.endFrame - overlay.startFrame}
+        >
+          <TextOverlay overlay={overlay} />
+        </Sequence>
+      ))}
+
+      <AbsoluteFill style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'flex-end',
+        padding: '0 40px 40px 0',
+      }}>
+        <div style={{
+          fontFamily: "'Montserrat', sans-serif",
+          fontSize: '28px',
+          color: 'rgba(255,255,255,0.85)',
+          fontWeight: 'bold',
+          textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+        }}>
+          @DailyWealthBuilding
+        </div>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
 };
