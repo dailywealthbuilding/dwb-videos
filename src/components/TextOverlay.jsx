@@ -7,12 +7,12 @@ const FONT_MAP = {
 };
 
 const POSITION_STYLES = {
-  "top-center":    { top: "8%",    left: 0, right: 0, alignItems: "center", justifyContent: "flex-start" },
-  top:             { top: 0,       left: 0, right: 0, alignItems: "center", justifyContent: "flex-start" },
+  "top-center":    { top: "15%",   left: 0, right: 0, alignItems: "center", justifyContent: "flex-start" },
+  top:             { top: "15%",   left: 0, right: 0, alignItems: "center", justifyContent: "flex-start" },
   middle:          { top: 0,       left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
-  "bottom-center": { bottom: "8%", left: 0, right: 0, alignItems: "center", justifyContent: "flex-end" },
+  "bottom-center": { bottom: "15%", left: 0, right: 0, alignItems: "center", justifyContent: "flex-end" },
   center:          { alignItems: "center", justifyContent: "center" },
-  bottom:          { bottom: "8%", left: 0, right: 0, alignItems: "center", justifyContent: "flex-end" },
+  bottom:          { bottom: "15%", left: 0, right: 0, alignItems: "center", justifyContent: "flex-end" },
 };
 
 function ensureVisibleColor(color) {
