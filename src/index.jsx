@@ -1,7 +1,7 @@
 import { registerRoot, Composition } from 'remotion';
 import { VideoComposition } from './compositions/VideoComposition.jsx';
 
-const days = ['day22','day23','day24','day25','day26','day27','day28'];
+const days = ['day29','day30','day31','day32','day33','day34','day35'];
 
 export const RemotionRoot = () => {
   return (
