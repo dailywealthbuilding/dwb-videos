@@ -1,16 +1,15 @@
 import { OffthreadVideo, Sequence, useCurrentFrame, interpolate, staticFile } from 'remotion';
 
-// Local files downloaded to public/videos/ before render
 const V = (name) => staticFile('videos/' + name + '.mp4');
 
 const VIDEO_SETS = {
-  day22: [ V('entrepreneur_laptop'), V('person_thinking'),     V('laptop_income'),       V('desk_workspace')       ],
-  day23: [ V('social_media_phone'),  V('content_creator'),     V('social_media_phone'),  V('business_statistics')  ],
-  day24: [ V('content_creator'),     V('laptop_income'),       V('desk_workspace'),      V('entrepreneur_laptop')  ],
-  day25: [ V('person_thinking'),     V('writing_notes'),       V('desk_workspace'),      V('person_thinking')      ],
-  day26: [ V('frustrated_laptop'),   V('small_business'),      V('business_setup'),      V('frustrated_laptop')    ],
-  day27: [ V('clock_time'),          V('stopwatch_timer'),     V('calendar_planning'),   V('desk_workspace')       ],
-  day28: [ V('phone_filming'),       V('business_statistics'), V('desk_workspace'),      V('entrepreneur_laptop')  ],
+  day29: [ V('person_thinking'),     V('frustrated_laptop'),   V('desk_workspace'),      V('entrepreneur_laptop')  ],
+  day30: [ V('business_statistics'), V('laptop_income'),       V('social_media_phone'),  V('business_statistics')  ],
+  day31: [ V('writing_notes'),       V('person_thinking'),     V('laptop_income'),       V('desk_workspace')       ],
+  day32: [ V('social_media_phone'),  V('content_creator'),     V('desk_workspace'),      V('entrepreneur_laptop')  ],
+  day33: [ V('phone_filming'),       V('desk_workspace'),      V('content_creator'),     V('clock_time')           ],
+  day34: [ V('entrepreneur_laptop'), V('small_business'),      V('laptop_income'),       V('frustrated_laptop')    ],
+  day35: [ V('calendar_planning'),   V('business_statistics'), V('writing_notes'),       V('desk_workspace')       ],
 };
 
 const CLIP_DURATION_FRAMES = 225;
@@ -18,7 +17,7 @@ const CROSSFADE_FRAMES = 8;
 
 export const BackgroundVideo = ({ videoId }) => {
   const frame = useCurrentFrame();
-  const clips = VIDEO_SETS[videoId] || VIDEO_SETS['day22'];
+  const clips = VIDEO_SETS[videoId] || VIDEO_SETS['day29'];
 
   return (
     <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
