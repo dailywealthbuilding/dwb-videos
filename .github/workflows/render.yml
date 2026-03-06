@@ -33,9 +33,7 @@ jobs:
           node << 'EOF'
           const https = require('https');
           const fs = require('fs');
-
           const PIXABAY_KEY = process.env.PIXABAY_API_KEY;
-
           const ASSETS = [
             { id: 'entrepreneur_laptop',  q: 'entrepreneur laptop' },
             { id: 'person_thinking',      q: 'person thinking' },
@@ -53,7 +51,6 @@ jobs:
             { id: 'clock_time',           q: 'clock time' },
             { id: 'calendar_planning',    q: 'calendar planning' },
           ];
-
           function fetchJSON(url) {
             return new Promise((resolve, reject) => {
               https.get(url, res => {
@@ -63,7 +60,6 @@ jobs:
               }).on('error', reject);
             });
           }
-
           function downloadFile(url, dest) {
             return new Promise((resolve, reject) => {
               const file = fs.createWriteStream(dest);
@@ -84,49 +80,38 @@ jobs:
               get(url);
             });
           }
-
           (async () => {
             let failed = 0;
             for (const item of ASSETS) {
               const dest = 'public/videos/' + item.id + '.mp4';
               if (fs.existsSync(dest)) {
-                console.log('⏭  Already exists: ' + item.id);
+                console.log('Already exists: ' + item.id);
                 continue;
               }
               try {
                 const url = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY + '&q=' + encodeURIComponent(item.q) + '&per_page=5&video_type=film';
                 const data = await fetchJSON(url);
-                if (!data.hits || data.hits.length === 0) {
-                  throw new Error('No Pixabay results for: ' + item.q);
-                }
-                // Try hits in order until one downloads successfully
+                if (!data.hits || data.hits.length === 0) throw new Error('No results for: ' + item.q);
                 let downloaded = false;
                 for (const hit of data.hits) {
                   const videoUrl = hit.videos.medium.url;
                   try {
-                    console.log('⬇️  Downloading ' + item.id + ' from ' + videoUrl);
                     await downloadFile(videoUrl, dest);
                     const size = fs.statSync(dest).size;
                     if (size < 10000) throw new Error('File too small: ' + size);
-                    console.log('✅ ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
+                    console.log('âœ… ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
                     downloaded = true;
                     break;
                   } catch(e) {
-                    console.log('⚠️  Failed hit, trying next: ' + e.message);
                     if (fs.existsSync(dest)) fs.unlinkSync(dest);
                   }
                 }
-                if (!downloaded) {
-                  console.log('❌ All hits failed for: ' + item.id);
-                  failed++;
-                }
+                if (!downloaded) { console.log('âŒ All hits failed: ' + item.id); failed++; }
               } catch(e) {
-                console.log('❌ ' + item.id + ': ' + e.message);
+                console.log('âŒ ' + item.id + ': ' + e.message);
                 failed++;
               }
             }
-            console.log('\nDownloaded to public/videos/');
-            fs.readdirSync('public/videos').forEach(f => console.log(' - ' + f));
             if (failed > 0) process.exit(1);
           })();
           EOF
@@ -134,15 +119,14 @@ jobs:
       - name: Render all videos
         run: |
           BROWSER="./node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell"
-          echo "🌐 Browser: $BROWSER"
           mkdir -p out
           FAILED=0
-          for DAY in day22 day23 day24 day25 day26 day27 day28; do
-            echo "⚙ Rendering ${DAY}..."
+          for DAY in day29 day30 day31 day32 day33 day34 day35; do
+            echo "âš™ Rendering ${DAY}..."
             npx remotion render src/index.jsx ${DAY} out/${DAY}_final.mp4 \
               --browser-executable="$BROWSER" \
               --codec=h264 \
-            && echo "✅ ${DAY} done" || { echo "❌ ${DAY} FAILED"; FAILED=1; }
+            && echo "âœ… ${DAY} done" || { echo "âŒ ${DAY} FAILED"; FAILED=1; }
           done
           exit $FAILED
 
