@@ -9,8 +9,8 @@ jobs:
   render:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
     steps:
+
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -56,7 +56,9 @@ jobs:
               https.get(url, res => {
                 let data = '';
                 res.on('data', d => data += d);
-                res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+                res.on('end', () => {
+                  try { resolve(JSON.parse(data)); } catch(e) { reject(e); }
+                });
               }).on('error', reject);
             });
           }
@@ -99,16 +101,16 @@ jobs:
                     await downloadFile(videoUrl, dest);
                     const size = fs.statSync(dest).size;
                     if (size < 10000) throw new Error('File too small: ' + size);
-                    console.log('âœ… ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
+                    console.log('OK ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
                     downloaded = true;
                     break;
                   } catch(e) {
                     if (fs.existsSync(dest)) fs.unlinkSync(dest);
                   }
                 }
-                if (!downloaded) { console.log('âŒ All hits failed: ' + item.id); failed++; }
+                if (!downloaded) { console.log('FAILED all hits: ' + item.id); failed++; }
               } catch(e) {
-                console.log('âŒ ' + item.id + ': ' + e.message);
+                console.log('FAILED ' + item.id + ': ' + e.message);
                 failed++;
               }
             }
@@ -122,11 +124,11 @@ jobs:
           mkdir -p out
           FAILED=0
           for DAY in day29 day30 day31 day32 day33 day34 day35; do
-            echo "âš™ Rendering ${DAY}..."
+            echo "Rendering ${DAY}..."
             npx remotion render src/index.jsx ${DAY} out/${DAY}_final.mp4 \
               --browser-executable="$BROWSER" \
               --codec=h264 \
-            && echo "âœ… ${DAY} done" || { echo "âŒ ${DAY} FAILED"; FAILED=1; }
+            && echo "DONE ${DAY}" || { echo "FAILED ${DAY}"; FAILED=1; }
           done
           exit $FAILED
 
