@@ -33,24 +33,54 @@ jobs:
           node << 'EOF'
           const https = require('https');
           const fs = require('fs');
-          const PIXABAY_KEY = process.env.PIXABAY_API_KEY;
-          const ASSETS = [
-            { id: 'entrepreneur_laptop',  q: 'entrepreneur laptop' },
-            { id: 'person_thinking',      q: 'person thinking' },
-            { id: 'writing_notes',        q: 'writing notes' },
-            { id: 'business_setup',       q: 'business setup' },
-            { id: 'stopwatch_timer',      q: 'stopwatch timer' },
-            { id: 'content_creator',      q: 'content creator' },
-            { id: 'social_media_phone',   q: 'social media phone' },
-            { id: 'business_statistics',  q: 'business statistics' },
-            { id: 'small_business',       q: 'small business' },
-            { id: 'laptop_income',        q: 'laptop income' },
-            { id: 'frustrated_laptop',    q: 'frustrated laptop' },
-            { id: 'desk_workspace',       q: 'desk workspace' },
-            { id: 'phone_filming',        q: 'phone filming' },
-            { id: 'clock_time',           q: 'clock time' },
-            { id: 'calendar_planning',    q: 'calendar planning' },
-          ];
+          const KEY = process.env.PIXABAY_API_KEY;
+
+          // 4 unique search queries per day = 28 unique clip files
+          const DAY_ASSETS = {
+            day29: [
+              { id: 'day29_clip1', q: 'person sad thinking vertical' },
+              { id: 'day29_clip2', q: 'laptop frustrated vertical' },
+              { id: 'day29_clip3', q: 'comeback motivation vertical' },
+              { id: 'day29_clip4', q: 'entrepreneur phone vertical' },
+            ],
+            day30: [
+              { id: 'day30_clip1', q: 'business growth statistics vertical' },
+              { id: 'day30_clip2', q: 'money income success vertical' },
+              { id: 'day30_clip3', q: 'social media phone vertical' },
+              { id: 'day30_clip4', q: 'milestone celebration vertical' },
+            ],
+            day31: [
+              { id: 'day31_clip1', q: 'writing notes vertical' },
+              { id: 'day31_clip2', q: 'person thinking desk vertical' },
+              { id: 'day31_clip3', q: 'online business vertical' },
+              { id: 'day31_clip4', q: 'affiliate marketing vertical' },
+            ],
+            day32: [
+              { id: 'day32_clip1', q: 'phone social media vertical' },
+              { id: 'day32_clip2', q: 'content creator phone vertical' },
+              { id: 'day32_clip3', q: 'digital tools laptop vertical' },
+              { id: 'day32_clip4', q: 'search online vertical' },
+            ],
+            day33: [
+              { id: 'day33_clip1', q: 'phone filming vertical' },
+              { id: 'day33_clip2', q: 'video editing laptop vertical' },
+              { id: 'day33_clip3', q: 'content workflow vertical' },
+              { id: 'day33_clip4', q: 'clock time vertical' },
+            ],
+            day34: [
+              { id: 'day34_clip1', q: 'entrepreneur laptop vertical' },
+              { id: 'day34_clip2', q: 'small business owner vertical' },
+              { id: 'day34_clip3', q: 'online income vertical' },
+              { id: 'day34_clip4', q: 'business decision vertical' },
+            ],
+            day35: [
+              { id: 'day35_clip1', q: 'calendar planning vertical' },
+              { id: 'day35_clip2', q: 'business review vertical' },
+              { id: 'day35_clip3', q: 'success journey vertical' },
+              { id: 'day35_clip4', q: 'desk workspace vertical' },
+            ],
+          };
+
           function fetchJSON(url) {
             return new Promise((resolve, reject) => {
               https.get(url, res => {
@@ -62,6 +92,7 @@ jobs:
               }).on('error', reject);
             });
           }
+
           function downloadFile(url, dest) {
             return new Promise((resolve, reject) => {
               const file = fs.createWriteStream(dest);
@@ -72,7 +103,7 @@ jobs:
                     return get(res.headers.location);
                   }
                   if (res.statusCode !== 200) {
-                    reject(new Error('HTTP ' + res.statusCode + ' for ' + u));
+                    reject(new Error('HTTP ' + res.statusCode));
                     return;
                   }
                   res.pipe(file);
@@ -82,36 +113,57 @@ jobs:
               get(url);
             });
           }
+
           (async () => {
             let failed = 0;
-            for (const item of ASSETS) {
-              const dest = 'public/videos/' + item.id + '.mp4';
-              if (fs.existsSync(dest)) {
-                console.log('Already exists: ' + item.id);
-                continue;
-              }
-              try {
-                const url = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY + '&q=' + encodeURIComponent(item.q) + '&per_page=5&video_type=film';
-                const data = await fetchJSON(url);
-                if (!data.hits || data.hits.length === 0) throw new Error('No results for: ' + item.q);
-                let downloaded = false;
-                for (const hit of data.hits) {
-                  const videoUrl = hit.videos.medium.url;
-                  try {
-                    await downloadFile(videoUrl, dest);
-                    const size = fs.statSync(dest).size;
-                    if (size < 10000) throw new Error('File too small: ' + size);
-                    console.log('OK ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
-                    downloaded = true;
-                    break;
-                  } catch(e) {
-                    if (fs.existsSync(dest)) fs.unlinkSync(dest);
-                  }
+            for (const [day, assets] of Object.entries(DAY_ASSETS)) {
+              for (const item of assets) {
+                const dest = 'public/videos/' + item.id + '.mp4';
+                if (fs.existsSync(dest)) {
+                  console.log('Already exists: ' + item.id);
+                  continue;
                 }
-                if (!downloaded) { console.log('FAILED all hits: ' + item.id); failed++; }
-              } catch(e) {
-                console.log('FAILED ' + item.id + ': ' + e.message);
-                failed++;
+                try {
+                  // Request portrait/vertical orientation from Pixabay
+                  const url = 'https://pixabay.com/api/videos/?key=' + KEY
+                    + '&q=' + encodeURIComponent(item.q)
+                    + '&orientation=vertical'
+                    + '&per_page=10'
+                    + '&video_type=film';
+                  const data = await fetchJSON(url);
+
+                  // Fallback: if no vertical results, try without orientation filter
+                  let hits = data.hits || [];
+                  if (hits.length === 0) {
+                    const fallbackUrl = 'https://pixabay.com/api/videos/?key=' + KEY
+                      + '&q=' + encodeURIComponent(item.q)
+                      + '&per_page=10'
+                      + '&video_type=film';
+                    const fallback = await fetchJSON(fallbackUrl);
+                    hits = fallback.hits || [];
+                  }
+
+                  if (hits.length === 0) throw new Error('No results: ' + item.q);
+
+                  let downloaded = false;
+                  for (const hit of hits) {
+                    const videoUrl = hit.videos.medium.url;
+                    try {
+                      await downloadFile(videoUrl, dest);
+                      const size = fs.statSync(dest).size;
+                      if (size < 10000) throw new Error('Too small');
+                      console.log('OK ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
+                      downloaded = true;
+                      break;
+                    } catch(e) {
+                      if (fs.existsSync(dest)) fs.unlinkSync(dest);
+                    }
+                  }
+                  if (!downloaded) { console.log('FAILED: ' + item.id); failed++; }
+                } catch(e) {
+                  console.log('ERROR ' + item.id + ': ' + e.message);
+                  failed++;
+                }
               }
             }
             if (failed > 0) process.exit(1);
