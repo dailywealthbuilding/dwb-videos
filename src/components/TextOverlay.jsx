@@ -47,6 +47,15 @@ function ensureVisibleColor(color) {
   return c;
 }
 
+// ── UPGRADE: Auto-resize font based on text length ──
+function computeFontSize(baseFontSize, text) {
+  const charCount = (text || "").replace(/\n/g, "").length;
+  if (charCount <= 30) return baseFontSize;
+  if (charCount <= 50) return Math.max(baseFontSize * 0.85, 36);
+  if (charCount <= 70) return Math.max(baseFontSize * 0.72, 32);
+  return Math.max(baseFontSize * 0.60, 28);
+}
+
 export const TextOverlay = ({ overlay }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -93,18 +102,32 @@ export const TextOverlay = ({ overlay }) => {
     opacity = interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" });
   }
 
+  // ── UPGRADE: Richer multi-layer drop shadow ──
   const strokeStyle = overlay.stroke
     ? {
         WebkitTextStroke: `${overlay.stroke.size}px ${overlay.stroke.color}`,
-        textShadow: "0 4px 12px rgba(0,0,0,0.9)",
+        textShadow: [
+          "0 2px 0 rgba(0,0,0,1)",
+          "0 4px 8px rgba(0,0,0,0.9)",
+          "0 8px 24px rgba(0,0,0,0.7)",
+          "0 0 40px rgba(0,0,0,0.5)",
+        ].join(", "),
       }
     : {
-        textShadow: "0 2px 8px rgba(0,0,0,0.95), 0 0 30px rgba(0,0,0,0.8)",
+        textShadow: [
+          "0 2px 0 rgba(0,0,0,1)",
+          "0 4px 12px rgba(0,0,0,0.95)",
+          "0 8px 24px rgba(0,0,0,0.8)",
+          "0 0 40px rgba(0,0,0,0.6)",
+        ].join(", "),
       };
 
   const safeColor = ensureVisibleColor(overlay.color);
   const posStyle = POSITION_STYLES[overlay.position] || POSITION_STYLES.middle;
-  const fontSize = overlay.fontSize ? overlay.fontSize : 68;
+
+  // ── UPGRADE: Auto-resize font ──
+  const baseFontSize = overlay.fontSize ? overlay.fontSize : 68;
+  const fontSize = computeFontSize(baseFontSize, overlay.text);
 
   return (
     <div
