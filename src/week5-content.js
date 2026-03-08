@@ -657,4 +657,4 @@ export const WEEK5_VIDEOS = [
     pinnedComment: "Week 5 done. The gap happened, the comeback happened, and the lessons are locked in. Week 6 starts tomorrow. Drop 🔥 if you're still on your own journey. Let's go. 💪"
   }
 
-]; 
+];
