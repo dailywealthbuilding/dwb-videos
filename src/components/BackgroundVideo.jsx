@@ -3,13 +3,13 @@ import { OffthreadVideo, Sequence, useCurrentFrame, interpolate, staticFile } fr
 const V = (name) => staticFile('videos/' + name + '.mp4');
 
 const VIDEO_SETS = {
-  day29: [ V('person_thinking'),     V('frustrated_laptop'),   V('desk_workspace'),      V('entrepreneur_laptop')  ],
-  day30: [ V('business_statistics'), V('laptop_income'),       V('social_media_phone'),  V('business_statistics')  ],
-  day31: [ V('writing_notes'),       V('person_thinking'),     V('laptop_income'),       V('desk_workspace')       ],
-  day32: [ V('social_media_phone'),  V('content_creator'),     V('desk_workspace'),      V('entrepreneur_laptop')  ],
-  day33: [ V('phone_filming'),       V('desk_workspace'),      V('content_creator'),     V('clock_time')           ],
-  day34: [ V('entrepreneur_laptop'), V('small_business'),      V('laptop_income'),       V('frustrated_laptop')    ],
-  day35: [ V('calendar_planning'),   V('business_statistics'), V('writing_notes'),       V('desk_workspace')       ],
+  day29: [ V('day29_clip1'), V('day29_clip2'), V('day29_clip3'), V('day29_clip4') ],
+  day30: [ V('day30_clip1'), V('day30_clip2'), V('day30_clip3'), V('day30_clip4') ],
+  day31: [ V('day31_clip1'), V('day31_clip2'), V('day31_clip3'), V('day31_clip4') ],
+  day32: [ V('day32_clip1'), V('day32_clip2'), V('day32_clip3'), V('day32_clip4') ],
+  day33: [ V('day33_clip1'), V('day33_clip2'), V('day33_clip3'), V('day33_clip4') ],
+  day34: [ V('day34_clip1'), V('day34_clip2'), V('day34_clip3'), V('day34_clip4') ],
+  day35: [ V('day35_clip1'), V('day35_clip2'), V('day35_clip3'), V('day35_clip4') ],
 };
 
 const CLIP_DURATION_FRAMES = 225;
@@ -25,10 +25,22 @@ export const BackgroundVideo = ({ videoId }) => {
         const startFrame = i * CLIP_DURATION_FRAMES;
         const endFrame = startFrame + CLIP_DURATION_FRAMES;
 
+        // ── UPGRADE: Alternating Ken Burns directions ──
+        // Even clips (0, 2): zoom IN  0.92 → 0.96
+        // Odd  clips (1, 3): zoom OUT 0.96 → 0.92
+        const isEven = i % 2 === 0;
         const zoom = interpolate(
           frame,
           [startFrame, endFrame],
-          [1.0, 1.08],
+          isEven ? [0.92, 0.96] : [0.96, 0.92],
+          { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+        );
+
+        // ── UPGRADE: Alternate pan direction left/right ──
+        const panX = interpolate(
+          frame,
+          [startFrame, endFrame],
+          isEven ? [0, 12] : [12, 0],
           { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
         );
 
@@ -45,7 +57,7 @@ export const BackgroundVideo = ({ videoId }) => {
               position: 'absolute',
               inset: 0,
               opacity,
-              transform: `scale(${zoom})`,
+              transform: `scale(${zoom}) translateX(${panX}px)`,
               transformOrigin: 'center center',
             }}>
               <OffthreadVideo
