@@ -192,32 +192,54 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+      - name: Generate thumbnails from rendered videos
+        run: |
+          sudo apt-get install -y ffmpeg -q
+          mkdir -p out/thumbs
+          for DAY in day29 day30 day31 day32 day33 day34 day35; do
+            FILE="out/${DAY}_final.mp4"
+            if [ -f "$FILE" ]; then
+              ffmpeg -ss 00:00:02 -i "$FILE" -frames:v 1 -q:v 2 \
+                "out/thumbs/${DAY}_thumb.jpg" -y -loglevel error \
+                && echo "Thumbnail OK: ${DAY}" \
+                || echo "Thumbnail FAILED: ${DAY}"
+            fi
+          done
+
+      - name: Upload thumbnails as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwb-thumbnails-${{ github.run_number }}
+          path: out/thumbs/*.jpg
+          retention-days: 7
+          if-no-files-found: warn
+
       - name: WhatsApp Render Notification
         if: always()
         env:
+          ULTRAMSG_INSTANCE: ${{ secrets.ULTRAMSG_INSTANCE }}
+          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
           WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
-          WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
         run: |
           STATUS="COMPLETE"
           if [ "${{ job.status }}" != "success" ]; then
             STATUS="FAILED"
           fi
 
-          REPORT="DWB+Render+${STATUS}%0A"
-          REPORT+="Week+5+%7C+Run+%23${{ github.run_number }}%0A"
-          REPORT+="------------------------%0A"
+          REPORT="DWB Render ${STATUS} | Run #${{ github.run_number }}"
 
           for DAY in day29 day30 day31 day32 day33 day34 day35; do
             FILE="out/${DAY}_final.mp4"
             if [ -f "$FILE" ]; then
               SIZE=$(du -sh "$FILE" | cut -f1)
-              REPORT+="${DAY}+PASSED+(${SIZE})%0A"
+              REPORT="${REPORT} | ${DAY} OK (${SIZE})"
             else
-              REPORT+="${DAY}+FAILED%0A"
+              REPORT="${REPORT} | ${DAY} FAILED"
             fi
           done
 
-          REPORT+="------------------------%0A"
-          REPORT+="github.com%2Fdailywealthbuilding%2Fdwb-videos%2Factions"
-
-          curl -s "https://api.callmebot.com/whatsapp.php?phone=${WHATSAPP_PHONE}&text=${REPORT}&apikey=${WHATSAPP_APIKEY}"
+          curl -s -X POST "https://api.ultramsg.com/${ULTRAMSG_INSTANCE}/messages/chat" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "token=${ULTRAMSG_TOKEN}" \
+            --data-urlencode "to=+${WHATSAPP_PHONE}" \
+            --data-urlencode "body=${REPORT}"
