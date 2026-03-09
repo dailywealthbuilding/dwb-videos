@@ -1,16 +1,9 @@
-import { OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from 'remotion';
+import { OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, staticFile } from 'remotion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CLIP HELPER
 // ─────────────────────────────────────────────────────────────────────────────
-const V = (name) => {
-  try {
-    const { staticFile } = require('remotion');
-    return staticFile('videos/' + name + '.mp4');
-  } catch {
-    return 'videos/' + name + '.mp4';
-  }
-};
+const V = (name) => staticFile('videos/' + name + '.mp4');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PER-DAY CLIP SETS  (supports 4–6 clips per day)
