@@ -220,10 +220,10 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           STATUS="COMPLETE"
-          EMOJI="âœ…"
+          EMOJI="✅"
           if [ "${{ job.status }}" != "success" ]; then
             STATUS="FAILED"
-            EMOJI="âŒ"
+            EMOJI="❌"
           fi
 
           REPORT="Week 5 | Run #${{ github.run_number }}"
