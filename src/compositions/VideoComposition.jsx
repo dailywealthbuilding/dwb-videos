@@ -145,42 +145,23 @@ const VIDEO_DATA = {
 // LAYER COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Layer: Film Grain (animated SVG noise — cinematic texture) ──
-const FilmGrain = () => {
-  const frame = useCurrentFrame();
-  // Shift turbulence seed every 3 frames for grain animation
-  const seed = Math.floor(frame / 3) % 20;
-  return (
-    <AbsoluteFill style={{ zIndex: 2, pointerEvents: 'none', mixBlendMode: 'overlay', opacity: 0.055 }}>
-      <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0 }}>
-        <filter id={`grain-${seed}`}>
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.72"
-            numOctaves="4"
-            seed={seed}
-            stitchTiles="stitch"
-          />
-          <feColorMatrix type="saturate" values="0" />
-        </filter>
-        <rect width="100%" height="100%" filter={`url(#grain-${seed})`} />
-      </svg>
-    </AbsoluteFill>
-  );
-};
+// ── Layer: Film Grain (CSS-only — static noise texture, zero SVG cost) ──
+// Pure CSS background — renders instantly, no per-frame computation
+const FilmGrain = () => (
+  <AbsoluteFill style={{
+    zIndex: 2, pointerEvents: 'none', opacity: 0.04,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+    backgroundSize: '180px 180px',
+    mixBlendMode: 'overlay',
+  }} />
+);
 
-// ── Layer: Scanlines (VHS horizontal line texture) ──
+// ── Layer: Scanlines (CSS-only — repeating gradient, zero SVG cost) ──
 const Scanlines = () => (
-  <AbsoluteFill style={{ zIndex: 3, pointerEvents: 'none' }}>
-    <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0 }}>
-      <defs>
-        <pattern id="scanlines" x="0" y="0" width="100%" height="4" patternUnits="userSpaceOnUse">
-          <rect x="0" y="0" width="100%" height="1" fill="rgba(0,0,0,0.1)" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#scanlines)" />
-    </svg>
-  </AbsoluteFill>
+  <AbsoluteFill style={{
+    zIndex: 3, pointerEvents: 'none',
+    backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px)',
+  }} />
 );
 
 // ── Layer: Vignette (dark edges → eye to center) ──
