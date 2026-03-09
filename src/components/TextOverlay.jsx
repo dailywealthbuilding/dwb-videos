@@ -202,6 +202,32 @@ export const TextOverlay = ({ overlay }) => {
     opacity = interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" });
   }
 
+  // ── ANIMATION: Camera Shake (violent entry, settles fast) ──
+  if (overlay.animation === "shake") {
+    opacity = interpolate(frame, [0, 5], [0, 1], { extrapolateRight: "clamp" });
+
+    // Violent shake frames 0-8, decays to zero by frame 18
+    const shakeIntensity = interpolate(
+      frame, [0, 8, 18], [1, 0.4, 0],
+      { extrapolateRight: "clamp", easing: Easing.out(Easing.quad) }
+    );
+
+    // Sin-wave jitter pattern — seeded so it's deterministic every render
+    const shakeX = Math.sin(frame * 2.8) * 14 * shakeIntensity
+                 + Math.sin(frame * 5.1) * 7  * shakeIntensity;
+    const shakeY = Math.cos(frame * 3.2) * 10 * shakeIntensity
+                 + Math.cos(frame * 6.7) * 5  * shakeIntensity;
+
+    translateX = shakeX;
+    translateY = shakeY;
+
+    // Fade out gracefully near end
+    opacity = Math.min(
+      opacity,
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+    );
+  }
+
   // ── ANIMATION: Glitch (RGB split + position jitter) ──
   if (overlay.animation === "glitch") {
     opacity = interpolate(frame, [0, 4], [0, 1], { extrapolateRight: "clamp" });
@@ -248,6 +274,49 @@ export const TextOverlay = ({ overlay }) => {
   const fontSize = computeFontSize(baseFontSize, overlay.text);
   const fontFamily = FONT_MAP[overlay.font] || "'Montserrat', sans-serif";
   const fontWeight = overlay.font === "Montserrat" ? "800" : "bold";
+
+  // ── COUNTER: animates numbers from 0 to target value ──
+  // Usage: text="3,500 Views" — it finds the number and animates it
+  if (overlay.animation === "counter") {
+    // Extract numeric part from text (handles commas, decimals)
+    const rawText = overlay.text || "";
+    const numMatch = rawText.match(/[\d,]+(\.\d+)?/);
+    const targetRaw = numMatch ? numMatch[0].replace(/,/g, "") : "0";
+    const target = parseFloat(targetRaw);
+    const hasComma = numMatch && numMatch[0].includes(",");
+
+    // Ease-out curve — fast at start, slows to final value
+    const progress = interpolate(
+      frame, [0, Math.max(totalFrames - 20, 10)], [0, 1],
+      { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    );
+    const current = Math.round(progress * target);
+    const formatted = hasComma ? current.toLocaleString("en-US") : String(current);
+    const displayText = numMatch
+      ? rawText.replace(numMatch[0], formatted)
+      : rawText;
+
+    const counterOpacity = Math.min(
+      interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+    );
+
+    return (
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column",
+        padding: "0 60px", opacity: counterOpacity, ...posStyle,
+      }}>
+        <div style={{
+          fontFamily, fontSize: `${fontSize}px`, color: safeColor,
+          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          fontWeight, ...strokeStyle,
+        }}>
+          {displayText}
+        </div>
+      </div>
+    );
+  }
 
   // ── TYPEWRITER: separate render branch ──
   if (overlay.animation === "typewriter") {
