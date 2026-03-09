@@ -191,3 +191,33 @@ jobs:
           path: out/*.mp4
           retention-days: 7
           if-no-files-found: error
+
+      - name: WhatsApp Render Notification
+        if: always()
+        env:
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
+        run: |
+          STATUS="COMPLETE"
+          if [ "${{ job.status }}" != "success" ]; then
+            STATUS="FAILED"
+          fi
+
+          REPORT="DWB+Render+${STATUS}%0A"
+          REPORT+="Week+5+%7C+Run+%23${{ github.run_number }}%0A"
+          REPORT+="------------------------%0A"
+
+          for DAY in day29 day30 day31 day32 day33 day34 day35; do
+            FILE="out/${DAY}_final.mp4"
+            if [ -f "$FILE" ]; then
+              SIZE=$(du -sh "$FILE" | cut -f1)
+              REPORT+="${DAY}+PASSED+(${SIZE})%0A"
+            else
+              REPORT+="${DAY}+FAILED%0A"
+            fi
+          done
+
+          REPORT+="------------------------%0A"
+          REPORT+="github.com%2Fdailywealthbuilding%2Fdwb-videos%2Factions"
+
+          curl -s "https://api.callmebot.com/whatsapp.php?phone=${WHATSAPP_PHONE}&text=${REPORT}&apikey=${WHATSAPP_APIKEY}"
