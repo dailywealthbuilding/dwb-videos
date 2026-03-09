@@ -214,32 +214,34 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      - name: WhatsApp Render Notification
+      - name: Render Notification
         if: always()
         env:
-          ULTRAMSG_INSTANCE: ${{ secrets.ULTRAMSG_INSTANCE }}
-          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
-          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           STATUS="COMPLETE"
+          EMOJI="âœ…"
           if [ "${{ job.status }}" != "success" ]; then
             STATUS="FAILED"
+            EMOJI="âŒ"
           fi
 
-          REPORT="DWB Render ${STATUS} | Run #${{ github.run_number }}"
+          REPORT="Week 5 | Run #${{ github.run_number }}"
+          PASSED=0
+          FAILED=0
 
           for DAY in day29 day30 day31 day32 day33 day34 day35; do
             FILE="out/${DAY}_final.mp4"
             if [ -f "$FILE" ]; then
               SIZE=$(du -sh "$FILE" | cut -f1)
-              REPORT="${REPORT} | ${DAY} OK (${SIZE})"
+              REPORT="${REPORT}\n${DAY} OK (${SIZE})"
+              PASSED=$((PASSED + 1))
             else
-              REPORT="${REPORT} | ${DAY} FAILED"
+              REPORT="${REPORT}\n${DAY} FAILED"
+              FAILED=$((FAILED + 1))
             fi
           done
 
-          curl -s -X POST "https://api.ultramsg.com/${ULTRAMSG_INSTANCE}/messages/chat" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "token=${ULTRAMSG_TOKEN}" \
-            --data-urlencode "to=+${WHATSAPP_PHONE}" \
-            --data-urlencode "body=${REPORT}"
+          REPORT="${REPORT}\n${PASSED}/7 rendered"
+
+          curl -s             -H "Title: DWB Render ${EMOJI} ${STATUS}"             -H "Priority: high"             -H "Tags: movie_camera,dollar"             -d "${REPORT}"             "https://ntfy.sh/${NTFY_TOPIC}"
