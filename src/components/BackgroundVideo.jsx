@@ -15,6 +15,29 @@ const VIDEO_SETS = {
 const CLIP_DURATION_FRAMES = 225;
 const CROSSFADE_FRAMES = 8;
 
+// ── UPGRADE: Flash transition on clip change ──
+// Quick white flash at the exact moment each new clip starts
+const FlashTransition = ({ clipIndex }) => {
+  const frame = useCurrentFrame();
+  // Flash only at frame 0 of each clip (except the very first)
+  if (clipIndex === 0) return null;
+  const flashOpacity = interpolate(
+    frame,
+    [0, 4],
+    [0.45, 0],
+    { extrapolateRight: 'clamp' }
+  );
+  return (
+    <div style={{
+      position: 'absolute',
+      inset: 0,
+      backgroundColor: `rgba(255,255,255,${flashOpacity})`,
+      zIndex: 5,
+      pointerEvents: 'none',
+    }} />
+  );
+};
+
 export const BackgroundVideo = ({ videoId }) => {
   const frame = useCurrentFrame();
   const clips = VIDEO_SETS[videoId] || VIDEO_SETS['day29'];
@@ -25,9 +48,7 @@ export const BackgroundVideo = ({ videoId }) => {
         const startFrame = i * CLIP_DURATION_FRAMES;
         const endFrame = startFrame + CLIP_DURATION_FRAMES;
 
-        // ── UPGRADE: Alternating Ken Burns directions ──
-        // Even clips (0, 2): zoom IN  0.92 → 0.96
-        // Odd  clips (1, 3): zoom OUT 0.96 → 0.92
+        // ── Alternating Ken Burns directions ──
         const isEven = i % 2 === 0;
         const zoom = interpolate(
           frame,
@@ -36,7 +57,7 @@ export const BackgroundVideo = ({ videoId }) => {
           { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
         );
 
-        // ── UPGRADE: Alternate pan direction left/right ──
+        // ── Alternate pan direction left/right ──
         const panX = interpolate(
           frame,
           [startFrame, endFrame],
@@ -66,6 +87,8 @@ export const BackgroundVideo = ({ videoId }) => {
                 muted
               />
             </div>
+            {/* Flash on clip entry */}
+            <FlashTransition clipIndex={i} />
           </Sequence>
         );
       })}
