@@ -4,11 +4,20 @@ on:
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
+    inputs:
+      week:
+        description: 'Week to render (e.g. week6). Leave blank for auto-detect.'
+        required: false
+        default: ''
+      days_override:
+        description: 'Specific days only, comma-separated (e.g. day36,day37). Leave blank for full week.'
+        required: false
+        default: ''
 
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
 
       - name: Checkout repo
@@ -25,59 +34,104 @@ jobs:
       - name: Install chrome-headless-shell
         run: npx remotion browser ensure
 
+      - name: Create required directories
+        run: |
+          mkdir -p public/videos
+          mkdir -p public/music
+          mkdir -p public/sfx
+          mkdir -p out
+          mkdir -p out/thumbs
+
+      - name: Validate music files
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+
+          // Auto-detect active week from content directory
+          const contentFiles = fs.readdirSync('content').filter(f => f.match(/^week\d+-content\.js$/));
+          const weeks = contentFiles.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
+          const activeWeek = weeks[0];
+          const weekStart = (activeWeek - 1) * 7 + 1;
+          const days = Array.from({length: 7}, (_, i) => `day${weekStart + i}`);
+
+          console.log(`Active week: week${activeWeek} | Days: ${days.join(', ')}`);
+
+          let missing = 0;
+          for (const day of days) {
+            const path = `public/music/${day}.mp3`;
+            if (!fs.existsSync(path)) {
+              console.log(`MISSING MUSIC: ${path}`);
+              missing++;
+            } else {
+              const size = fs.statSync(path).size;
+              if (size < 50000) {
+                console.log(`CORRUPT MUSIC (too small): ${path} (${size} bytes)`);
+                missing++;
+              } else {
+                console.log(`OK music: ${day}.mp3 (${Math.round(size/1024)}KB)`);
+              }
+            }
+          }
+          if (missing > 0) {
+            console.log(`${missing} music file(s) missing or corrupt. Upload to public/music/ and re-run.`);
+            process.exit(1);
+          }
+          console.log('All music files OK');
+          EOF
+
       - name: Download background videos from Pixabay
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
-          mkdir -p public/videos
           node << 'EOF'
           const https = require('https');
           const fs = require('fs');
           const KEY = process.env.PIXABAY_API_KEY;
 
-          // 4 unique search queries per day = 28 unique clip files
+          // Week 6 video assets — Days 36-42
+          // To update for a new week: replace all entries below
           const DAY_ASSETS = {
-            day29: [
-              { id: 'day29_clip1', q: 'person sad thinking vertical' },
-              { id: 'day29_clip2', q: 'laptop frustrated vertical' },
-              { id: 'day29_clip3', q: 'comeback motivation vertical' },
-              { id: 'day29_clip4', q: 'entrepreneur phone vertical' },
+            day36: [
+              { id: 'day36_clip1', q: 'online business laptop success vertical' },
+              { id: 'day36_clip2', q: 'entrepreneur phone vertical' },
+              { id: 'day36_clip3', q: 'money income vertical' },
+              { id: 'day36_clip4', q: 'writing notes desk vertical' },
             ],
-            day30: [
-              { id: 'day30_clip1', q: 'business growth statistics vertical' },
-              { id: 'day30_clip2', q: 'money income success vertical' },
-              { id: 'day30_clip3', q: 'social media phone vertical' },
-              { id: 'day30_clip4', q: 'milestone celebration vertical' },
+            day37: [
+              { id: 'day37_clip1', q: 'laptop search online vertical' },
+              { id: 'day37_clip2', q: 'person phone thinking vertical' },
+              { id: 'day37_clip3', q: 'reading notes vertical' },
+              { id: 'day37_clip4', q: 'business research vertical' },
             ],
-            day31: [
-              { id: 'day31_clip1', q: 'writing notes vertical' },
-              { id: 'day31_clip2', q: 'person thinking desk vertical' },
-              { id: 'day31_clip3', q: 'online business vertical' },
-              { id: 'day31_clip4', q: 'affiliate marketing vertical' },
+            day38: [
+              { id: 'day38_clip1', q: 'phone social media vertical' },
+              { id: 'day38_clip2', q: 'content creator phone vertical' },
+              { id: 'day38_clip3', q: 'digital strategy laptop vertical' },
+              { id: 'day38_clip4', q: 'online course vertical' },
             ],
-            day32: [
-              { id: 'day32_clip1', q: 'phone social media vertical' },
-              { id: 'day32_clip2', q: 'content creator phone vertical' },
-              { id: 'day32_clip3', q: 'digital tools laptop vertical' },
-              { id: 'day32_clip4', q: 'search online vertical' },
+            day39: [
+              { id: 'day39_clip1', q: 'person frustrated phone vertical' },
+              { id: 'day39_clip2', q: 'marketing strategy vertical' },
+              { id: 'day39_clip3', q: 'laptop entrepreneur vertical' },
+              { id: 'day39_clip4', q: 'business communication vertical' },
             ],
-            day33: [
-              { id: 'day33_clip1', q: 'phone filming vertical' },
-              { id: 'day33_clip2', q: 'video editing laptop vertical' },
-              { id: 'day33_clip3', q: 'content workflow vertical' },
-              { id: 'day33_clip4', q: 'clock time vertical' },
+            day40: [
+              { id: 'day40_clip1', q: 'calendar milestone vertical' },
+              { id: 'day40_clip2', q: 'person writing notes vertical' },
+              { id: 'day40_clip3', q: 'business journey vertical' },
+              { id: 'day40_clip4', q: 'desk workspace thinking vertical' },
             ],
-            day34: [
-              { id: 'day34_clip1', q: 'entrepreneur laptop vertical' },
-              { id: 'day34_clip2', q: 'small business owner vertical' },
-              { id: 'day34_clip3', q: 'online income vertical' },
-              { id: 'day34_clip4', q: 'business decision vertical' },
+            day41: [
+              { id: 'day41_clip1', q: 'phone analytics vertical' },
+              { id: 'day41_clip2', q: 'content strategy vertical' },
+              { id: 'day41_clip3', q: 'data statistics vertical' },
+              { id: 'day41_clip4', q: 'social media algorithm vertical' },
             ],
-            day35: [
-              { id: 'day35_clip1', q: 'calendar planning vertical' },
-              { id: 'day35_clip2', q: 'business review vertical' },
-              { id: 'day35_clip3', q: 'success journey vertical' },
-              { id: 'day35_clip4', q: 'desk workspace vertical' },
+            day42: [
+              { id: 'day42_clip1', q: 'business results statistics vertical' },
+              { id: 'day42_clip2', q: 'person phone celebration vertical' },
+              { id: 'day42_clip3', q: 'laptop analytics vertical' },
+              { id: 'day42_clip4', q: 'success journey vertical' },
             ],
           };
 
@@ -114,58 +168,85 @@ jobs:
             });
           }
 
+          function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+          }
+
           (async () => {
             let failed = 0;
+            let downloaded = 0;
+            let skipped = 0;
+
             for (const [day, assets] of Object.entries(DAY_ASSETS)) {
               for (const item of assets) {
                 const dest = 'public/videos/' + item.id + '.mp4';
-                if (fs.existsSync(dest)) {
-                  console.log('Already exists: ' + item.id);
-                  continue;
-                }
-                try {
-                  // Request portrait/vertical orientation from Pixabay
-                  const url = 'https://pixabay.com/api/videos/?key=' + KEY
-                    + '&q=' + encodeURIComponent(item.q)
-                    + '&orientation=vertical'
-                    + '&per_page=10'
-                    + '&video_type=film';
-                  const data = await fetchJSON(url);
 
-                  // Fallback: if no vertical results, try without orientation filter
-                  let hits = data.hits || [];
-                  if (hits.length === 0) {
-                    const fallbackUrl = 'https://pixabay.com/api/videos/?key=' + KEY
+                if (fs.existsSync(dest)) {
+                  const size = fs.statSync(dest).size;
+                  if (size > 50000) {
+                    console.log('SKIP (exists): ' + item.id);
+                    skipped++;
+                    continue;
+                  }
+                  fs.unlinkSync(dest);
+                  console.log('RE-DL (corrupt): ' + item.id);
+                }
+
+                let success = false;
+                for (let attempt = 1; attempt <= 2; attempt++) {
+                  try {
+                    const url = 'https://pixabay.com/api/videos/?key=' + KEY
                       + '&q=' + encodeURIComponent(item.q)
+                      + '&orientation=vertical'
                       + '&per_page=10'
                       + '&video_type=film';
-                    const fallback = await fetchJSON(fallbackUrl);
-                    hits = fallback.hits || [];
-                  }
+                    const data = await fetchJSON(url);
 
-                  if (hits.length === 0) throw new Error('No results: ' + item.q);
-
-                  let downloaded = false;
-                  for (const hit of hits) {
-                    const videoUrl = hit.videos.medium.url;
-                    try {
-                      await downloadFile(videoUrl, dest);
-                      const size = fs.statSync(dest).size;
-                      if (size < 10000) throw new Error('Too small');
-                      console.log('OK ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
-                      downloaded = true;
-                      break;
-                    } catch(e) {
-                      if (fs.existsSync(dest)) fs.unlinkSync(dest);
+                    let hits = data.hits || [];
+                    if (hits.length === 0) {
+                      const fallbackUrl = 'https://pixabay.com/api/videos/?key=' + KEY
+                        + '&q=' + encodeURIComponent(item.q)
+                        + '&per_page=10'
+                        + '&video_type=film';
+                      const fallback = await fetchJSON(fallbackUrl);
+                      hits = fallback.hits || [];
                     }
+
+                    if (hits.length === 0) throw new Error('No results: ' + item.q);
+
+                    for (const hit of hits) {
+                      const videoUrl = hit.videos.medium ? hit.videos.medium.url : hit.videos.small.url;
+                      try {
+                        await downloadFile(videoUrl, dest);
+                        const size = fs.statSync(dest).size;
+                        if (size < 50000) throw new Error('File too small: ' + size + ' bytes');
+                        console.log('OK: ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
+                        downloaded++;
+                        success = true;
+                        break;
+                      } catch(e) {
+                        if (fs.existsSync(dest)) fs.unlinkSync(dest);
+                      }
+                    }
+                    if (success) break;
+                  } catch(e) {
+                    console.log('Attempt ' + attempt + ' FAILED ' + item.id + ': ' + e.message);
+                    await sleep(2000);
                   }
-                  if (!downloaded) { console.log('FAILED: ' + item.id); failed++; }
-                } catch(e) {
-                  console.log('ERROR ' + item.id + ': ' + e.message);
+                }
+
+                if (!success) {
+                  console.log('FINAL FAIL: ' + item.id);
                   failed++;
                 }
               }
             }
+
+            console.log('--- Download Summary ---');
+            console.log('Downloaded: ' + downloaded);
+            console.log('Skipped (cached): ' + skipped);
+            console.log('Failed: ' + failed);
+
             if (failed > 0) process.exit(1);
           })();
           EOF
@@ -173,75 +254,138 @@ jobs:
       - name: Render all videos
         run: |
           BROWSER="./node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell"
-          mkdir -p out
-          FAILED=0
-          for DAY in day29 day30 day31 day32 day33 day34 day35; do
-            echo "Rendering ${DAY}..."
+
+          # Support manual day override from workflow_dispatch input
+          DAYS_INPUT="${{ github.event.inputs.days_override }}"
+          if [ -n "$DAYS_INPUT" ]; then
+            DAYS=$(echo "$DAYS_INPUT" | tr ',' ' ')
+          else
+            DAYS="day36 day37 day38 day39 day40 day41 day42"
+          fi
+
+          RENDER_FAILED=0
+          RENDER_PASSED=0
+          START_TIME=$(date +%s)
+
+          for DAY in $DAYS; do
+            DAY_START=$(date +%s)
+            echo "--- Rendering ${DAY} ---"
+
             npx remotion render src/index.jsx ${DAY} out/${DAY}_final.mp4 \
               --browser-executable="$BROWSER" \
               --codec=h264 \
-            && echo "DONE ${DAY}" || { echo "FAILED ${DAY}"; FAILED=1; }
-          done
-          exit $FAILED
+              --concurrency=2
 
-      - name: Upload rendered videos as artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dwb-videos-${{ github.run_number }}
-          path: out/*.mp4
-          retention-days: 7
-          if-no-files-found: error
+            EXIT_CODE=$?
+            DAY_END=$(date +%s)
+            DAY_SECS=$((DAY_END - DAY_START))
 
-      - name: Generate thumbnails from rendered videos
-        run: |
-          sudo apt-get install -y ffmpeg -q
-          mkdir -p out/thumbs
-          for DAY in day29 day30 day31 day32 day33 day34 day35; do
-            FILE="out/${DAY}_final.mp4"
-            if [ -f "$FILE" ]; then
-              ffmpeg -ss 00:00:02 -i "$FILE" -frames:v 1 -q:v 2 \
-                "out/thumbs/${DAY}_thumb.jpg" -y -loglevel error \
-                && echo "Thumbnail OK: ${DAY}" \
-                || echo "Thumbnail FAILED: ${DAY}"
+            if [ $EXIT_CODE -eq 0 ] && [ -f "out/${DAY}_final.mp4" ]; then
+              SIZE=$(du -sh "out/${DAY}_final.mp4" | cut -f1)
+              echo "DONE ${DAY} in ${DAY_SECS}s (${SIZE})"
+              RENDER_PASSED=$((RENDER_PASSED + 1))
+            else
+              echo "FAILED ${DAY} after ${DAY_SECS}s"
+              RENDER_FAILED=1
             fi
           done
 
-      - name: Upload thumbnails as artifacts
+          END_TIME=$(date +%s)
+          TOTAL_SECS=$((END_TIME - START_TIME))
+          echo "--- Render complete in ${TOTAL_SECS}s | Passed: ${RENDER_PASSED} ---"
+
+          exit $RENDER_FAILED
+
+      - name: Generate thumbnails
+        if: success()
+        run: |
+          sudo apt-get install -y ffmpeg -q
+          for DAY in day36 day37 day38 day39 day40 day41 day42; do
+            FILE="out/${DAY}_final.mp4"
+            if [ -f "$FILE" ]; then
+              ffmpeg -ss 00:00:01 -i "$FILE" -frames:v 1 -q:v 2 \
+                "out/thumbs/${DAY}_thumb.jpg" -y -loglevel error \
+                && echo "Thumb OK: ${DAY}" \
+                || echo "Thumb FAILED: ${DAY}"
+            fi
+          done
+
+      - name: Upload rendered videos
         uses: actions/upload-artifact@v4
         with:
-          name: dwb-thumbnails-${{ github.run_number }}
+          name: dwb-week6-videos-${{ github.run_number }}
+          path: out/*.mp4
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload thumbnails
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwb-week6-thumbs-${{ github.run_number }}
           path: out/thumbs/*.jpg
-          retention-days: 7
+          retention-days: 14
           if-no-files-found: warn
 
-      - name: Render Notification
+      - name: Send completion notification
         if: always()
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          STATUS="COMPLETE"
-          EMOJI="✅"
-          if [ "${{ job.status }}" != "success" ]; then
-            STATUS="FAILED"
-            EMOJI="❌"
-          fi
+          node << 'EOF'
+          const https = require('https');
+          const fs = require('fs');
+          const path = require('path');
 
-          REPORT="Week 5 | Run #${{ github.run_number }}"
-          PASSED=0
-          FAILED=0
+          const jobStatus = '${{ job.status }}';
+          const runNumber = '${{ github.run_number }}';
+          const isSuccess = jobStatus === 'success';
 
-          for DAY in day29 day30 day31 day32 day33 day34 day35; do
-            FILE="out/${DAY}_final.mp4"
-            if [ -f "$FILE" ]; then
-              SIZE=$(du -sh "$FILE" | cut -f1)
-              REPORT="${REPORT}\n${DAY} OK (${SIZE})"
-              PASSED=$((PASSED + 1))
-            else
-              REPORT="${REPORT}\n${DAY} FAILED"
-              FAILED=$((FAILED + 1))
-            fi
-          done
+          const STATUS = isSuccess ? 'COMPLETE' : 'FAILED';
+          const DAYS = ['day36','day37','day38','day39','day40','day41','day42'];
 
-          REPORT="${REPORT}\n${PASSED}/7 rendered"
+          let passed = 0;
+          let failed = 0;
+          let lines = [`DWB Week 6 | Run #${runNumber} | ${STATUS}`];
+          lines.push('');
 
-          curl -s             -H "Title: DWB Render ${EMOJI} ${STATUS}"             -H "Priority: high"             -H "Tags: movie_camera,dollar"             -d "${REPORT}"             "https://ntfy.sh/${NTFY_TOPIC}"
+          for (const day of DAYS) {
+            const file = `out/${day}_final.mp4`;
+            if (fs.existsSync(file)) {
+              const size = Math.round(fs.statSync(file).size / (1024*1024) * 10) / 10;
+              lines.push(`${day} OK - ${size}MB`);
+              passed++;
+            } else {
+              lines.push(`${day} FAILED`);
+              failed++;
+            }
+          }
+
+          lines.push('');
+          lines.push(`Result: ${passed}/7 rendered`);
+          if (passed === 7) {
+            lines.push('All videos ready for upload.');
+          }
+
+          const message = lines.join('\n');
+          const title = `DWB Render ${isSuccess ? 'DONE' : 'FAILED'} - Week 6 - ${passed}/7`;
+
+          const postData = message;
+          const options = {
+            hostname: 'ntfy.sh',
+            path: '/' + process.env.NTFY_TOPIC,
+            method: 'POST',
+            headers: {
+              'Title': title,
+              'Priority': isSuccess ? 'default' : 'high',
+              'Tags': isSuccess ? 'white_check_mark,clapper' : 'x,warning',
+              'Content-Length': Buffer.byteLength(postData),
+            }
+          };
+
+          const req = https.request(options, res => {
+            console.log('Notification sent: HTTP ' + res.statusCode);
+          });
+          req.on('error', e => console.log('Notification failed: ' + e.message));
+          req.write(postData);
+          req.end();
+          EOF
