@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// content/week6-content.js — DWB Week 6 (Days 36–42)
+// src/week6-content.js — DWB Week 6 (Days 36–42)
 // Theme: FIRST AFFILIATE LINK CLICK
 // Each video builds psychological trust → curiosity → click intent
 // Day 42 (Sunday): Week 6 recap + results reveal
@@ -32,7 +32,7 @@
 //   day42: 'rgba(255,215,0,0.45)',
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const VIDEO_DATA = [
+export default [
 
   // ─────────────────────────────────────────────
   // DAY 36 — "The Only Affiliate Strategy That Actually Works for Beginners"
@@ -46,7 +46,7 @@ export const VIDEO_DATA = [
     pexelsSearchTerms: ["online business laptop success", "entrepreneur phone vertical", "money income vertical", "writing notes desk vertical"],
     overlays: [
       {
-        text: "Forget everything\nyou've been told\nabout affiliate marketing 🚫",
+        text: "Forget everything\nyou've been told\nabout affiliate marketing",
         font: "Anton",
         color: "#FF3300",
         stroke: { size: 3, color: "#000000" },
@@ -90,7 +90,7 @@ export const VIDEO_DATA = [
         fontSize: 48
       },
       {
-        text: "My Week 6 goal:\nGet my first\naffiliate click 🎯",
+        text: "My Week 6 goal:\nGet my first\naffiliate click",
         font: "Montserrat",
         color: "#00FFFF",
         stroke: { size: 2, color: "#000000" },
@@ -101,7 +101,7 @@ export const VIDEO_DATA = [
         fontSize: 52
       },
       {
-        text: "Save this if you're\nbuilding from zero 👇",
+        text: "Save this if you're\nbuilding from zero",
         font: "Anton",
         color: "#9933FF",
         stroke: { size: 3, color: "#000000" },
@@ -130,7 +130,7 @@ export const VIDEO_DATA = [
     pexelsSearchTerms: ["laptop search online vertical", "person phone thinking vertical", "reading notes vertical", "business research vertical"],
     overlays: [
       {
-        text: "Picking your first\naffiliate product\nis a trap 🪤",
+        text: "Picking your first\naffiliate product\nis a trap",
         font: "Anton",
         color: "#FF9900",
         stroke: { size: 3, color: "#000000" },
@@ -163,7 +163,7 @@ export const VIDEO_DATA = [
         fontSize: 52
       },
       {
-        text: "If the answer\nis NO — skip it.\nNo exceptions. 🚫",
+        text: "If the answer\nis NO — skip it.\nNo exceptions.",
         font: "Montserrat",
         color: "#FF6600",
         stroke: { size: 2, color: "#000000" },
@@ -185,7 +185,7 @@ export const VIDEO_DATA = [
         fontSize: 50
       },
       {
-        text: "What's YOUR\ncriteria for picking\na product? 👇",
+        text: "What's YOUR\ncriteria for picking\na product?",
         font: "Anton",
         color: "#9933FF",
         stroke: { size: 3, color: "#000000" },
@@ -214,7 +214,7 @@ export const VIDEO_DATA = [
     pexelsSearchTerms: ["phone social media vertical", "content creator phone vertical", "digital strategy laptop vertical", "online course vertical"],
     overlays: [
       {
-        text: "Where you put\nthe link matters MORE\nthan the link itself 🔗",
+        text: "Where you put\nthe link matters MORE\nthan the link itself",
         font: "Anton",
         color: "#4499FF",
         stroke: { size: 3, color: "#000000" },
@@ -247,7 +247,7 @@ export const VIDEO_DATA = [
         fontSize: 50
       },
       {
-        text: "Context = trust.\nTrust = clicks.\nClicks = income. 💡",
+        text: "Context = trust.\nTrust = clicks.\nClicks = income.",
         font: "Montserrat",
         color: "#FFD700",
         stroke: { size: 2, color: "#000000" },
@@ -258,7 +258,7 @@ export const VIDEO_DATA = [
         fontSize: 50
       },
       {
-        text: "My Day 38 move:\nPosted my first\nlink today. 🎯",
+        text: "My Day 38 move:\nPosted my first\nlink today.",
         font: "Montserrat",
         color: "#00FFFF",
         stroke: { size: 2, color: "#000000" },
@@ -269,7 +269,7 @@ export const VIDEO_DATA = [
         fontSize: 52
       },
       {
-        text: "Save this.\nYou'll need it\nwhen YOU'RE ready 👇",
+        text: "Save this.\nYou'll need it\nwhen YOU'RE ready",
         font: "Anton",
         color: "#9933FF",
         stroke: { size: 3, color: "#000000" },
@@ -298,7 +298,7 @@ export const VIDEO_DATA = [
     pexelsSearchTerms: ["person frustrated phone vertical", "marketing strategy vertical", "laptop entrepreneur vertical", "call to action digital vertical"],
     overlays: [
       {
-        text: "'Check the link\nin my bio'\nis the worst CTA 🚫",
+        text: "'Check the link\nin my bio'\nis the worst CTA",
         font: "Anton",
         color: "#FF00FF",
         stroke: { size: 3, color: "#000000" },
@@ -331,7 +331,7 @@ export const VIDEO_DATA = [
         fontSize: 48
       },
       {
-        text: "Give a REASON.\nGive a CONTEXT.\nGive a BENEFIT. 💡",
+        text: "Give a REASON.\nGive a CONTEXT.\nGive a BENEFIT.",
         font: "Montserrat",
         color: "#FFD700",
         stroke: { size: 2, color: "#000000" },
@@ -342,7 +342,7 @@ export const VIDEO_DATA = [
         fontSize: 50
       },
       {
-        text: "I rewrote my\nCTA on Day 38's\nvideo today. 📝",
+        text: "I rewrote my\nCTA on Day 38's\nvideo today.",
         font: "Montserrat",
         color: "#00FFFF",
         stroke: { size: 2, color: "#000000" },
@@ -353,7 +353,7 @@ export const VIDEO_DATA = [
         fontSize: 52
       },
       {
-        text: "What's your current\nCTA? Drop it\nbelow 👇",
+        text: "What's your current\nCTA? Drop it\nbelow",
         font: "Anton",
         color: "#9933FF",
         stroke: { size: 3, color: "#000000" },
@@ -382,7 +382,7 @@ export const VIDEO_DATA = [
     pexelsSearchTerms: ["calendar milestone vertical", "person writing notes vertical", "business journey vertical", "desk workspace thinking vertical"],
     overlays: [
       {
-        text: "Day 40.\nHere's what nobody\ntells you 📋",
+        text: "Day 40.\nHere's what nobody\ntells you",
         font: "Anton",
         color: "#FF6600",
         stroke: { size: 3, color: "#000000" },
@@ -415,7 +415,7 @@ export const VIDEO_DATA = [
         fontSize: 48
       },
       {
-        text: "But the reps compound.\nDay 40 Ashley is better\nthan Day 1 Ashley.",
+        text: "But the reps compound.\nDay 40 is better\nthan Day 1.",
         font: "Montserrat",
         color: "#00FF88",
         stroke: { size: 2, color: "#000000" },
@@ -426,7 +426,7 @@ export const VIDEO_DATA = [
         fontSize: 46
       },
       {
-        text: "50 more days.\nThe goal doesn't\nchange. 💪",
+        text: "50 more days.\nThe goal doesn't\nchange.",
         font: "Montserrat",
         color: "#FFD700",
         stroke: { size: 2, color: "#000000" },
@@ -437,7 +437,7 @@ export const VIDEO_DATA = [
         fontSize: 52
       },
       {
-        text: "Drop 40 if you're\nstill in the game 👇",
+        text: "Drop 40 if you're\nstill in the game",
         font: "Anton",
         color: "#9933FF",
         stroke: { size: 3, color: "#000000" },
@@ -455,7 +455,7 @@ export const VIDEO_DATA = [
   },
 
   // ─────────────────────────────────────────────
-  // DAY 41 — "What Happens to Your Content After You Post It (Most Creators Don't Know This)"
+  // DAY 41 — "What Happens to Your Content After You Post It"
   // VIBE: Curious/educational — synth or future bass
   // ─────────────────────────────────────────────
   {
@@ -466,7 +466,7 @@ export const VIDEO_DATA = [
     pexelsSearchTerms: ["social media algorithm vertical", "phone analytics vertical", "content strategy vertical", "data statistics vertical"],
     overlays: [
       {
-        text: "What TikTok does\nto your video\nright after you post 👀",
+        text: "What TikTok does\nto your video\nright after you post",
         font: "Anton",
         color: "#00AAFF",
         stroke: { size: 3, color: "#000000" },
@@ -477,7 +477,7 @@ export const VIDEO_DATA = [
         fontSize: 58
       },
       {
-        text: "Phase 1 (0–30 mins):\nShown to ~200\nclosest followers.",
+        text: "Phase 1 (0-30 mins):\nShown to ~200\nclosest followers.",
         font: "Montserrat",
         color: "#00FFFF",
         stroke: { size: 2, color: "#000000" },
@@ -488,7 +488,7 @@ export const VIDEO_DATA = [
         fontSize: 50
       },
       {
-        text: "Phase 2 (30–120 mins):\nWatch time judged.\nAlgorithm decides.",
+        text: "Phase 2 (30-120 mins):\nWatch time judged.\nAlgorithm decides.",
         font: "Montserrat",
         color: "#FFD700",
         stroke: { size: 2, color: "#000000" },
@@ -499,7 +499,7 @@ export const VIDEO_DATA = [
         fontSize: 50
       },
       {
-        text: "Phase 3 (2–48 hrs):\nPushed to new\naudience if it passes.",
+        text: "Phase 3 (2-48 hrs):\nPushed to new\naudience if it passes.",
         font: "Montserrat",
         color: "#00FF88",
         stroke: { size: 2, color: "#000000" },
@@ -521,7 +521,7 @@ export const VIDEO_DATA = [
         fontSize: 48
       },
       {
-        text: "Save + share this.\nYour creator friends\nneed to know 👇",
+        text: "Save + share this.\nYour creator friends\nneed to know",
         font: "Anton",
         color: "#9933FF",
         stroke: { size: 3, color: "#000000" },
@@ -550,7 +550,7 @@ export const VIDEO_DATA = [
     pexelsSearchTerms: ["business results statistics vertical", "person phone celebration vertical", "laptop analytics vertical", "success journey vertical"],
     overlays: [
       {
-        text: "Week 6 is done.\nDid I get my\nfirst affiliate click? 👀",
+        text: "Week 6 is done.\nDid I get my\nfirst affiliate click?",
         font: "Anton",
         color: "#FFD700",
         stroke: { size: 3, color: "#000000" },
@@ -583,7 +583,7 @@ export const VIDEO_DATA = [
         fontSize: 72
       },
       {
-        text: "Check the pinned\ncomment for the\nfull reveal 📌",
+        text: "Check the pinned\ncomment for the\nfull reveal",
         font: "Montserrat",
         color: "#00FF88",
         stroke: { size: 2, color: "#000000" },
@@ -605,7 +605,7 @@ export const VIDEO_DATA = [
         fontSize: 50
       },
       {
-        text: "Drop your Week 6\nWIN below 🔥",
+        text: "Drop your Week 6\nWIN below",
         font: "Anton",
         color: "#9933FF",
         stroke: { size: 3, color: "#000000" },
@@ -619,7 +619,7 @@ export const VIDEO_DATA = [
     tiktokCaption: "Week 6 done. 42/90. Did I get the first affiliate click? Check my pinned comment 📌 Drop your Week 6 win below 🔥 #affiliatemarketing #week6 #90daychallenge #facelesscreator #day42",
     youtubeTitle: "Week 6 Results: Did I Get My First Affiliate Link Click? | Day 42/90 | Daily Wealth Building",
     youtubeDescription: "Day 42 of 90 — Week 6 complete. The full results reveal on whether I hit the first affiliate link click goal.\n\n→ Everything I did this week to push for the click\n→ The result (in pinned comment)\n→ What Week 7 focus is\n\nDrop your Week 6 win in the comments. Let's celebrate together.\n\n🔔 Subscribe for daily updates\n@DailyWealthBuilding\n\n#DailyWealthBuilding #affiliatemarketing #week6 #90daychallenge #facelesscreator",
-    pinnedComment: "[UPDATE AFTER POSTING: Replace this with the actual result — did you get a click or not? Be 100% honest. That's what this channel is about. 🎯]"
+    pinnedComment: "[UPDATE AFTER POSTING: Replace with actual result — did you get a click or not? Be 100% honest. That's what this channel is about. 🎯]"
   }
 
 ];
