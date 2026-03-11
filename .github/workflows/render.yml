@@ -5,12 +5,8 @@ on:
     - cron: '0 6 * * 1'
   workflow_dispatch:
     inputs:
-      week:
-        description: 'Week to render (e.g. week6). Leave blank for auto-detect.'
-        required: false
-        default: ''
       days_override:
-        description: 'Specific days only, comma-separated (e.g. day36,day37). Leave blank for full week.'
+        description: 'Specific days only, comma-separated (e.g. day43,day44). Leave blank to auto-detect.'
         required: false
         default: ''
 
@@ -42,38 +38,112 @@ jobs:
           mkdir -p out
           mkdir -p out/thumbs
 
+      - name: Detect active week from content files
+        run: |
+          node << 'EOF'
+          const fs   = require('fs');
+          const path = require('path');
+
+          // Find highest-numbered week content file in src/
+          const srcDir = 'src';
+          const contentFiles = fs.readdirSync(srcDir)
+            .filter(f => f.match(/^week\d+-content\.js$/));
+
+          if (contentFiles.length === 0) {
+            console.log('ERROR: No week content files found in src/');
+            process.exit(1);
+          }
+
+          const weekNums = contentFiles
+            .map(f => parseInt(f.match(/week(\d+)/)[1]))
+            .sort((a, b) => b - a);
+          const activeWeek   = weekNums[0];
+          const activeFile   = path.join(srcDir, `week${activeWeek}-content.js`);
+
+          console.log(`Active week file: ${activeFile}`);
+
+          // Parse content file - strip export declaration, eval the array
+          const source = fs.readFileSync(activeFile, 'utf8');
+          const match  = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*\]);/);
+          if (!match) {
+            console.log(`ERROR: Could not parse content array from ${activeFile}`);
+            process.exit(1);
+          }
+
+          let entries = [];
+          try { entries = eval(match[1]); } catch(e) {
+            console.log(`ERROR: eval failed: ${e.message}`);
+            process.exit(1);
+          }
+
+          // Extract day IDs
+          const days = entries.map(e => e.id).filter(Boolean);
+          console.log(`Days detected: ${days.join(', ')}`);
+
+          // Build DAY_ASSETS from pexelsSearchTerms (4 clips per day)
+          const dayAssets = {};
+          for (const entry of entries) {
+            if (!entry.id || !entry.pexelsSearchTerms) continue;
+            dayAssets[entry.id] = entry.pexelsSearchTerms
+              .slice(0, 4)
+              .map((q, i) => ({ id: `${entry.id}_clip${i + 1}`, q }));
+          }
+
+          // Write week info for subsequent steps
+          fs.mkdirSync('out', { recursive: true });
+          fs.writeFileSync('out/.week_info.json', JSON.stringify({
+            week: `week${activeWeek}`,
+            days,
+            dayAssets
+          }, null, 2));
+
+          // Write to GitHub env
+          const envFile = process.env.GITHUB_ENV;
+          if (envFile) {
+            fs.appendFileSync(envFile, `ACTIVE_WEEK=week${activeWeek}\n`);
+            fs.appendFileSync(envFile, `ACTIVE_DAYS=${days.join(' ')}\n`);
+          }
+
+          console.log(`Active week: week${activeWeek}`);
+          console.log(`Week info written to out/.week_info.json`);
+          EOF
+
+      - name: Run pre-render validator
+        run: |
+          if [ -f "validate.js" ]; then
+            node validate.js && echo "Validation passed" || exit 1
+          else
+            echo "validate.js not found - skipping"
+          fi
+
       - name: Validate music files
         run: |
           node << 'EOF'
-          const fs = require('fs');
+          const fs   = require('fs');
+          const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+          const days = info.days;
 
-          // Auto-detect active week from content directory
-          const contentFiles = fs.readdirSync('content').filter(f => f.match(/^week\d+-content\.js$/));
-          const weeks = contentFiles.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
-          const activeWeek = weeks[0];
-          const weekStart = (activeWeek - 1) * 7 + 1;
-          const days = Array.from({length: 7}, (_, i) => `day${weekStart + i}`);
-
-          console.log(`Active week: week${activeWeek} | Days: ${days.join(', ')}`);
+          console.log(`Checking music for: ${days.join(', ')}`);
 
           let missing = 0;
           for (const day of days) {
-            const path = `public/music/${day}.mp3`;
-            if (!fs.existsSync(path)) {
-              console.log(`MISSING MUSIC: ${path}`);
+            const p = `public/music/${day}.mp3`;
+            if (!fs.existsSync(p)) {
+              console.log(`MISSING MUSIC: ${p}`);
               missing++;
             } else {
-              const size = fs.statSync(path).size;
+              const size = fs.statSync(p).size;
               if (size < 50000) {
-                console.log(`CORRUPT MUSIC (too small): ${path} (${size} bytes)`);
+                console.log(`CORRUPT MUSIC (too small): ${p} (${size} bytes)`);
                 missing++;
               } else {
                 console.log(`OK music: ${day}.mp3 (${Math.round(size/1024)}KB)`);
               }
             }
           }
+
           if (missing > 0) {
-            console.log(`${missing} music file(s) missing or corrupt. Upload to public/music/ and re-run.`);
+            console.log(`${missing} music file(s) missing or corrupt.`);
             process.exit(1);
           }
           console.log('All music files OK');
@@ -85,55 +155,14 @@ jobs:
         run: |
           node << 'EOF'
           const https = require('https');
-          const fs = require('fs');
-          const KEY = process.env.PIXABAY_API_KEY;
+          const fs    = require('fs');
+          const KEY   = process.env.PIXABAY_API_KEY;
 
-          // Week 6 video assets — Days 36-42
-          // To update for a new week: replace all entries below
-          const DAY_ASSETS = {
-            day36: [
-              { id: 'day36_clip1', q: 'online business laptop success vertical' },
-              { id: 'day36_clip2', q: 'entrepreneur phone vertical' },
-              { id: 'day36_clip3', q: 'money income vertical' },
-              { id: 'day36_clip4', q: 'writing notes desk vertical' },
-            ],
-            day37: [
-              { id: 'day37_clip1', q: 'laptop search online vertical' },
-              { id: 'day37_clip2', q: 'person phone thinking vertical' },
-              { id: 'day37_clip3', q: 'reading notes vertical' },
-              { id: 'day37_clip4', q: 'business research vertical' },
-            ],
-            day38: [
-              { id: 'day38_clip1', q: 'phone social media vertical' },
-              { id: 'day38_clip2', q: 'content creator phone vertical' },
-              { id: 'day38_clip3', q: 'digital strategy laptop vertical' },
-              { id: 'day38_clip4', q: 'online course vertical' },
-            ],
-            day39: [
-              { id: 'day39_clip1', q: 'person frustrated phone vertical' },
-              { id: 'day39_clip2', q: 'marketing strategy vertical' },
-              { id: 'day39_clip3', q: 'laptop entrepreneur vertical' },
-              { id: 'day39_clip4', q: 'business communication vertical' },
-            ],
-            day40: [
-              { id: 'day40_clip1', q: 'calendar milestone vertical' },
-              { id: 'day40_clip2', q: 'person writing notes vertical' },
-              { id: 'day40_clip3', q: 'business journey vertical' },
-              { id: 'day40_clip4', q: 'desk workspace thinking vertical' },
-            ],
-            day41: [
-              { id: 'day41_clip1', q: 'phone analytics vertical' },
-              { id: 'day41_clip2', q: 'content strategy vertical' },
-              { id: 'day41_clip3', q: 'data statistics vertical' },
-              { id: 'day41_clip4', q: 'social media algorithm vertical' },
-            ],
-            day42: [
-              { id: 'day42_clip1', q: 'business results statistics vertical' },
-              { id: 'day42_clip2', q: 'person phone celebration vertical' },
-              { id: 'day42_clip3', q: 'laptop analytics vertical' },
-              { id: 'day42_clip4', q: 'success journey vertical' },
-            ],
-          };
+          // Auto-read DAY_ASSETS from week info
+          const info      = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+          const DAY_ASSETS = info.dayAssets;
+
+          console.log(`Downloading clips for: ${Object.keys(DAY_ASSETS).join(', ')}`);
 
           function fetchJSON(url) {
             return new Promise((resolve, reject) => {
@@ -168,14 +197,10 @@ jobs:
             });
           }
 
-          function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-          }
+          function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
           (async () => {
-            let failed = 0;
-            let downloaded = 0;
-            let skipped = 0;
+            let downloaded = 0, skipped = 0, failed = 0;
 
             for (const [day, assets] of Object.entries(DAY_ASSETS)) {
               for (const item of assets) {
@@ -195,27 +220,28 @@ jobs:
                 let success = false;
                 for (let attempt = 1; attempt <= 2; attempt++) {
                   try {
+                    // Try with vertical orientation first, fallback without
                     const url = 'https://pixabay.com/api/videos/?key=' + KEY
                       + '&q=' + encodeURIComponent(item.q)
-                      + '&orientation=vertical'
-                      + '&per_page=10'
-                      + '&video_type=film';
+                      + '&orientation=vertical&per_page=10&video_type=film';
                     const data = await fetchJSON(url);
-
                     let hits = data.hits || [];
+
                     if (hits.length === 0) {
-                      const fallbackUrl = 'https://pixabay.com/api/videos/?key=' + KEY
+                      const fallback = await fetchJSON(
+                        'https://pixabay.com/api/videos/?key=' + KEY
                         + '&q=' + encodeURIComponent(item.q)
-                        + '&per_page=10'
-                        + '&video_type=film';
-                      const fallback = await fetchJSON(fallbackUrl);
+                        + '&per_page=10&video_type=film'
+                      );
                       hits = fallback.hits || [];
                     }
 
                     if (hits.length === 0) throw new Error('No results: ' + item.q);
 
                     for (const hit of hits) {
-                      const videoUrl = hit.videos.medium ? hit.videos.medium.url : hit.videos.small.url;
+                      const videoUrl = hit.videos.medium
+                        ? hit.videos.medium.url
+                        : hit.videos.small.url;
                       try {
                         await downloadFile(videoUrl, dest);
                         const size = fs.statSync(dest).size;
@@ -260,7 +286,7 @@ jobs:
           if [ -n "$DAYS_INPUT" ]; then
             DAYS=$(echo "$DAYS_INPUT" | tr ',' ' ')
           else
-            DAYS="day36 day37 day38 day39 day40 day41 day42"
+            DAYS="${{ env.ACTIVE_DAYS }}"
           fi
 
           RENDER_FAILED=0
@@ -296,11 +322,14 @@ jobs:
 
           exit $RENDER_FAILED
 
+      - name: Install ffmpeg
+        if: success()
+        run: sudo apt-get install -y ffmpeg -q
+
       - name: Generate thumbnails
         if: success()
         run: |
-          sudo apt-get install -y ffmpeg -q
-          for DAY in day36 day37 day38 day39 day40 day41 day42; do
+          for DAY in ${{ env.ACTIVE_DAYS }}; do
             FILE="out/${DAY}_final.mp4"
             if [ -f "$FILE" ]; then
               ffmpeg -ss 00:00:01 -i "$FILE" -frames:v 1 -q:v 2 \
@@ -310,10 +339,202 @@ jobs:
             fi
           done
 
+      - name: Generate thumbnails from frame 60
+        if: success()
+        run: |
+          node << 'EOF'
+          const { execSync } = require('child_process');
+          const fs   = require('fs');
+          const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+          const FPS  = 30;
+
+          for (const day of info.days) {
+            const input  = `out/${day}_final.mp4`;
+            const output = `out/thumbs/${day}_thumb_f60.jpg`;
+            if (!fs.existsSync(input)) continue;
+            try {
+              execSync(`ffmpeg -ss ${(60/FPS).toFixed(4)} -i "${input}" -frames:v 1 -q:v 1 "${output}" -y -loglevel error`);
+              console.log(`Thumb f60 OK: ${day}`);
+            } catch(e) {
+              console.log(`Thumb f60 FAILED: ${day}: ${e.message}`);
+            }
+          }
+          EOF
+
+      - name: Generate GIF teasers hook frames 0-3sec
+        if: success()
+        run: |
+          mkdir -p out/gifs
+          for DAY in ${{ env.ACTIVE_DAYS }}; do
+            FILE="out/${DAY}_final.mp4"
+            if [ -f "$FILE" ]; then
+              ffmpeg -t 3 -i "$FILE" \
+                -vf "fps=12,scale=270:-1:flags=lanczos,palettegen" \
+                -y "out/gifs/${DAY}_palette.png" -loglevel error && \
+              ffmpeg -t 3 -i "$FILE" \
+                -i "out/gifs/${DAY}_palette.png" \
+                -lavfi "fps=12,scale=270:-1:flags=lanczos[x];[x][1:v]paletteuse" \
+                -y "out/gifs/${DAY}_hook.gif" -loglevel error && \
+              echo "GIF OK: ${DAY}" || echo "GIF FAILED: ${DAY}"
+              rm -f "out/gifs/${DAY}_palette.png"
+            fi
+          done
+
+      - name: Generate 3-second hook teaser clips
+        if: success()
+        run: |
+          mkdir -p out/teasers
+          for DAY in ${{ env.ACTIVE_DAYS }}; do
+            FILE="out/${DAY}_final.mp4"
+            if [ -f "$FILE" ]; then
+              ffmpeg -t 3 -i "$FILE" \
+                -c:v libx264 -crf 22 -preset fast \
+                -c:a aac -b:a 128k \
+                -y "out/teasers/${DAY}_teaser.mp4" -loglevel error && \
+              echo "Teaser OK: ${DAY}" || echo "Teaser FAILED: ${DAY}"
+            fi
+          done
+
+      - name: Generate SRT subtitle files
+        if: success()
+        run: |
+          mkdir -p out/srt
+          node << 'EOF'
+          const fs   = require('fs');
+          const path = require('path');
+          const FPS  = 30;
+          const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+
+          function framesToSRT(frames) {
+            const totalMs = Math.round((frames / FPS) * 1000);
+            const h  = Math.floor(totalMs / 3600000);
+            const m  = Math.floor((totalMs % 3600000) / 60000);
+            const s  = Math.floor((totalMs % 60000) / 1000);
+            const ms = totalMs % 1000;
+            return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms).padStart(3,'0')}`;
+          }
+
+          const srcDir = 'src';
+          const contentFiles = fs.readdirSync(srcDir)
+            .filter(f => f.match(/^week\d+-content\.js$/));
+          const weekNums = contentFiles
+            .map(f => parseInt(f.match(/week(\d+)/)[1]))
+            .sort((a, b) => b - a);
+          const activeFile = path.join(srcDir, `week${weekNums[0]}-content.js`);
+
+          const source = fs.readFileSync(activeFile, 'utf8');
+          const match  = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*\]);/);
+          let entries  = [];
+          try { entries = eval(match[1]); } catch(e) {}
+
+          let generated = 0;
+          for (const entry of entries) {
+            if (!entry.overlays || !entry.id) continue;
+            const srtLines = [];
+            let index = 1;
+            for (const o of entry.overlays) {
+              if (!o.text || !o.startFrame || !o.endFrame) continue;
+              srtLines.push(String(index));
+              srtLines.push(`${framesToSRT(o.startFrame)} --> ${framesToSRT(o.endFrame)}`);
+              srtLines.push(o.text.replace(/\n/g, ' '));
+              srtLines.push('');
+              index++;
+            }
+            if (srtLines.length > 0) {
+              fs.writeFileSync(`out/srt/${entry.id}.srt`, srtLines.join('\n'));
+              console.log(`SRT OK: ${entry.id} (${index - 1} captions)`);
+              generated++;
+            }
+          }
+          console.log(`Generated ${generated} SRT files`);
+          EOF
+
+      - name: Generate YouTube chapter timestamps
+        if: success()
+        run: |
+          mkdir -p out/chapters
+          node << 'EOF'
+          const fs   = require('fs');
+          const path = require('path');
+          const FPS  = 30;
+
+          function framesToYTTime(frames) {
+            const totalSecs = Math.floor(frames / FPS);
+            const m = Math.floor(totalSecs / 60);
+            const s = totalSecs % 60;
+            return `${m}:${String(s).padStart(2,'0')}`;
+          }
+
+          const srcDir = 'src';
+          const contentFiles = fs.readdirSync(srcDir)
+            .filter(f => f.match(/^week\d+-content\.js$/));
+          const weekNums = contentFiles
+            .map(f => parseInt(f.match(/week(\d+)/)[1]))
+            .sort((a, b) => b - a);
+          const activeFile = path.join(srcDir, `week${weekNums[0]}-content.js`);
+
+          const source = fs.readFileSync(activeFile, 'utf8');
+          const match  = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*\]);/);
+          let entries  = [];
+          try { entries = eval(match[1]); } catch(e) {}
+
+          for (const entry of entries) {
+            if (!entry.overlays || !entry.id) continue;
+            const lines = ['0:00 Intro'];
+            for (const o of entry.overlays) {
+              if (!o.text || !o.startFrame) continue;
+              const ts = framesToYTTime(o.startFrame);
+              if (ts === '0:00') continue;
+              lines.push(`${ts} ${o.text.replace(/\n/g, ' ').slice(0, 60)}`);
+            }
+            fs.writeFileSync(`out/chapters/${entry.id}_chapters.txt`, lines.join('\n'));
+            console.log(`Chapters OK: ${entry.id} (${lines.length} chapters)`);
+          }
+          EOF
+
+      - name: Batch rename outputs to DWB branded format
+        if: success()
+        run: |
+          node << 'EOF'
+          const fs    = require('fs');
+          const path  = require('path');
+          const TODAY = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+          const info  = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+
+          let renamed = 0;
+          for (const day of info.days) {
+            const oldName = `${day}_final.mp4`;
+            const dayStr  = day.replace('day', 'Day');
+            const newName = `DWB_${dayStr}_${TODAY}_final.mp4`;
+            const oldPath = path.join('out', oldName);
+            const newPath = path.join('out', newName);
+            if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
+              fs.copyFileSync(oldPath, newPath);
+              console.log(`Renamed: ${oldName} -> ${newName}`);
+              renamed++;
+            }
+          }
+          console.log(`Batch rename: ${renamed} files`);
+          EOF
+
+      - name: Upload all export formats as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwb-${{ env.ACTIVE_WEEK }}-all-exports-${{ github.run_number }}
+          path: |
+            out/*.mp4
+            out/thumbs/*.jpg
+            out/gifs/*.gif
+            out/teasers/*.mp4
+            out/srt/*.srt
+            out/chapters/*.txt
+          retention-days: 14
+          if-no-files-found: warn
+
       - name: Upload rendered videos
         uses: actions/upload-artifact@v4
         with:
-          name: dwb-week6-videos-${{ github.run_number }}
+          name: dwb-${{ env.ACTIVE_WEEK }}-videos-${{ github.run_number }}
           path: out/*.mp4
           retention-days: 14
           if-no-files-found: error
@@ -321,7 +542,7 @@ jobs:
       - name: Upload thumbnails
         uses: actions/upload-artifact@v4
         with:
-          name: dwb-week6-thumbs-${{ github.run_number }}
+          name: dwb-${{ env.ACTIVE_WEEK }}-thumbs-${{ github.run_number }}
           path: out/thumbs/*.jpg
           retention-days: 14
           if-no-files-found: warn
@@ -333,22 +554,20 @@ jobs:
         run: |
           node << 'EOF'
           const https = require('https');
-          const fs = require('fs');
-          const path = require('path');
+          const fs    = require('fs');
 
           const jobStatus = '${{ job.status }}';
           const runNumber = '${{ github.run_number }}';
           const isSuccess = jobStatus === 'success';
 
+          let info = { week: 'unknown', days: [] };
+          try { info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8')); } catch(e) {}
+
           const STATUS = isSuccess ? 'COMPLETE' : 'FAILED';
-          const DAYS = ['day36','day37','day38','day39','day40','day41','day42'];
+          let passed   = 0;
+          let lines    = [`DWB ${info.week.toUpperCase()} | Run #${runNumber} | ${STATUS}`, ''];
 
-          let passed = 0;
-          let failed = 0;
-          let lines = [`DWB Week 6 | Run #${runNumber} | ${STATUS}`];
-          lines.push('');
-
-          for (const day of DAYS) {
+          for (const day of info.days) {
             const file = `out/${day}_final.mp4`;
             if (fs.existsSync(file)) {
               const size = Math.round(fs.statSync(file).size / (1024*1024) * 10) / 10;
@@ -356,29 +575,26 @@ jobs:
               passed++;
             } else {
               lines.push(`${day} FAILED`);
-              failed++;
             }
           }
 
+          const total = info.days.length;
           lines.push('');
-          lines.push(`Result: ${passed}/7 rendered`);
-          if (passed === 7) {
-            lines.push('All videos ready for upload.');
-          }
+          lines.push(`Result: ${passed}/${total} rendered`);
+          if (passed === total) lines.push('All videos ready for upload.');
 
           const message = lines.join('\n');
-          const title = `DWB Render ${isSuccess ? 'DONE' : 'FAILED'} - Week 6 - ${passed}/7`;
+          const title   = `DWB ${isSuccess ? 'DONE' : 'FAILED'} - ${info.week} - ${passed}/${total}`;
 
-          const postData = message;
           const options = {
             hostname: 'ntfy.sh',
             path: '/' + process.env.NTFY_TOPIC,
             method: 'POST',
             headers: {
-              'Title': title,
-              'Priority': isSuccess ? 'default' : 'high',
-              'Tags': isSuccess ? 'white_check_mark,clapper' : 'x,warning',
-              'Content-Length': Buffer.byteLength(postData),
+              'Title':          title,
+              'Priority':       isSuccess ? 'default' : 'high',
+              'Tags':           isSuccess ? 'white_check_mark,clapper' : 'x,warning',
+              'Content-Length': Buffer.byteLength(message),
             }
           };
 
@@ -386,6 +602,6 @@ jobs:
             console.log('Notification sent: HTTP ' + res.statusCode);
           });
           req.on('error', e => console.log('Notification failed: ' + e.message));
-          req.write(postData);
+          req.write(message);
           req.end();
           EOF
