@@ -1,4 +1,4 @@
-import { useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from "remotion";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FONT MAP
@@ -10,20 +10,21 @@ const FONT_MAP = {
   Bebas:      "'Bebas Neue', sans-serif",
   Oswald:     "'Oswald', sans-serif",
   Mono:       "'JetBrains Mono', monospace",
+  Playfair:   "'Playfair Display', serif",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POSITION MAP
 // ─────────────────────────────────────────────────────────────────────────────
 const POSITION_STYLES = {
-  "top-center": { top: "18%",    left: 0, right: 0, alignItems: "center", justifyContent: "flex-start" },
-  top:          { top: "18%",    left: 0, right: 0, alignItems: "center", justifyContent: "flex-start" },
-  middle:       { top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
-  center:       { top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  "top-center":    { top: "18%",    left: 0, right: 0, alignItems: "center", justifyContent: "flex-start" },
+  top:             { top: "18%",    left: 0, right: 0, alignItems: "center", justifyContent: "flex-start" },
+  middle:          { top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  center:          { top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
   "bottom-center": { bottom: "22%", left: 0, right: 0, alignItems: "center", justifyContent: "flex-end" },
-  bottom:       { bottom: "22%", left: 0, right: 0, alignItems: "center", justifyContent: "flex-end" },
-  "top-left":   { top: "18%", left: "5%", alignItems: "flex-start", justifyContent: "flex-start" },
-  "bottom-left":{ bottom: "22%", left: "5%", alignItems: "flex-start", justifyContent: "flex-end" },
+  bottom:          { bottom: "22%", left: 0, right: 0, alignItems: "center", justifyContent: "flex-end" },
+  "top-left":      { top: "18%", left: "5%", alignItems: "flex-start", justifyContent: "flex-start" },
+  "bottom-left":   { bottom: "22%", left: "5%", alignItems: "flex-start", justifyContent: "flex-end" },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,7 +79,6 @@ const NEON_SHADOW = (color) => [
   "0 4px 12px rgba(0,0,0,0.9)",
 ].join(", ");
 
-// SCRAMBLE — characters that cycle before final text
 const SCRAMBLE_CHARS = "!@#$%^&*ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 function getScrambleChar(seed) {
   return SCRAMBLE_CHARS[seed % SCRAMBLE_CHARS.length];
@@ -151,7 +151,6 @@ const WordHighlightText = ({ text, fontSize, fontFamily, color, fontWeight, tota
 const ScrambleText = ({ text, fontSize, fontFamily, color, fontWeight, totalFrames }) => {
   const frame = useCurrentFrame();
   const chars = text.split("");
-  // Each char resolves after a staggered delay — total reveal by 60% of duration
   const resolveEnd = Math.floor(totalFrames * 0.6);
   const opacity = Math.min(
     interpolate(frame, [0, 6], [0, 1], { extrapolateRight: "clamp" }),
@@ -166,7 +165,6 @@ const ScrambleText = ({ text, fontSize, fontFamily, color, fontWeight, totalFram
         if (ch === " ") return <span key={i}>&nbsp;</span>;
         const charResolveFrame = Math.floor((i / Math.max(chars.length, 1)) * resolveEnd);
         if (frame >= charResolveFrame) return <span key={i}>{ch}</span>;
-        // Still scrambling — cycle through random chars
         const seed = (frame * 7 + i * 13) % SCRAMBLE_CHARS.length;
         return (
           <span key={i} style={{ color: "#FFD700", opacity: 0.85 }}>
@@ -208,14 +206,11 @@ const MultiLineText = ({ text, fontSize, fontFamily, color, fontWeight, totalFra
 };
 
 // ── STRIKE-THROUGH ──
-// Shows original text with animated strikethrough, then fades in corrected text below
 const StrikeText = ({ text, fontSize, fontFamily, color, fontWeight, totalFrames }) => {
   const frame = useCurrentFrame();
-  // text format: "WRONG TEXT||CORRECT TEXT"
   const parts = text.split("||");
   const wrongText = parts[0] || text;
   const correctText = parts[1] || "";
-
   const strikeWidth = interpolate(frame, [8, Math.floor(totalFrames * 0.4)], [0, 100],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const correctOpacity = interpolate(frame,
@@ -225,10 +220,8 @@ const StrikeText = ({ text, fontSize, fontFamily, color, fontWeight, totalFrames
     interpolate(frame, [0, 6], [0, 1], { extrapolateRight: "clamp" }),
     interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
   );
-
   return (
     <div style={{ opacity: blockOpacity, textAlign: "center", lineHeight: 1.6 }}>
-      {/* Wrong text with animated strikethrough */}
       <div style={{ position: "relative", display: "inline-block" }}>
         <div style={{ fontFamily, fontSize: `${fontSize}px`, color: "rgba(255,255,255,0.7)",
           fontWeight, textShadow: BASE_SHADOW }}>{wrongText}</div>
@@ -240,7 +233,6 @@ const StrikeText = ({ text, fontSize, fontFamily, color, fontWeight, totalFrames
           transform: "translateY(-50%)",
         }} />
       </div>
-      {/* Correct text fades in below */}
       {correctText.length > 0 && (
         <div style={{ opacity: correctOpacity, fontFamily,
           fontSize: `${Math.round(fontSize * 1.05)}px`,
@@ -253,21 +245,18 @@ const StrikeText = ({ text, fontSize, fontFamily, color, fontWeight, totalFrames
   );
 };
 
-// ── ELLIPSIS LOADER THEN REVEAL ──
+// ── ELLIPSIS LOADER ──
 const EllipsisText = ({ text, fontSize, fontFamily, color, fontWeight, totalFrames }) => {
   const frame = useCurrentFrame();
   const LOADER_FRAMES = 40;
   const showLoader = frame < LOADER_FRAMES;
-
   const textOpacity = interpolate(frame, [LOADER_FRAMES, LOADER_FRAMES + 10], [0, 1],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const exitOpacity = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-
   const dot1 = Math.round(frame / 8) % 3 >= 0 ? 1 : 0.2;
   const dot2 = Math.round(frame / 8) % 3 >= 1 ? 1 : 0.2;
   const dot3 = Math.round(frame / 8) % 3 >= 2 ? 1 : 0.2;
-
   return (
     <div style={{ textAlign: "center" }}>
       {showLoader ? (
@@ -288,6 +277,52 @@ const EllipsisText = ({ text, fontSize, fontFamily, color, fontWeight, totalFram
   );
 };
 
+// ── GRADIENT TEXT (Phase 2) ──
+const GradientText = ({ text, fontSize, fontFamily, fontWeight, totalFrames, strokeStyle }) => {
+  const frame = useCurrentFrame();
+  const sweep = ((frame % 90) / 90) * 160 - 30;
+  const opacity = Math.min(
+    interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
+    interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+  );
+  return (
+    <div style={{
+      opacity, fontFamily, fontSize: `${fontSize}px`, fontWeight,
+      textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+      background: `linear-gradient(90deg, #FFD700 0%, #FFFFFF ${sweep - 15}%, #FFD700 ${sweep}%, #FFFFFF ${sweep + 15}%, #FFD700 100%)`,
+      WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+      backgroundClip: "text",
+      filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.9))",
+      ...strokeStyle,
+    }}>
+      {text}
+    </div>
+  );
+};
+
+// ── PULSE RING BG (Phase 2) ──
+const PulseRingBG = ({ color }) => {
+  const frame = useCurrentFrame();
+  const cycleFrame = frame % 60;
+  const scale = interpolate(cycleFrame, [0, 55], [0.2, 2.2], { extrapolateRight: "clamp" });
+  const ringOpacity = interpolate(cycleFrame, [0, 10, 50, 55], [0, 0.5, 0.2, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return (
+    <div style={{ position: "absolute", inset: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      pointerEvents: "none" }}>
+      <div style={{
+        width: "300px", height: "300px", borderRadius: "50%",
+        border: `3px solid ${color}`,
+        opacity: ringOpacity,
+        transform: `scale(${scale})`,
+        boxShadow: `0 0 20px ${color}60`,
+        position: "absolute",
+      }} />
+    </div>
+  );
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN EXPORT
 // ─────────────────────────────────────────────────────────────────────────────
@@ -298,7 +333,6 @@ export const TextOverlay = ({ overlay }) => {
   const totalFrames = overlay.endFrame - overlay.startFrame;
   const rawText = overlay.text || "";
 
-  // Shared computed values
   const safeColor   = ensureVisibleColor(overlay.color);
   const posStyle    = POSITION_STYLES[overlay.position] || POSITION_STYLES.middle;
   const baseFontSize = overlay.fontSize || 68;
@@ -306,7 +340,6 @@ export const TextOverlay = ({ overlay }) => {
   const fontFamily  = FONT_MAP[overlay.font] || "'Montserrat', sans-serif";
   const fontWeight  = overlay.font === "Montserrat" ? "800" : "bold";
 
-  // Standard motion vars (used by simple animations)
   let opacity         = 1;
   let translateX      = 0;
   let translateY      = 0;
@@ -314,13 +347,13 @@ export const TextOverlay = ({ overlay }) => {
   let glitchRGBOffset = 0;
   let letterSpacing   = "normal";
 
-  // ── FADE ──────────────────────────────────────────────────────────────────
+  // ── FADE ──
   if (overlay.animation === "fade") {
     opacity = interpolate(frame, [0, 8, totalFrames - 8, totalFrames], [0, 1, 1, 0],
       { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   }
 
-  // ── POP ───────────────────────────────────────────────────────────────────
+  // ── POP ──
   if (overlay.animation === "pop") {
     const s = spring({ fps, frame, config: { damping: 12, stiffness: 200 } });
     scale = interpolate(s, [0, 1], [0.5, 1]);
@@ -330,7 +363,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── SLIDE-LEFT (enters from right) ────────────────────────────────────────
+  // ── SLIDE-LEFT ──
   if (overlay.animation === "slide-left") {
     translateX = interpolate(frame, [0, 12], [-320, 0],
       { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
@@ -340,7 +373,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── SLIDE-RIGHT (enters from left) ────────────────────────────────────────
+  // ── SLIDE-RIGHT ──
   if (overlay.animation === "slide-right") {
     translateX = interpolate(frame, [0, 12], [320, 0],
       { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
@@ -350,7 +383,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── SLIDE-UP (enters from below) ──────────────────────────────────────────
+  // ── SLIDE-UP ──
   if (overlay.animation === "slide-up") {
     translateY = interpolate(frame, [0, 12], [80, 0],
       { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
@@ -360,7 +393,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── SLIDE-DOWN (enters from above) ────────────────────────────────────────
+  // ── SLIDE-DOWN ──
   if (overlay.animation === "slide-down") {
     translateY = interpolate(frame, [0, 12], [-80, 0],
       { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
@@ -370,25 +403,24 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── BOUNCE (spring from below) ────────────────────────────────────────────
+  // ── BOUNCE ──
   if (overlay.animation === "bounce") {
     const s = spring({ fps, frame, config: { damping: 8, stiffness: 180, mass: 0.8 } });
     translateY = interpolate(s, [0, 1], [40, 0]);
     opacity = interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" });
   }
 
-  // ── ZOOM-PUNCH (slams in at 3x, spring bounces to 1x) ────────────────────
+  // ── ZOOM-PUNCH ──
   if (overlay.animation === "zoom-punch") {
     const s = spring({ fps, frame, config: { damping: 7, stiffness: 280, mass: 0.6 } });
     scale = interpolate(s, [0, 1], [3.2, 1]);
-    opacity = interpolate(frame, [0, 3], [0, 1],
-      { extrapolateRight: "clamp" });
-    const exitOpacity = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0],
-      { extrapolateLeft: "clamp" });
-    opacity = Math.min(opacity, exitOpacity);
+    opacity = Math.min(
+      interpolate(frame, [0, 3], [0, 1], { extrapolateRight: "clamp" }),
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+    );
   }
 
-  // ── ZOOM-OUT-REVEAL (starts zoomed in, pulls back to normal) ──────────────
+  // ── ZOOM-OUT ──
   if (overlay.animation === "zoom-out") {
     scale = interpolate(frame, [0, 30], [1.8, 1],
       { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
@@ -398,20 +430,19 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── HEARTBEAT (rhythmic pulse every 45 frames) ────────────────────────────
+  // ── HEARTBEAT ──
   if (overlay.animation === "heartbeat") {
     const beatFrame = frame % 45;
-    const beatScale = beatFrame < 8
+    scale = beatFrame < 8
       ? interpolate(beatFrame, [0, 4, 8], [1, 1.06, 1], { extrapolateRight: "clamp" })
       : 1;
-    scale = beatScale;
     opacity = Math.min(
       interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
   }
 
-  // ── SHAKE (violent camera shake entry) ────────────────────────────────────
+  // ── SHAKE ──
   if (overlay.animation === "shake") {
     const shakeIntensity = interpolate(frame, [0, 8, 18], [1, 0.4, 0],
       { extrapolateRight: "clamp", easing: Easing.out(Easing.quad) });
@@ -423,7 +454,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── GLITCH (RGB split + position jitter) ──────────────────────────────────
+  // ── GLITCH ──
   if (overlay.animation === "glitch") {
     opacity = interpolate(frame, [0, 4], [0, 1], { extrapolateRight: "clamp" });
     const initIntensity = interpolate(frame, [0, 15, 30], [1, 0.55, 0], { extrapolateRight: "clamp" });
@@ -438,7 +469,7 @@ export const TextOverlay = ({ overlay }) => {
     glitchRGBOffset = intensity;
   }
 
-  // ── LETTER-EXPAND (letter spacing animates in) ────────────────────────────
+  // ── LETTER-EXPAND ──
   if (overlay.animation === "letter-expand") {
     const spacingVal = interpolate(frame, [0, 16], [0.3, 0.06],
       { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
@@ -448,9 +479,6 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
   }
-
-  // ── COLOR-PULSE (oscillates between two colors — use safeColor + accent) ──
-  // overlay.accentColor sets the secondary color (defaults to gold)
 
   // ─────────────────────────────────────────────────────────────────────────
   // TEXT SHADOW COMPUTATION
@@ -464,10 +492,10 @@ export const TextOverlay = ({ overlay }) => {
     : { textShadow: computedTextShadow };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SEPARATE RENDER BRANCHES (complex / React-element animations)
+  // COMPLEX RENDER BRANCHES
   // ─────────────────────────────────────────────────────────────────────────
 
-  // ── TYPEWRITER ────────────────────────────────────────────────────────────
+  // ── TYPEWRITER ──
   if (overlay.animation === "typewriter") {
     return (
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
@@ -478,7 +506,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── WORD-HIGHLIGHT ────────────────────────────────────────────────────────
+  // ── WORD-HIGHLIGHT ──
   if (overlay.animation === "word-highlight") {
     return (
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
@@ -489,7 +517,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── SCRAMBLE ──────────────────────────────────────────────────────────────
+  // ── SCRAMBLE ──
   if (overlay.animation === "scramble") {
     return (
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
@@ -500,7 +528,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── STAGGER (word by word) ─────────────────────────────────────────────────
+  // ── STAGGER ──
   if (overlay.animation === "stagger") {
     const words = rawText.split(" ");
     const DELAY = 4;
@@ -515,11 +543,9 @@ export const TextOverlay = ({ overlay }) => {
         <div style={{ textAlign: "center", lineHeight: 1.3 }}>
           {words.map((word, i) => {
             const wf = frame - i * DELAY;
-            const wo = interpolate(wf, [0, 6], [0, 1],
-              { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+            const wo = interpolate(wf, [0, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
             const wy = interpolate(wf, [0, 8], [18, 0],
-              { extrapolateLeft: "clamp", extrapolateRight: "clamp",
-                easing: Easing.out(Easing.cubic) });
+              { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
             return (
               <span key={i} style={{ display: "inline-block", marginRight: "0.28em",
                 fontFamily, fontSize: `${fontSize}px`, color: safeColor, fontWeight,
@@ -533,7 +559,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── MULTI-LINE (each line staggers in) ────────────────────────────────────
+  // ── MULTI-LINE ──
   if (overlay.animation === "multi-line") {
     return (
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
@@ -544,7 +570,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── STRIKE (animated strikethrough + correction) ──────────────────────────
+  // ── STRIKE ──
   if (overlay.animation === "strike") {
     const blockOpacity = Math.min(
       interpolate(frame, [0, 6], [0, 1], { extrapolateRight: "clamp" }),
@@ -560,7 +586,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── ELLIPSIS (loading dots → text reveal) ─────────────────────────────────
+  // ── ELLIPSIS ──
   if (overlay.animation === "ellipsis") {
     return (
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
@@ -571,7 +597,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── COUNTER (animates number from 0 to target) ────────────────────────────
+  // ── COUNTER ──
   if (overlay.animation === "counter") {
     const numMatch = rawText.match(/[\d,]+(\.\d+)?/);
     const targetRaw = numMatch ? numMatch[0].replace(/,/g, "") : "0";
@@ -591,19 +617,16 @@ export const TextOverlay = ({ overlay }) => {
         display: "flex", flexDirection: "column", padding: "0 60px",
         opacity: cOpacity, ...posStyle }}>
         <div style={{ fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          fontWeight, ...strokeStyle }}>{displayText}</div>
+          fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          ...strokeStyle }}>{displayText}</div>
       </div>
     );
   }
 
-  // ── NEON-GLOW ─────────────────────────────────────────────────────────────
+  // ── NEON-GLOW ──
   if (overlay.animation === "neon-glow") {
     const glowColor = overlay.glowColor || safeColor;
-    // Pulse intensity oscillates
-    const pulseIntensity = interpolate(
-      Math.sin(frame * 0.12), [-1, 1], [0.7, 1]
-    );
+    const pulseIntensity = interpolate(Math.sin(frame * 0.12), [-1, 1], [0.7, 1]);
     const nOpacity = Math.min(
       interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
@@ -621,7 +644,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── HIGHLIGHT-BOX (colored box slides in behind text) ────────────────────
+  // ── HIGHLIGHT-BOX ──
   if (overlay.animation === "highlight-box") {
     const boxColor = overlay.boxColor || "#FFD700";
     const boxWidth = interpolate(frame, [0, 14], [0, 100],
@@ -636,7 +659,6 @@ export const TextOverlay = ({ overlay }) => {
         opacity: hOpacity, ...posStyle }}>
         <div style={{ position: "relative", display: "inline-block",
           alignSelf: "center", padding: "8px 20px" }}>
-          {/* Sliding background box */}
           <div style={{ position: "absolute", top: 0, left: 0, bottom: 0,
             width: `${boxWidth}%`, background: boxColor,
             borderRadius: "4px", zIndex: 0,
@@ -653,7 +675,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── GRADIENT-SWEEP (animated gradient text) ───────────────────────────────
+  // ── GRADIENT-SWEEP ──
   if (overlay.animation === "gradient-sweep") {
     const sweepPos = interpolate(frame, [0, totalFrames], [-200, 200],
       { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -677,7 +699,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── OUTLINE (hollow text — stroke only, transparent fill) ─────────────────
+  // ── OUTLINE ──
   if (overlay.animation === "outline") {
     const oOpacity = Math.min(
       interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
@@ -700,9 +722,8 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── SHIMMER (light sweeps left to right across text) ──────────────────────
+  // ── SHIMMER ──
   if (overlay.animation === "shimmer") {
-    // Repeats every 90 frames
     const shimmerCycle = frame % 90;
     const shimmerPos = interpolate(shimmerCycle, [0, 60], [-50, 150],
       { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -715,11 +736,9 @@ export const TextOverlay = ({ overlay }) => {
         display: "flex", flexDirection: "column", padding: "0 60px",
         opacity: sOpacity, ...posStyle }}>
         <div style={{ position: "relative", display: "inline-block", alignSelf: "center" }}>
-          {/* Base text */}
           <div style={{ fontFamily, fontSize: `${fontSize}px`, color: safeColor,
             fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
             textShadow: BASE_SHADOW }}>{rawText}</div>
-          {/* Shimmer sweep overlay */}
           <div style={{
             position: "absolute", inset: 0, pointerEvents: "none",
             background: `linear-gradient(90deg, transparent ${shimmerPos - 15}%, rgba(255,255,255,0.55) ${shimmerPos}%, transparent ${shimmerPos + 15}%)`,
@@ -733,14 +752,11 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── FROSTED (frosted glass panel behind text) ─────────────────────────────
+  // ── FROSTED ──
   if (overlay.animation === "frosted") {
-    const panelOpacity = interpolate(frame, [0, 12], [0, 1],
-      { extrapolateRight: "clamp" });
-    const fOpacity = Math.min(
-      panelOpacity,
-      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
-    );
+    const panelOpacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
+    const fOpacity = Math.min(panelOpacity,
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" }));
     const translateYFrosted = interpolate(frame, [0, 12], [30, 0],
       { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
     return (
@@ -765,12 +781,9 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── COLOR-PULSE (oscillates between base color and accent) ────────────────
+  // ── COLOR-PULSE ──
   if (overlay.animation === "color-pulse") {
-    const accentColor = overlay.accentColor || "#FFD700";
-    // sin wave from 0→1 gives smooth interpolation between colors
     const t = (Math.sin(frame * 0.15) + 1) / 2;
-    // Parse hex colors for interpolation
     const pulseOpacity = Math.min(
       interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
@@ -782,7 +795,6 @@ export const TextOverlay = ({ overlay }) => {
         <div style={{
           fontFamily, fontSize: `${fontSize}px`, fontWeight,
           textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          // Use filter hue-rotate for color oscillation — works on any base color
           color: safeColor,
           filter: `hue-rotate(${Math.round(t * 40)}deg) brightness(${0.9 + t * 0.2})`,
           textShadow: BASE_SHADOW,
@@ -791,7 +803,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── 3D-EXTRUDE (CSS perspective depth) ───────────────────────────────────
+  // ── 3D-EXTRUDE ──
   if (overlay.animation === "3d-extrude") {
     const rotateX = interpolate(frame, [0, 20], [-25, 0],
       { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
@@ -802,8 +814,7 @@ export const TextOverlay = ({ overlay }) => {
     return (
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
         display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: e3dOpacity, ...posStyle,
-        perspective: "800px" }}>
+        opacity: e3dOpacity, ...posStyle, perspective: "800px" }}>
         <div style={{
           fontFamily, fontSize: `${fontSize}px`, color: safeColor,
           fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
@@ -815,7 +826,7 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
-  // ── CAPTION-BAR (news ticker style strip at bottom) ───────────────────────
+  // ── CAPTION-BAR ──
   if (overlay.animation === "caption-bar") {
     const barColor = overlay.barColor || "#D4A017";
     const slideY = interpolate(frame, [0, 10], [60, 0],
@@ -826,11 +837,9 @@ export const TextOverlay = ({ overlay }) => {
     );
     return (
       <div style={{ position: "absolute", left: 0, right: 0, bottom: "8%",
-        opacity: cBarOpacity,
-        transform: `translateY(${slideY}px)` }}>
+        opacity: cBarOpacity, transform: `translateY(${slideY}px)` }}>
         <div style={{
-          background: barColor,
-          padding: "10px 40px",
+          background: barColor, padding: "10px 40px",
           boxShadow: `0 0 24px ${barColor}60, 0 4px 16px rgba(0,0,0,0.8)`,
         }}>
           <div style={{ fontFamily, fontSize: `${Math.min(fontSize, 52)}px`,
@@ -843,8 +852,292 @@ export const TextOverlay = ({ overlay }) => {
     );
   }
 
+  // ════════════════════════════════════════════════════════════════════
+  // PHASE 2 NEW ANIMATIONS
+  // ════════════════════════════════════════════════════════════════════
+
+  // ── GRADIENT-TEXT (moving gold-to-white sweep) ──
+  if (overlay.animation === "gradient-text") {
+    return (
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column", padding: "0 60px", ...posStyle }}>
+        <GradientText text={rawText} fontSize={fontSize} fontFamily={fontFamily}
+          fontWeight={fontWeight} totalFrames={totalFrames} strokeStyle={strokeStyle} />
+      </div>
+    );
+  }
+
+  // ── OUTLINED (hollow text — stroke only) ──
+  if (overlay.animation === "outlined") {
+    const outOpacity = Math.min(
+      interpolate(frame, [0, 10], [0, 1], { extrapolateRight: "clamp" }),
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+    );
+    return (
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column", padding: "0 60px",
+        opacity: outOpacity, ...posStyle }}>
+        <div style={{
+          fontFamily, fontSize: `${fontSize}px`, fontWeight,
+          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          WebkitTextStroke: `3px ${safeColor}`,
+          WebkitTextFillColor: "transparent",
+          color: "transparent",
+          filter: `drop-shadow(0 0 12px ${safeColor}80) drop-shadow(0 2px 8px rgba(0,0,0,0.9))`,
+        }}>{rawText}</div>
+      </div>
+    );
+  }
+
+  // ── MASK-REVEAL (circle expands to reveal text) ──
+  if (overlay.animation === "mask-reveal") {
+    const maskProgress = interpolate(frame, [0, 18], [0, 100],
+      { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+    const exitOpacity = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0],
+      { extrapolateLeft: "clamp" });
+    return (
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column", padding: "0 60px",
+        opacity: exitOpacity, ...posStyle }}>
+        <div style={{
+          fontFamily, fontSize: `${fontSize}px`, color: safeColor,
+          fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          ...strokeStyle,
+          clipPath: `circle(${maskProgress}% at 50% 50%)`,
+        }}>{rawText}</div>
+      </div>
+    );
+  }
+
+  // ── PIXEL-DISSOLVE (pixelates out on exit) ──
+  if (overlay.animation === "pixel-dissolve") {
+    const DISSOLVE_START = totalFrames - 20;
+    const entryOpacity = interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" });
+    const dissolveProgress = interpolate(frame, [DISSOLVE_START, totalFrames], [0, 1],
+      { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    const pixelSize = interpolate(dissolveProgress, [0, 0.5, 1], [0, 8, 32]);
+    const exitOpacity = interpolate(dissolveProgress, [0.7, 1.0], [1, 0], { extrapolateLeft: "clamp" });
+    return (
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column", padding: "0 60px",
+        opacity: Math.min(entryOpacity, exitOpacity), ...posStyle }}>
+        <div style={{
+          fontFamily, fontSize: `${fontSize}px`, color: safeColor,
+          fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          ...strokeStyle,
+          imageRendering: "pixelated",
+          filter: pixelSize > 0 ? `blur(${pixelSize * 0.3}px) contrast(${1 + dissolveProgress})` : "none",
+          transform: `scale(${1 + dissolveProgress * 0.08})`,
+        }}>{rawText}</div>
+      </div>
+    );
+  }
+
+  // ── VHS (tracking lines + position distortion) ──
+  if (overlay.animation === "vhs") {
+    const trackingY = ((frame * 3.5) % 200) - 20;
+    const distort = Math.sin(frame * 0.4) * 3;
+    const vhsOpacity = Math.min(
+      interpolate(frame, [0, 6], [0, 1], { extrapolateRight: "clamp" }),
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+    );
+    return (
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column", padding: "0 60px",
+        opacity: vhsOpacity, ...posStyle, overflow: "hidden" }}>
+        <div style={{ position: "relative" }}>
+          <div style={{
+            fontFamily, fontSize: `${fontSize}px`, color: safeColor,
+            fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+            transform: `translateX(${distort}px)`,
+            ...strokeStyle,
+          }}>{rawText}</div>
+          <div style={{
+            position: "absolute", left: 0, right: 0,
+            top: `${(trackingY / 200) * 100}%`,
+            height: "3px",
+            background: "rgba(255,255,255,0.12)",
+            pointerEvents: "none",
+          }} />
+          <div style={{
+            position: "absolute", inset: 0,
+            fontFamily, fontSize: `${fontSize}px`, fontWeight,
+            textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+            color: "rgba(255,0,60,0.3)",
+            transform: `translateX(${distort + 4}px)`,
+            mixBlendMode: "screen",
+            pointerEvents: "none",
+          }}>{rawText}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── STROBE (white flash bursts at fixed frames) ──
+  if (overlay.animation === "strobe") {
+    const strobeFrames = overlay.strobeFrames || [0, 30, 60];
+    const BURST_DURATION = 4;
+    let strobeIntensity = 0;
+    for (const sf of strobeFrames) {
+      if (frame >= sf && frame < sf + BURST_DURATION) {
+        strobeIntensity = Math.max(strobeIntensity,
+          interpolate(frame - sf, [0, 1, BURST_DURATION - 1, BURST_DURATION], [0, 0.85, 0.5, 0]));
+      }
+    }
+    const textOpacity = Math.min(
+      interpolate(frame, [0, 6], [0, 1], { extrapolateRight: "clamp" }),
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+    );
+    return (
+      <>
+        {strobeIntensity > 0 && (
+          <AbsoluteFill style={{
+            background: `rgba(255,255,255,${strobeIntensity})`,
+            zIndex: 25, pointerEvents: "none",
+          }} />
+        )}
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+          display: "flex", flexDirection: "column", padding: "0 60px",
+          opacity: textOpacity, ...posStyle }}>
+          <div style={{
+            fontFamily, fontSize: `${fontSize}px`, color: safeColor,
+            fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+            ...strokeStyle,
+          }}>{rawText}</div>
+        </div>
+      </>
+    );
+  }
+
+  // ── PULSE-RING (expanding ring behind text) ──
+  if (overlay.animation === "pulse-ring") {
+    const ringColor = overlay.ringColor || safeColor;
+    const prOpacity = Math.min(
+      interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+    );
+    return (
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column", padding: "0 60px",
+        opacity: prOpacity, ...posStyle }}>
+        <div style={{ position: "relative", display: "inline-block", alignSelf: "center" }}>
+          <PulseRingBG color={ringColor} />
+          <div style={{
+            position: "relative", zIndex: 1,
+            fontFamily, fontSize: `${fontSize}px`, color: safeColor,
+            fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+            ...strokeStyle,
+          }}>{rawText}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── UNDERLINE-DRAW (SVG line draws under text) ──
+  if (overlay.animation === "underline-draw") {
+    const lineProgress = interpolate(frame, [8, 24], [0, 1],
+      { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+    const udOpacity = Math.min(
+      interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+    );
+    return (
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column", padding: "0 60px",
+        opacity: udOpacity, ...posStyle }}>
+        <div style={{ position: "relative", display: "inline-block", alignSelf: "center" }}>
+          <div style={{
+            fontFamily, fontSize: `${fontSize}px`, color: safeColor,
+            fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+            ...strokeStyle,
+          }}>{rawText}</div>
+          <svg style={{
+            position: "absolute", bottom: "-6px", left: "0", right: "0",
+            width: "100%", height: "6px", overflow: "visible",
+          }}>
+            <line
+              x1="0" y1="3" x2="100%" y2="3"
+              stroke={safeColor}
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray="1000"
+              strokeDashoffset={`${(1 - lineProgress) * 1000}`}
+              style={{ filter: `drop-shadow(0 0 6px ${safeColor})` }}
+            />
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  // ── WEIGHT-SHIFT (font weight 300 → 900 on entry) ──
+  if (overlay.animation === "weight-shift") {
+    const weightProgress = interpolate(frame, [0, 16], [0, 1],
+      { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+    const weight = Math.round(interpolate(weightProgress, [0, 1], [300, 900]));
+    const wsOpacity = Math.min(
+      interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+    );
+    return (
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column", padding: "0 60px",
+        opacity: wsOpacity, ...posStyle }}>
+        <div style={{
+          fontFamily: "'Montserrat', sans-serif",
+          fontSize: `${fontSize}px`, color: safeColor,
+          fontWeight: weight,
+          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          textShadow: BASE_SHADOW,
+        }}>{rawText}</div>
+      </div>
+    );
+  }
+
+  // ── DIAGONAL-WIPE (diagonal clip-path entrance) ──
+  if (overlay.animation === "diagonal-wipe") {
+    const wipe = interpolate(frame, [0, 18], [0, 100],
+      { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+    const exitOpacity = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0],
+      { extrapolateLeft: "clamp" });
+    return (
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column", padding: "0 60px",
+        opacity: exitOpacity, ...posStyle }}>
+        <div style={{
+          fontFamily, fontSize: `${fontSize}px`, color: safeColor,
+          fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          ...strokeStyle,
+          clipPath: `polygon(0 0, ${wipe}% 0, ${wipe + 20}% 100%, 0 100%)`,
+        }}>{rawText}</div>
+      </div>
+    );
+  }
+
+  // ── CAPS (force uppercase + wide letter spacing) ──
+  if (overlay.animation === "caps") {
+    const capsSpacing = interpolate(frame, [0, 14], [0.6, 0.1], { extrapolateRight: "clamp" });
+    const capsOpacity = Math.min(
+      interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
+      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+    );
+    return (
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        display: "flex", flexDirection: "column", padding: "0 60px",
+        opacity: capsOpacity, ...posStyle }}>
+        <div style={{
+          fontFamily, fontSize: `${fontSize}px`, color: safeColor,
+          fontWeight, textAlign: "center", lineHeight: 1.2,
+          textTransform: "uppercase",
+          letterSpacing: `${capsSpacing}em`,
+          ...strokeStyle,
+        }}>{rawText}</div>
+      </div>
+    );
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
-  // STANDARD RENDER — all remaining simple transform animations
+  // STANDARD RENDER — all simple transform animations
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div style={{
