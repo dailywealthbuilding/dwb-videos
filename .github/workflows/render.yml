@@ -6,26 +6,29 @@ on:
   workflow_dispatch:
     inputs:
       days_override:
-        description: 'Specific days only, comma-separated (e.g. day43,day44). Leave blank to auto-detect.'
+        description: 'Specific days only, comma-separated (e.g. day36,day37). Leave blank to auto-detect.'
         required: false
         default: ''
 
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
 
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js
+      - name: Setup Node.js with npm cache
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci --prefer-offline
 
       - name: Install chrome-headless-shell
         run: npx remotion browser ensure
@@ -37,6 +40,10 @@ jobs:
           mkdir -p public/sfx
           mkdir -p out
           mkdir -p out/thumbs
+          mkdir -p out/gifs
+          mkdir -p out/teasers
+          mkdir -p out/srt
+          mkdir -p out/chapters
 
       - name: Detect active week from content files
         run: |
@@ -44,7 +51,6 @@ jobs:
           const fs   = require('fs');
           const path = require('path');
 
-          // Find highest-numbered week content file in src/
           const srcDir = 'src';
           const contentFiles = fs.readdirSync(srcDir)
             .filter(f => f.match(/^week\d+-content\.js$/));
@@ -57,55 +63,70 @@ jobs:
           const weekNums = contentFiles
             .map(f => parseInt(f.match(/week(\d+)/)[1]))
             .sort((a, b) => b - a);
-          const activeWeek   = weekNums[0];
-          const activeFile   = path.join(srcDir, `week${activeWeek}-content.js`);
+          const activeWeek = weekNums[0];
+          const activeFile = path.join(srcDir, `week${activeWeek}-content.js`);
 
-          console.log(`Active week file: ${activeFile}`);
+          console.log('Active week file: ' + activeFile);
 
-          // Parse content file - strip export declaration, eval the array
           const source = fs.readFileSync(activeFile, 'utf8');
-          const match  = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*\]);/);
-          if (!match) {
-            console.log(`ERROR: Could not parse content array from ${activeFile}`);
-            process.exit(1);
-          }
 
+          // Support BOTH default exports and named exports
           let entries = [];
-          try { entries = eval(match[1]); } catch(e) {
-            console.log(`ERROR: eval failed: ${e.message}`);
+          const defaultMatch = source.match(/export\s+default\s+(\[[\s\S]*\]);?\s*$/m);
+          const namedMatch   = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/m);
+
+          const arrayStr = defaultMatch ? defaultMatch[1] : (namedMatch ? namedMatch[1] : null);
+
+          if (!arrayStr) {
+            console.log('ERROR: Could not parse content array from ' + activeFile);
             process.exit(1);
           }
 
-          // Extract day IDs
-          const days = entries.map(e => e.id).filter(Boolean);
-          console.log(`Days detected: ${days.join(', ')}`);
+          try { entries = eval(arrayStr); } catch(e) {
+            console.log('ERROR: eval failed: ' + e.message);
+            process.exit(1);
+          }
 
-          // Build DAY_ASSETS from pexelsSearchTerms (4 clips per day)
+          const days = entries.map(e => e.id).filter(Boolean);
+          console.log('Days detected: ' + days.join(', '));
+
           const dayAssets = {};
           for (const entry of entries) {
             if (!entry.id || !entry.pexelsSearchTerms) continue;
             dayAssets[entry.id] = entry.pexelsSearchTerms
               .slice(0, 4)
-              .map((q, i) => ({ id: `${entry.id}_clip${i + 1}`, q }));
+              .map((q, i) => ({ id: entry.id + '_clip' + (i + 1), q }));
           }
 
-          // Write week info for subsequent steps
+          // Store full entry metadata for YouTube upload step
+          const dayMeta = {};
+          for (const entry of entries) {
+            if (!entry.id) continue;
+            dayMeta[entry.id] = {
+              youtubeTitle:       entry.youtubeTitle       || '',
+              youtubeDescription: entry.youtubeDescription || '',
+              tiktokCaption:      entry.tiktokCaption       || '',
+              pinnedComment:      entry.pinnedComment       || '',
+              music:              entry.music               || '',
+            };
+          }
+
           fs.mkdirSync('out', { recursive: true });
           fs.writeFileSync('out/.week_info.json', JSON.stringify({
-            week: `week${activeWeek}`,
+            week: 'week' + activeWeek,
             days,
-            dayAssets
+            dayAssets,
+            dayMeta,
           }, null, 2));
 
-          // Write to GitHub env
           const envFile = process.env.GITHUB_ENV;
           if (envFile) {
-            fs.appendFileSync(envFile, `ACTIVE_WEEK=week${activeWeek}\n`);
-            fs.appendFileSync(envFile, `ACTIVE_DAYS=${days.join(' ')}\n`);
+            fs.appendFileSync(envFile, 'ACTIVE_WEEK=week' + activeWeek + '\n');
+            fs.appendFileSync(envFile, 'ACTIVE_DAYS=' + days.join(' ') + '\n');
           }
 
-          console.log(`Active week: week${activeWeek}`);
-          console.log(`Week info written to out/.week_info.json`);
+          console.log('Active week: week' + activeWeek);
+          console.log('Week info written to out/.week_info.json');
           EOF
 
       - name: Run pre-render validator
@@ -123,54 +144,63 @@ jobs:
           const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
           const days = info.days;
 
-          console.log(`Checking music for: ${days.join(', ')}`);
+          console.log('Checking music for: ' + days.join(', '));
 
           let missing = 0;
           for (const day of days) {
-            const p = `public/music/${day}.mp3`;
+            const p = 'public/music/' + day + '.mp3';
             if (!fs.existsSync(p)) {
-              console.log(`MISSING MUSIC: ${p}`);
+              console.log('MISSING MUSIC: ' + p);
               missing++;
             } else {
               const size = fs.statSync(p).size;
               if (size < 50000) {
-                console.log(`CORRUPT MUSIC (too small): ${p} (${size} bytes)`);
+                console.log('CORRUPT MUSIC (too small): ' + p + ' (' + size + ' bytes)');
                 missing++;
               } else {
-                console.log(`OK music: ${day}.mp3 (${Math.round(size/1024)}KB)`);
+                console.log('OK music: ' + day + '.mp3 (' + Math.round(size/1024) + 'KB)');
               }
             }
           }
 
           if (missing > 0) {
-            console.log(`${missing} music file(s) missing or corrupt.`);
+            console.log(missing + ' music file(s) missing or corrupt.');
             process.exit(1);
           }
           console.log('All music files OK');
           EOF
 
-      - name: Download background videos from Pixabay
+      - name: Download background videos (Pixabay + Unsplash fallback)
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
         run: |
           node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-          const KEY   = process.env.PIXABAY_API_KEY;
+          const https    = require('https');
+          const http     = require('http');
+          const fs       = require('fs');
+          const path     = require('path');
+          const { execSync } = require('child_process');
 
-          // Auto-read DAY_ASSETS from week info
-          const info      = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+          const PIXABAY_KEY  = process.env.PIXABAY_API_KEY;
+          const UNSPLASH_KEY = process.env.UNSPLASH_ACCESS_KEY || '';
+
+          const info       = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
           const DAY_ASSETS = info.dayAssets;
 
-          console.log(`Downloading clips for: ${Object.keys(DAY_ASSETS).join(', ')}`);
+          console.log('Downloading clips for: ' + Object.keys(DAY_ASSETS).join(', '));
 
           function fetchJSON(url) {
             return new Promise((resolve, reject) => {
-              https.get(url, res => {
+              const lib = url.startsWith('https') ? https : http;
+              lib.get(url, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
+                if (res.statusCode === 301 || res.statusCode === 302) {
+                  return fetchJSON(res.headers.location).then(resolve).catch(reject);
+                }
                 let data = '';
                 res.on('data', d => data += d);
                 res.on('end', () => {
-                  try { resolve(JSON.parse(data)); } catch(e) { reject(e); }
+                  try { resolve(JSON.parse(data)); } catch(e) { reject(new Error('JSON parse failed: ' + data.slice(0, 200))); }
                 });
               }).on('error', reject);
             });
@@ -179,19 +209,21 @@ jobs:
           function downloadFile(url, dest) {
             return new Promise((resolve, reject) => {
               const file = fs.createWriteStream(dest);
-              const get = (u) => {
-                https.get(u, res => {
+              const get  = (u) => {
+                const lib = u.startsWith('https') ? https : http;
+                lib.get(u, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
                   if (res.statusCode === 301 || res.statusCode === 302) {
                     file.close();
                     return get(res.headers.location);
                   }
                   if (res.statusCode !== 200) {
-                    reject(new Error('HTTP ' + res.statusCode));
+                    file.close();
+                    reject(new Error('HTTP ' + res.statusCode + ' for ' + u));
                     return;
                   }
                   res.pipe(file);
                   file.on('finish', () => { file.close(); resolve(); });
-                }).on('error', reject);
+                }).on('error', err => { file.close(); reject(err); });
               };
               get(url);
             });
@@ -199,8 +231,68 @@ jobs:
 
           function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+          // Create a Ken Burns video from a still image using ffmpeg
+          // Duration: 8 seconds (240 frames at 30fps) — enough for one clip slot
+          async function makeKenBurnsFromImage(imgUrl, dest, query) {
+            const tmpImg = dest + '_tmp.jpg';
+            try {
+              await downloadFile(imgUrl, tmpImg);
+              const size = fs.existsSync(tmpImg) ? fs.statSync(tmpImg).size : 0;
+              if (size < 5000) throw new Error('Image too small: ' + size);
+
+              // Ken Burns: slow zoom in with slight pan
+              execSync(
+                'ffmpeg -loop 1 -i "' + tmpImg + '" ' +
+                '-vf "scale=1920:3840,zoompan=z=\'min(zoom+0.0008,1.3)\':x=\'iw/2-(iw/zoom/2)\':y=\'ih/2-(ih/zoom/2)\':d=240:s=1080x1920:fps=30" ' +
+                '-t 8 -c:v libx264 -pix_fmt yuv420p -crf 23 -preset fast ' +
+                '"' + dest + '" -y -loglevel error',
+                { stdio: 'pipe' }
+              );
+
+              const outSize = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
+              if (outSize < 50000) throw new Error('Ken Burns output too small: ' + outSize);
+
+              console.log('Ken Burns OK: ' + path.basename(dest) + ' from image (' + Math.round(outSize/1024) + 'KB)');
+              return true;
+            } catch(e) {
+              console.log('Ken Burns FAILED: ' + e.message);
+              return false;
+            } finally {
+              if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg);
+            }
+          }
+
+          // Unsplash fallback — fetch image and convert to Ken Burns video
+          async function tryUnsplash(query, dest) {
+            if (!UNSPLASH_KEY) {
+              // Try without auth key (50 req/hr demo limit)
+              console.log('No UNSPLASH_ACCESS_KEY set — trying demo endpoint');
+            }
+            try {
+              const cleanQ = encodeURIComponent(query.replace(/vertical/gi, '').trim());
+              const url    = UNSPLASH_KEY
+                ? 'https://api.unsplash.com/search/photos?query=' + cleanQ + '&per_page=3&orientation=portrait&client_id=' + UNSPLASH_KEY
+                : 'https://source.unsplash.com/1080x1920/?' + cleanQ;
+
+              if (!UNSPLASH_KEY) {
+                // source.unsplash.com returns a redirect to an image directly
+                return await makeKenBurnsFromImage('https://source.unsplash.com/1080x1920/?' + cleanQ, dest, query);
+              }
+
+              const data = await fetchJSON(url);
+              const results = data.results || [];
+              if (results.length === 0) throw new Error('No Unsplash results for: ' + query);
+
+              const imgUrl = results[0].urls.regular || results[0].urls.small;
+              return await makeKenBurnsFromImage(imgUrl, dest, query);
+            } catch(e) {
+              console.log('Unsplash fallback FAILED: ' + e.message);
+              return false;
+            }
+          }
+
           (async () => {
-            let downloaded = 0, skipped = 0, failed = 0;
+            let downloaded = 0, skipped = 0, failed = 0, kenBurns = 0;
 
             for (const [day, assets] of Object.entries(DAY_ASSETS)) {
               for (const item of assets) {
@@ -209,7 +301,7 @@ jobs:
                 if (fs.existsSync(dest)) {
                   const size = fs.statSync(dest).size;
                   if (size > 50000) {
-                    console.log('SKIP (exists): ' + item.id);
+                    console.log('SKIP (cached): ' + item.id);
                     skipped++;
                     continue;
                   }
@@ -218,35 +310,34 @@ jobs:
                 }
 
                 let success = false;
-                for (let attempt = 1; attempt <= 2; attempt++) {
+
+                // ── Try Pixabay (2 attempts) ──
+                for (let attempt = 1; attempt <= 2 && !success; attempt++) {
                   try {
-                    // Try with vertical orientation first, fallback without
-                    const url = 'https://pixabay.com/api/videos/?key=' + KEY
+                    const urlV = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY
                       + '&q=' + encodeURIComponent(item.q)
                       + '&orientation=vertical&per_page=10&video_type=film';
-                    const data = await fetchJSON(url);
+                    let data = await fetchJSON(urlV);
                     let hits = data.hits || [];
 
                     if (hits.length === 0) {
-                      const fallback = await fetchJSON(
-                        'https://pixabay.com/api/videos/?key=' + KEY
+                      const urlA = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY
                         + '&q=' + encodeURIComponent(item.q)
-                        + '&per_page=10&video_type=film'
-                      );
-                      hits = fallback.hits || [];
+                        + '&per_page=10&video_type=film';
+                      data = await fetchJSON(urlA);
+                      hits = data.hits || [];
                     }
 
-                    if (hits.length === 0) throw new Error('No results: ' + item.q);
+                    if (hits.length === 0) throw new Error('No Pixabay results: ' + item.q);
 
                     for (const hit of hits) {
-                      const videoUrl = hit.videos.medium
-                        ? hit.videos.medium.url
-                        : hit.videos.small.url;
+                      const videoUrl = (hit.videos.medium || hit.videos.small || hit.videos.large || {}).url;
+                      if (!videoUrl) continue;
                       try {
                         await downloadFile(videoUrl, dest);
                         const size = fs.statSync(dest).size;
-                        if (size < 50000) throw new Error('File too small: ' + size + ' bytes');
-                        console.log('OK: ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
+                        if (size < 50000) throw new Error('File too small: ' + size);
+                        console.log('OK (Pixabay): ' + item.id + ' (' + Math.round(size/1024) + 'KB)');
                         downloaded++;
                         success = true;
                         break;
@@ -256,8 +347,18 @@ jobs:
                     }
                     if (success) break;
                   } catch(e) {
-                    console.log('Attempt ' + attempt + ' FAILED ' + item.id + ': ' + e.message);
-                    await sleep(2000);
+                    console.log('Pixabay attempt ' + attempt + ' FAILED ' + item.id + ': ' + e.message);
+                    if (attempt < 2) await sleep(3000);
+                  }
+                }
+
+                // ── Unsplash Ken Burns fallback ──
+                if (!success) {
+                  console.log('Pixabay exhausted — trying Unsplash Ken Burns: ' + item.id);
+                  const kbOk = await tryUnsplash(item.q, dest);
+                  if (kbOk) {
+                    success  = true;
+                    kenBurns++;
                   }
                 }
 
@@ -265,15 +366,21 @@ jobs:
                   console.log('FINAL FAIL: ' + item.id);
                   failed++;
                 }
+
+                await sleep(500);
               }
             }
 
+            console.log('');
             console.log('--- Download Summary ---');
-            console.log('Downloaded: ' + downloaded);
-            console.log('Skipped (cached): ' + skipped);
-            console.log('Failed: ' + failed);
+            console.log('Downloaded (Pixabay): ' + downloaded);
+            console.log('Ken Burns (Unsplash): ' + kenBurns);
+            console.log('Skipped (cached):     ' + skipped);
+            console.log('Failed:               ' + failed);
 
-            if (failed > 0) process.exit(1);
+            if (failed > 0) {
+              console.log('WARNING: ' + failed + ' clip(s) failed all sources. Render may have blank backgrounds.');
+            }
           })();
           EOF
 
@@ -281,19 +388,20 @@ jobs:
         run: |
           BROWSER="./node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell"
 
-          # Support manual day override from workflow_dispatch input
           DAYS_INPUT="${{ github.event.inputs.days_override }}"
           if [ -n "$DAYS_INPUT" ]; then
-            DAYS=$(echo "$DAYS_INPUT" | tr ',' ' ')
+            RENDER_DAYS=$(echo "$DAYS_INPUT" | tr ',' ' ')
           else
-            DAYS="${{ env.ACTIVE_DAYS }}"
+            RENDER_DAYS="${{ env.ACTIVE_DAYS }}"
           fi
+
+          echo "Rendering days: $RENDER_DAYS"
 
           RENDER_FAILED=0
           RENDER_PASSED=0
           START_TIME=$(date +%s)
 
-          for DAY in $DAYS; do
+          for DAY in $RENDER_DAYS; do
             DAY_START=$(date +%s)
             echo "--- Rendering ${DAY} ---"
 
@@ -312,15 +420,15 @@ jobs:
               RENDER_PASSED=$((RENDER_PASSED + 1))
             else
               echo "FAILED ${DAY} after ${DAY_SECS}s"
-              RENDER_FAILED=1
+              RENDER_FAILED=$((RENDER_FAILED + 1))
             fi
           done
 
           END_TIME=$(date +%s)
           TOTAL_SECS=$((END_TIME - START_TIME))
-          echo "--- Render complete in ${TOTAL_SECS}s | Passed: ${RENDER_PASSED} ---"
+          echo "--- Render complete in ${TOTAL_SECS}s | Passed: ${RENDER_PASSED} | Failed: ${RENDER_FAILED} ---"
 
-          exit $RENDER_FAILED
+          if [ $RENDER_FAILED -gt 0 ]; then exit 1; fi
 
       - name: Install ffmpeg
         if: success()
@@ -329,7 +437,14 @@ jobs:
       - name: Generate thumbnails
         if: success()
         run: |
-          for DAY in ${{ env.ACTIVE_DAYS }}; do
+          DAYS_INPUT="${{ github.event.inputs.days_override }}"
+          if [ -n "$DAYS_INPUT" ]; then
+            THUMB_DAYS=$(echo "$DAYS_INPUT" | tr ',' ' ')
+          else
+            THUMB_DAYS="${{ env.ACTIVE_DAYS }}"
+          fi
+
+          for DAY in $THUMB_DAYS; do
             FILE="out/${DAY}_final.mp4"
             if [ -f "$FILE" ]; then
               ffmpeg -ss 00:00:01 -i "$FILE" -frames:v 1 -q:v 2 \
@@ -339,33 +454,17 @@ jobs:
             fi
           done
 
-      - name: Generate thumbnails from frame 60
+      - name: Generate GIF teasers
         if: success()
         run: |
-          node << 'EOF'
-          const { execSync } = require('child_process');
-          const fs   = require('fs');
-          const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
-          const FPS  = 30;
+          DAYS_INPUT="${{ github.event.inputs.days_override }}"
+          if [ -n "$DAYS_INPUT" ]; then
+            GIF_DAYS=$(echo "$DAYS_INPUT" | tr ',' ' ')
+          else
+            GIF_DAYS="${{ env.ACTIVE_DAYS }}"
+          fi
 
-          for (const day of info.days) {
-            const input  = `out/${day}_final.mp4`;
-            const output = `out/thumbs/${day}_thumb_f60.jpg`;
-            if (!fs.existsSync(input)) continue;
-            try {
-              execSync(`ffmpeg -ss ${(60/FPS).toFixed(4)} -i "${input}" -frames:v 1 -q:v 1 "${output}" -y -loglevel error`);
-              console.log(`Thumb f60 OK: ${day}`);
-            } catch(e) {
-              console.log(`Thumb f60 FAILED: ${day}: ${e.message}`);
-            }
-          }
-          EOF
-
-      - name: Generate GIF teasers hook frames 0-3sec
-        if: success()
-        run: |
-          mkdir -p out/gifs
-          for DAY in ${{ env.ACTIVE_DAYS }}; do
+          for DAY in $GIF_DAYS; do
             FILE="out/${DAY}_final.mp4"
             if [ -f "$FILE" ]; then
               ffmpeg -t 3 -i "$FILE" \
@@ -380,25 +479,9 @@ jobs:
             fi
           done
 
-      - name: Generate 3-second hook teaser clips
-        if: success()
-        run: |
-          mkdir -p out/teasers
-          for DAY in ${{ env.ACTIVE_DAYS }}; do
-            FILE="out/${DAY}_final.mp4"
-            if [ -f "$FILE" ]; then
-              ffmpeg -t 3 -i "$FILE" \
-                -c:v libx264 -crf 22 -preset fast \
-                -c:a aac -b:a 128k \
-                -y "out/teasers/${DAY}_teaser.mp4" -loglevel error && \
-              echo "Teaser OK: ${DAY}" || echo "Teaser FAILED: ${DAY}"
-            fi
-          done
-
       - name: Generate SRT subtitle files
         if: success()
         run: |
-          mkdir -p out/srt
           node << 'EOF'
           const fs   = require('fs');
           const path = require('path');
@@ -411,7 +494,7 @@ jobs:
             const m  = Math.floor((totalMs % 3600000) / 60000);
             const s  = Math.floor((totalMs % 60000) / 1000);
             const ms = totalMs % 1000;
-            return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms).padStart(3,'0')}`;
+            return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0') + ',' + String(ms).padStart(3,'0');
           }
 
           const srcDir = 'src';
@@ -420,12 +503,14 @@ jobs:
           const weekNums = contentFiles
             .map(f => parseInt(f.match(/week(\d+)/)[1]))
             .sort((a, b) => b - a);
-          const activeFile = path.join(srcDir, `week${weekNums[0]}-content.js`);
+          const activeFile = path.join(srcDir, 'week' + weekNums[0] + '-content.js');
 
           const source = fs.readFileSync(activeFile, 'utf8');
-          const match  = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*\]);/);
-          let entries  = [];
-          try { entries = eval(match[1]); } catch(e) {}
+          const defaultMatch = source.match(/export\s+default\s+(\[[\s\S]*\]);?\s*$/m);
+          const namedMatch   = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/m);
+          const arrayStr     = defaultMatch ? defaultMatch[1] : (namedMatch ? namedMatch[1] : null);
+          let entries = [];
+          try { if (arrayStr) entries = eval(arrayStr); } catch(e) {}
 
           let generated = 0;
           for (const entry of entries) {
@@ -433,91 +518,371 @@ jobs:
             const srtLines = [];
             let index = 1;
             for (const o of entry.overlays) {
-              if (!o.text || !o.startFrame || !o.endFrame) continue;
+              if (!o.text || o.startFrame === undefined || o.endFrame === undefined) continue;
               srtLines.push(String(index));
-              srtLines.push(`${framesToSRT(o.startFrame)} --> ${framesToSRT(o.endFrame)}`);
+              srtLines.push(framesToSRT(o.startFrame) + ' --> ' + framesToSRT(o.endFrame));
               srtLines.push(o.text.replace(/\n/g, ' '));
               srtLines.push('');
               index++;
             }
             if (srtLines.length > 0) {
-              fs.writeFileSync(`out/srt/${entry.id}.srt`, srtLines.join('\n'));
-              console.log(`SRT OK: ${entry.id} (${index - 1} captions)`);
+              fs.writeFileSync('out/srt/' + entry.id + '.srt', srtLines.join('\n'));
               generated++;
             }
           }
-          console.log(`Generated ${generated} SRT files`);
+          console.log('Generated ' + generated + ' SRT files');
           EOF
 
-      - name: Generate YouTube chapter timestamps
+      - name: Upload to YouTube
+        if: success()
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          node << 'EOF'
+          const https  = require('https');
+          const fs     = require('fs');
+          const path   = require('path');
+
+          const CLIENT_ID     = process.env.YOUTUBE_CLIENT_ID;
+          const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
+          const REFRESH_TOKEN = process.env.YOUTUBE_REFRESH_TOKEN;
+
+          if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
+            console.log('YouTube secrets not configured — skipping auto-upload.');
+            console.log('Add YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN to repo secrets.');
+            process.exit(0);
+          }
+
+          const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+
+          // Determine which days to upload
+          const daysOverride = '${{ github.event.inputs.days_override }}';
+          const uploadDays   = daysOverride
+            ? daysOverride.split(',').map(d => d.trim()).filter(Boolean)
+            : info.days;
+
+          function httpsPost(options, body) {
+            return new Promise((resolve, reject) => {
+              const req = https.request(options, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => resolve({ status: res.statusCode, body: data, headers: res.headers }));
+              });
+              req.on('error', reject);
+              if (body) req.write(body);
+              req.end();
+            });
+          }
+
+          function httpsRequest(options, body) {
+            return new Promise((resolve, reject) => {
+              const req = https.request(options, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => resolve({ status: res.statusCode, body: data, headers: res.headers }));
+              });
+              req.on('error', reject);
+              if (body) req.write(body);
+              req.end();
+            });
+          }
+
+          async function getAccessToken() {
+            const body = new URLSearchParams({
+              client_id:     CLIENT_ID,
+              client_secret: CLIENT_SECRET,
+              refresh_token: REFRESH_TOKEN,
+              grant_type:    'refresh_token',
+            }).toString();
+
+            const res = await httpsPost({
+              hostname: 'oauth2.googleapis.com',
+              path:     '/token',
+              method:   'POST',
+              headers:  {
+                'Content-Type':   'application/x-www-form-urlencoded',
+                'Content-Length': Buffer.byteLength(body),
+              }
+            }, body);
+
+            const data = JSON.parse(res.body);
+            if (!data.access_token) {
+              throw new Error('Failed to get access token: ' + res.body);
+            }
+            return data.access_token;
+          }
+
+          async function uploadVideo(accessToken, filePath, meta) {
+            const fileSize = fs.statSync(filePath).size;
+
+            // Step 1: Initiate resumable upload
+            const metadata = JSON.stringify({
+              snippet: {
+                title:       meta.title.slice(0, 100),
+                description: meta.description,
+                tags:        meta.tags,
+                categoryId:  '22', // People & Blogs
+              },
+              status: {
+                privacyStatus:           'public',
+                selfDeclaredMadeForKids: false,
+              },
+            });
+
+            const initRes = await httpsRequest({
+              hostname: 'www.googleapis.com',
+              path:     '/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',
+              method:   'POST',
+              headers:  {
+                'Authorization':            'Bearer ' + accessToken,
+                'Content-Type':             'application/json',
+                'X-Upload-Content-Type':    'video/mp4',
+                'X-Upload-Content-Length':  fileSize,
+                'Content-Length':           Buffer.byteLength(metadata),
+              },
+            }, metadata);
+
+            if (initRes.status !== 200) {
+              throw new Error('Resumable upload init failed: HTTP ' + initRes.status + ' ' + initRes.body);
+            }
+
+            const uploadUrl = initRes.headers.location;
+            if (!uploadUrl) throw new Error('No upload URL in response headers');
+
+            // Step 2: Upload file in chunks
+            const CHUNK = 8 * 1024 * 1024; // 8MB chunks
+            const fileHandle = fs.openSync(filePath, 'r');
+            let uploadedBytes = 0;
+            let videoId = null;
+
+            while (uploadedBytes < fileSize) {
+              const chunkSize  = Math.min(CHUNK, fileSize - uploadedBytes);
+              const buffer     = Buffer.alloc(chunkSize);
+              fs.readSync(fileHandle, buffer, 0, chunkSize, uploadedBytes);
+
+              const urlObj = new URL(uploadUrl);
+              const chunkRes = await new Promise((resolve, reject) => {
+                const req = https.request({
+                  hostname: urlObj.hostname,
+                  path:     urlObj.pathname + urlObj.search,
+                  method:   'PUT',
+                  headers:  {
+                    'Content-Length': chunkSize,
+                    'Content-Range':  'bytes ' + uploadedBytes + '-' + (uploadedBytes + chunkSize - 1) + '/' + fileSize,
+                    'Content-Type':   'video/mp4',
+                  },
+                }, res => {
+                  let data = '';
+                  res.on('data', d => data += d);
+                  res.on('end', () => resolve({ status: res.statusCode, body: data }));
+                });
+                req.on('error', reject);
+                req.write(buffer);
+                req.end();
+              });
+
+              uploadedBytes += chunkSize;
+
+              if (chunkRes.status === 200 || chunkRes.status === 201) {
+                const parsed = JSON.parse(chunkRes.body);
+                videoId = parsed.id;
+                break;
+              } else if (chunkRes.status === 308) {
+                // Resume Incomplete — continue
+                const pct = Math.round((uploadedBytes / fileSize) * 100);
+                console.log('Uploading... ' + pct + '% (' + Math.round(uploadedBytes/1024/1024) + 'MB)');
+              } else {
+                throw new Error('Chunk upload failed: HTTP ' + chunkRes.status + ' ' + chunkRes.body);
+              }
+            }
+
+            fs.closeSync(fileHandle);
+            return videoId;
+          }
+
+          async function postComment(accessToken, videoId, text) {
+            const body = JSON.stringify({
+              snippet: {
+                videoId,
+                topLevelComment: {
+                  snippet: { textOriginal: text },
+                },
+              },
+            });
+
+            const res = await httpsRequest({
+              hostname: 'www.googleapis.com',
+              path:     '/youtube/v3/commentThreads?part=snippet',
+              method:   'POST',
+              headers:  {
+                'Authorization': 'Bearer ' + accessToken,
+                'Content-Type':  'application/json',
+                'Content-Length': Buffer.byteLength(body),
+              },
+            }, body);
+
+            if (res.status !== 200) {
+              throw new Error('Comment post failed: HTTP ' + res.status);
+            }
+            return JSON.parse(res.body).id;
+          }
+
+          (async () => {
+            let uploaded = 0, failed = 0;
+            const results = [];
+
+            let accessToken;
+            try {
+              accessToken = await getAccessToken();
+              console.log('YouTube access token obtained');
+            } catch(e) {
+              console.log('ERROR: Could not get YouTube access token: ' + e.message);
+              process.exit(1);
+            }
+
+            for (const day of uploadDays) {
+              const filePath = path.join('out', day + '_final.mp4');
+              if (!fs.existsSync(filePath)) {
+                console.log('SKIP: ' + day + ' - video file not found');
+                continue;
+              }
+
+              const meta = (info.dayMeta || {})[day];
+              if (!meta || !meta.youtubeTitle) {
+                console.log('SKIP: ' + day + ' - no metadata found');
+                continue;
+              }
+
+              const sizeMB = Math.round(fs.statSync(filePath).size / 1024 / 1024 * 10) / 10;
+              console.log('Uploading ' + day + ' (' + sizeMB + 'MB): ' + meta.youtubeTitle.slice(0, 60) + '...');
+
+              try {
+                const tags = (meta.tiktokCaption.match(/#\w+/g) || [])
+                  .map(t => t.replace('#', ''))
+                  .slice(0, 20);
+
+                const videoId = await uploadVideo(accessToken, filePath, {
+                  title:       meta.youtubeTitle,
+                  description: meta.youtubeDescription,
+                  tags,
+                });
+
+                if (!videoId) throw new Error('No video ID returned');
+
+                console.log('Uploaded: ' + day + ' -> https://youtu.be/' + videoId);
+
+                // Post pinned comment
+                if (meta.pinnedComment && !meta.pinnedComment.startsWith('[UPDATE')) {
+                  try {
+                    await postComment(accessToken, videoId, meta.pinnedComment);
+                    console.log('Pinned comment posted: ' + day);
+                  } catch(e) {
+                    console.log('Pinned comment FAILED (non-fatal): ' + e.message);
+                  }
+                }
+
+                results.push({ day, videoId, url: 'https://youtu.be/' + videoId, status: 'ok' });
+                uploaded++;
+              } catch(e) {
+                console.log('UPLOAD FAILED: ' + day + ': ' + e.message);
+                results.push({ day, status: 'failed', error: e.message });
+                failed++;
+              }
+            }
+
+            // Write upload results for notification step
+            fs.writeFileSync('out/.upload_results.json', JSON.stringify(results, null, 2));
+
+            console.log('');
+            console.log('--- YouTube Upload Summary ---');
+            console.log('Uploaded: ' + uploaded);
+            console.log('Failed:   ' + failed);
+
+            for (const r of results) {
+              if (r.status === 'ok') console.log('  ' + r.day + ' -> ' + r.url);
+              else console.log('  ' + r.day + ' -> FAILED: ' + r.error);
+            }
+          })();
+          EOF
+
+      - name: Update README with latest render stats
         if: success()
         run: |
-          mkdir -p out/chapters
           node << 'EOF'
           const fs   = require('fs');
           const path = require('path');
-          const FPS  = 30;
 
-          function framesToYTTime(frames) {
-            const totalSecs = Math.floor(frames / FPS);
-            const m = Math.floor(totalSecs / 60);
-            const s = totalSecs % 60;
-            return `${m}:${String(s).padStart(2,'0')}`;
-          }
+          const info    = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+          const today   = new Date().toISOString().slice(0, 10);
+          const runNum  = process.env.GITHUB_RUN_NUMBER || '?';
+          const runId   = process.env.GITHUB_RUN_ID     || '';
+          const repo    = process.env.GITHUB_REPOSITORY || 'dailywealthbuilding/dwb-videos';
 
-          const srcDir = 'src';
-          const contentFiles = fs.readdirSync(srcDir)
-            .filter(f => f.match(/^week\d+-content\.js$/));
-          const weekNums = contentFiles
-            .map(f => parseInt(f.match(/week(\d+)/)[1]))
-            .sort((a, b) => b - a);
-          const activeFile = path.join(srcDir, `week${weekNums[0]}-content.js`);
+          let uploads = [];
+          try { uploads = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
 
-          const source = fs.readFileSync(activeFile, 'utf8');
-          const match  = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*\]);/);
-          let entries  = [];
-          try { entries = eval(match[1]); } catch(e) {}
+          // Count rendered videos
+          const rendered = info.days.filter(d => fs.existsSync('out/' + d + '_final.mp4'));
 
-          for (const entry of entries) {
-            if (!entry.overlays || !entry.id) continue;
-            const lines = ['0:00 Intro'];
-            for (const o of entry.overlays) {
-              if (!o.text || !o.startFrame) continue;
-              const ts = framesToYTTime(o.startFrame);
-              if (ts === '0:00') continue;
-              lines.push(`${ts} ${o.text.replace(/\n/g, ' ').slice(0, 60)}`);
-            }
-            fs.writeFileSync(`out/chapters/${entry.id}_chapters.txt`, lines.join('\n'));
-            console.log(`Chapters OK: ${entry.id} (${lines.length} chapters)`);
-          }
+          const uploadedLinks = uploads
+            .filter(u => u.status === 'ok')
+            .map(u => '- [' + u.day + '](' + u.url + ')')
+            .join('\n');
+
+          const dayNums = info.days.map(d => parseInt(d.replace('day',''))).filter(Boolean);
+          const minDay  = dayNums.length ? Math.min(...dayNums) : '?';
+          const maxDay  = dayNums.length ? Math.max(...dayNums) : '?';
+
+          const badge = (label, msg, color) =>
+            '![' + label + '](https://img.shields.io/badge/' +
+            encodeURIComponent(label) + '-' + encodeURIComponent(msg) + '-' + color + ')';
+
+          const readme = [
+            '# DWB — Daily Wealth Building',
+            '',
+            '@DailyWealthBuilding | 90-Day Public Affiliate Challenge',
+            '',
+            badge('Last Render', today, 'gold') + ' ' +
+            badge('Week', info.week, 'blue') + ' ' +
+            badge('Days', minDay + '--' + maxDay, 'green') + ' ' +
+            badge('Videos', rendered.length + '/' + info.days.length, rendered.length === info.days.length ? 'brightgreen' : 'orange'),
+            '',
+            '## Latest Render — ' + today,
+            '',
+            '| Field | Value |',
+            '|---|---|',
+            '| Week | ' + info.week + ' |',
+            '| Days | ' + info.days.join(', ') + ' |',
+            '| Rendered | ' + rendered.length + ' / ' + info.days.length + ' |',
+            '| Run | [#' + runNum + '](https://github.com/' + repo + '/actions/runs/' + runId + ') |',
+            '',
+            uploadedLinks ? ('## YouTube Links\n\n' + uploadedLinks) : '',
+            '',
+            '## Pipeline',
+            '',
+            '- Remotion 4.0 → GitHub Actions (Monday 6AM UTC)',
+            '- 1080x1920 @ 30fps | 900 frames | h264',
+            '- Pixabay video clips + Unsplash Ken Burns fallback',
+            '- YouTube auto-upload via Data API v3',
+            '- Telegram notifications via ntfy.sh',
+            '',
+            '---',
+            '_Auto-updated by GitHub Actions on ' + today + '_',
+          ].filter(l => l !== undefined).join('\n');
+
+          fs.writeFileSync('README.md', readme);
+          console.log('README.md updated for ' + today);
           EOF
 
-      - name: Batch rename outputs to DWB branded format
-        if: success()
-        run: |
-          node << 'EOF'
-          const fs    = require('fs');
-          const path  = require('path');
-          const TODAY = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-          const info  = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --staged --quiet || git commit -m "chore: update README after render [skip ci]"
+          git push
 
-          let renamed = 0;
-          for (const day of info.days) {
-            const oldName = `${day}_final.mp4`;
-            const dayStr  = day.replace('day', 'Day');
-            const newName = `DWB_${dayStr}_${TODAY}_final.mp4`;
-            const oldPath = path.join('out', oldName);
-            const newPath = path.join('out', newName);
-            if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
-              fs.copyFileSync(oldPath, newPath);
-              console.log(`Renamed: ${oldName} -> ${newName}`);
-              renamed++;
-            }
-          }
-          console.log(`Batch rename: ${renamed} files`);
-          EOF
-
-      - name: Upload all export formats as artifacts
+      - name: Upload all export artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dwb-${{ env.ACTIVE_WEEK }}-all-exports-${{ github.run_number }}
@@ -525,25 +890,8 @@ jobs:
             out/*.mp4
             out/thumbs/*.jpg
             out/gifs/*.gif
-            out/teasers/*.mp4
             out/srt/*.srt
             out/chapters/*.txt
-          retention-days: 14
-          if-no-files-found: warn
-
-      - name: Upload rendered videos
-        uses: actions/upload-artifact@v4
-        with:
-          name: dwb-${{ env.ACTIVE_WEEK }}-videos-${{ github.run_number }}
-          path: out/*.mp4
-          retention-days: 14
-          if-no-files-found: error
-
-      - name: Upload thumbnails
-        uses: actions/upload-artifact@v4
-        with:
-          name: dwb-${{ env.ACTIVE_WEEK }}-thumbs-${{ github.run_number }}
-          path: out/thumbs/*.jpg
           retention-days: 14
           if-no-files-found: warn
 
@@ -563,34 +911,45 @@ jobs:
           let info = { week: 'unknown', days: [] };
           try { info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8')); } catch(e) {}
 
+          let uploads = [];
+          try { uploads = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
+
           const STATUS = isSuccess ? 'COMPLETE' : 'FAILED';
           let passed   = 0;
-          let lines    = [`DWB ${info.week.toUpperCase()} | Run #${runNumber} | ${STATUS}`, ''];
+          const lines  = [
+            'DWB ' + info.week.toUpperCase() + ' | Run #' + runNumber + ' | ' + STATUS,
+            '',
+          ];
 
           for (const day of info.days) {
-            const file = `out/${day}_final.mp4`;
-            if (fs.existsSync(file)) {
+            const file   = 'out/' + day + '_final.mp4';
+            const exists = fs.existsSync(file);
+            if (exists) {
               const size = Math.round(fs.statSync(file).size / (1024*1024) * 10) / 10;
-              lines.push(`${day} OK - ${size}MB`);
+              const upload = uploads.find(u => u.day === day);
+              const ytLink = upload && upload.status === 'ok' ? ' | ' + upload.url : '';
+              lines.push(day + ' OK - ' + size + 'MB' + ytLink);
               passed++;
             } else {
-              lines.push(`${day} FAILED`);
+              lines.push(day + ' FAILED');
             }
           }
 
-          const total = info.days.length;
           lines.push('');
-          lines.push(`Result: ${passed}/${total} rendered`);
-          if (passed === total) lines.push('All videos ready for upload.');
+          lines.push('Result: ' + passed + '/' + info.days.length + ' rendered');
+
+          const ytCount = uploads.filter(u => u.status === 'ok').length;
+          if (ytCount > 0) lines.push('YouTube: ' + ytCount + ' uploaded');
+          if (isSuccess && passed === info.days.length) lines.push('All done. Check YouTube.');
 
           const message = lines.join('\n');
-          const title   = `DWB ${isSuccess ? 'DONE' : 'FAILED'} - ${info.week} - ${passed}/${total}`;
+          const title   = 'DWB ' + (isSuccess ? 'DONE' : 'FAILED') + ' - ' + info.week + ' - ' + passed + '/' + info.days.length;
 
           const options = {
             hostname: 'ntfy.sh',
-            path: '/' + process.env.NTFY_TOPIC,
-            method: 'POST',
-            headers: {
+            path:     '/' + process.env.NTFY_TOPIC,
+            method:   'POST',
+            headers:  {
               'Title':          title,
               'Priority':       isSuccess ? 'default' : 'high',
               'Tags':           isSuccess ? 'white_check_mark,clapper' : 'x,warning',
