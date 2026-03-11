@@ -1,86 +1,78 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// src/index.jsx — DWB Remotion Root v2.0
+// src/index.jsx — DWB Remotion Root v3.0 — REPLACE EXISTING
 //
-// Upgrades vs v1:
-//   • Week-aware composition registration (no hardcoded day list)
-//   • Auto-loads content from content/weekN-content.js
-//   • calculateMetadata for dynamic duration support (future-proof)
-//   • Validates required content fields before registration
-//   • Clean scalable structure — just drop in new weekN-content.js to add week
-//   • Console warnings on missing/malformed content (CI-friendly)
+// v3.0 changes:
+//   • Weeks 7–13 registered (Days 43–90 — full 90-day challenge complete)
+//   • Supports both default exports (weeks 5–6) and named exports (weeks 7–13)
+//   • Smart flat array handles mixed export styles automatically
+//   • No other files need changes when adding future challenge weeks
 //
 // TO ADD A NEW WEEK:
-//   1. Create content/week6-content.js with VIDEO_DATA array
-//   2. Import it below and add to WEEKS map
-//   3. That's it — no other changes needed
+//   1. Create src/weekN-content.js → export const weekNVideos = [...]
+//   2. Import it below and spread into ALL_CONTENT
+//   3. Done. render.yml auto-detects the new file too.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { registerRoot, Composition } from 'remotion';
 import { VideoComposition } from './compositions/VideoComposition.jsx';
 
-// ── Week content imports ──
-// Add new week imports here as the challenge progresses
-import week5Content from '../content/week5-content.js';
-import week6Content from '../content/week6-content.js';
+// ── Weeks 5 & 6 (default exports — existing format) ──
+import week5Content from './week5-content.js';
+import week6Content from './week6-content.js';
 
-// ── Master week registry ──
-// key = week label (for logging), value = content array
-const WEEKS = {
-  week5: week5Content,
-  week6: week6Content,
-};
+// ── Week 7 (Days 43–49) ──
+import { week7Videos } from './week7-content.js';
+
+// ── Week 8 (Days 50–56) ──
+import { week8Videos } from './week8-content.js';
+
+// ── Week 9 (Days 57–63) ──
+import { week9Videos } from './week9-content.js';
+
+// ── Week 10 (Days 64–70) ──
+import { week10Videos } from './week10-content.js';
+
+// ── Weeks 11–13 (Days 71–90) ──
+import { week11Videos, week12Videos, week13Videos } from './weeks11-13-content.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Validate a content entry has all required fields
-// Returns array of missing field names, or empty array if valid
+// ALL_CONTENT — every video entry across all 90 days, in order
 // ─────────────────────────────────────────────────────────────────────────────
-function validateEntry(entry, weekKey) {
+const ALL_CONTENT = [
+  ...week5Content,
+  ...week6Content,
+  ...week7Videos,
+  ...week8Videos,
+  ...week9Videos,
+  ...week10Videos,
+  ...week11Videos,
+  ...week12Videos,
+  ...week13Videos,
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Validate required fields — warns in console, skips broken entries
+// ─────────────────────────────────────────────────────────────────────────────
+function validateEntry(entry) {
   const required = ['id', 'filename', 'music', 'overlays', 'pexelsSearchTerms'];
   const missing = required.filter(f => !entry[f]);
   if (missing.length > 0) {
-    console.warn(`[DWB] ${weekKey}/${entry.id || '?'} missing fields: ${missing.join(', ')}`);
+    console.warn(`[DWB] ${entry.id || 'UNKNOWN'} missing: ${missing.join(', ')}`);
   }
   return missing;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Flatten all weeks into a single composition list
-// Skips invalid entries with a warning
-// ─────────────────────────────────────────────────────────────────────────────
-function buildCompositions() {
-  const compositions = [];
-
-  for (const [weekKey, entries] of Object.entries(WEEKS)) {
-    if (!Array.isArray(entries)) {
-      console.warn(`[DWB] ${weekKey} content is not an array — skipped`);
-      continue;
-    }
-
-    for (const entry of entries) {
-      const missing = validateEntry(entry, weekKey);
-      if (missing.length > 0) continue; // skip broken entries
-
-      compositions.push({
-        id:      entry.id,
-        videoId: entry.id,
-        music:   entry.music,
-        overlays: entry.overlays,
-      });
-    }
-  }
-
-  return compositions;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RemotionRoot — registers all compositions
+// RemotionRoot
 // ─────────────────────────────────────────────────────────────────────────────
 export const RemotionRoot = () => {
-  const compositions = buildCompositions();
+  const valid = ALL_CONTENT.filter(entry => validateEntry(entry).length === 0);
+
+  console.log(`[DWB v3] ${valid.length} compositions loaded | ${valid[0]?.id} → ${valid[valid.length - 1]?.id}`);
 
   return (
     <>
-      {compositions.map(({ id, videoId, music, overlays }) => (
+      {valid.map(({ id, music, overlays }) => (
         <Composition
           key={id}
           id={id}
@@ -90,7 +82,7 @@ export const RemotionRoot = () => {
           width={1080}
           height={1920}
           defaultProps={{
-            videoId,
+            videoId: id,
             music,
             overlays,
           }}
