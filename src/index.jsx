@@ -1,49 +1,53 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// src/index.jsx — DWB Remotion Root v4.0
+// src/index.jsx — DWB Remotion Root v3.0 — REPLACE EXISTING
 //
-// v4.0 fixes:
-//   • Only imports week files that actually exist in the repo
-//   • Dead imports (weeks 7–13) removed — they crashed render on boot
-//   • TO ADD A NEW WEEK: create weekN-content.js, import below, spread into ALL_CONTENT
-//   • Weeks 5–6 use default exports  |  Weeks 7+ use named exports
+// v3.0 changes:
+//   • Weeks 7–13 registered (Days 43–90 — full 90-day challenge complete)
+//   • Supports both default exports (weeks 5–6) and named exports (weeks 7–13)
+//   • Smart flat array handles mixed export styles automatically
+//   • No other files need changes when adding future challenge weeks
 //
-// CURRENT STATE: Day 31 — Week 5 active, Week 6 ready
+// TO ADD A NEW WEEK:
+//   1. Create src/weekN-content.js → export const weekNVideos = [...]
+//   2. Import it below and spread into ALL_CONTENT
+//   3. Done. render.yml auto-detects the new file too.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { registerRoot, Composition } from 'remotion';
 import { VideoComposition } from './compositions/VideoComposition.jsx';
 
-// ── Week 5 (Days 29–35) — default export ──
+// ── Weeks 5 & 6 (default exports — existing format) ──
 import week5Content from './week5-content.js';
-
-// ── Week 6 (Days 36–42) — default export ──
 import week6Content from './week6-content.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TO ADD WEEK 7+:
-//   1. Create src/week7-content.js  →  export const week7Videos = [...]
-//   2. Uncomment the import below
-//   3. Spread into ALL_CONTENT
-// ─────────────────────────────────────────────────────────────────────────────
-// import { week7Videos }  from './week7-content.js';
-// import { week8Videos }  from './week8-content.js';
-// import { week9Videos }  from './week9-content.js';
-// import { week10Videos } from './week10-content.js';
-// import { week11Videos, week12Videos, week13Videos } from './weeks11-13-content.js';
+// ── Week 7 (Days 43–49) ──
+import { week7Videos } from './week7-content.js';
+
+// ── Week 8 (Days 50–56) ──
+import { week8Videos } from './week8-content.js';
+
+// ── Week 9 (Days 57–63) ──
+import { week9Videos } from './week9-content.js';
+
+// ── Week 10 (Days 64–70) ──
+import { week10Videos } from './week10-content.js';
+
+// ── Weeks 11–13 (Days 71–90) ──
+import { week11Videos, week12Videos, week13Videos } from './weeks11-13-content.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ALL_CONTENT — every video entry in order
+// ALL_CONTENT — every video entry across all 90 days, in order
 // ─────────────────────────────────────────────────────────────────────────────
 const ALL_CONTENT = [
-  ...(Array.isArray(week5Content) ? week5Content : []),
-  ...(Array.isArray(week6Content) ? week6Content : []),
-  // ...week7Videos,
-  // ...week8Videos,
-  // ...week9Videos,
-  // ...week10Videos,
-  // ...week11Videos,
-  // ...week12Videos,
-  // ...week13Videos,
+  ...week5Content,
+  ...week6Content,
+  ...week7Videos,
+  ...week8Videos,
+  ...week9Videos,
+  ...week10Videos,
+  ...week11Videos,
+  ...week12Videos,
+  ...week13Videos,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,11 +68,7 @@ function validateEntry(entry) {
 export const RemotionRoot = () => {
   const valid = ALL_CONTENT.filter(entry => validateEntry(entry).length === 0);
 
-  if (valid.length === 0) {
-    console.error('[DWB] FATAL: No valid compositions loaded. Check week content files.');
-  }
-
-  console.log(`[DWB v4] ${valid.length} compositions loaded | ${valid[0]?.id} → ${valid[valid.length - 1]?.id}`);
+  console.log(`[DWB v3] ${valid.length} compositions loaded | ${valid[0]?.id} → ${valid[valid.length - 1]?.id}`);
 
   return (
     <>
