@@ -2,7 +2,7 @@ name: Render DWB Videos
 
 on:
   schedule:
-    - cron: '0 6 * * 1'
+    - cron: '0 6 * * 1'  # Monday 6AM UTC = 9AM EAT
   workflow_dispatch:
     inputs:
       days_override:
@@ -45,6 +45,85 @@ jobs:
           mkdir -p out/srt
           mkdir -p out/chapters
 
+      - name: Download SFX (Mixkit fresh random per render)
+        run: |
+          node << 'EOF'
+          const https = require('https');
+          const fs    = require('fs');
+
+          const SFX_POOLS = {
+            'whoosh': [
+              'https://assets.mixkit.co/sfx/preview/mixkit-fast-small-sweep-transition-166.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-arrow-whoosh-1491.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-cinematic-fast-whoosh-transition-1780.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-swoosh-and-thud-2257.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-wind-howl-whoosh-ambience-232.mp3',
+            ],
+            'impact': [
+              'https://assets.mixkit.co/sfx/preview/mixkit-cinematic-impact-hit-1455.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-dramatic-cinematic-impact-2897.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-cinematic-tension-hit-2898.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-drum-and-bass-kick-2297.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-electric-bass-hit-2873.mp3',
+            ],
+            'cheer': [
+              'https://assets.mixkit.co/sfx/preview/mixkit-stadium-crowd-cheer-476.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-small-crowd-applause-521.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-crowd-cheer-and-applause-518.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-audience-light-applause-479.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-crowd-short-cheer-510.mp3',
+            ],
+            'ping': [
+              'https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-bonus-earned-in-video-game-2058.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3',
+              'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
+            ],
+          };
+
+          function download(url, dest) {
+            return new Promise((resolve, reject) => {
+              const file = fs.createWriteStream(dest);
+              const get = (u) => {
+                https.get(u, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
+                  if (res.statusCode === 301 || res.statusCode === 302) {
+                    file.close(); return get(res.headers.location);
+                  }
+                  if (res.statusCode !== 200) { file.close(); reject(new Error('HTTP ' + res.statusCode)); return; }
+                  res.pipe(file);
+                  file.on('finish', () => { file.close(); resolve(); });
+                }).on('error', e => { file.close(); reject(e); });
+              };
+              get(url);
+            });
+          }
+
+          (async () => {
+            for (const [slot, pool] of Object.entries(SFX_POOLS)) {
+              const dest = 'public/sfx/' + slot + '.mp3';
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+              const shuffled = [...pool].sort(() => Math.random() - 0.5);
+              let success = false;
+              for (const url of shuffled) {
+                try {
+                  await download(url, dest);
+                  const size = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
+                  if (size > 5000) {
+                    console.log('SFX OK: ' + slot + '.mp3 (' + Math.round(size/1024) + 'KB)');
+                    success = true; break;
+                  }
+                  if (fs.existsSync(dest)) fs.unlinkSync(dest);
+                } catch(e) {
+                  if (fs.existsSync(dest)) fs.unlinkSync(dest);
+                }
+              }
+              if (!success) console.log('WARNING: Could not download ' + slot + '.mp3');
+            }
+            console.log('SFX download complete');
+          })();
+          EOF
+
       - name: Detect active week from content files
         run: |
           node << 'EOF'
@@ -64,18 +143,16 @@ jobs:
             .map(f => parseInt(f.match(/week(\d+)/)[1]))
             .sort((a, b) => b - a);
           const activeWeek = weekNums[0];
-          const activeFile = path.join(srcDir, `week${activeWeek}-content.js`);
+          const activeFile = path.join(srcDir, 'week' + activeWeek + '-content.js');
 
           console.log('Active week file: ' + activeFile);
 
           const source = fs.readFileSync(activeFile, 'utf8');
 
-          // Support BOTH default exports and named exports
           let entries = [];
           const defaultMatch = source.match(/export\s+default\s+(\[[\s\S]*\]);?\s*$/m);
           const namedMatch   = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/m);
-
-          const arrayStr = defaultMatch ? defaultMatch[1] : (namedMatch ? namedMatch[1] : null);
+          const arrayStr     = defaultMatch ? defaultMatch[1] : (namedMatch ? namedMatch[1] : null);
 
           if (!arrayStr) {
             console.log('ERROR: Could not parse content array from ' + activeFile);
@@ -98,16 +175,16 @@ jobs:
               .map((q, i) => ({ id: entry.id + '_clip' + (i + 1), q }));
           }
 
-          // Store full entry metadata for YouTube upload step
           const dayMeta = {};
           for (const entry of entries) {
             if (!entry.id) continue;
             dayMeta[entry.id] = {
               youtubeTitle:       entry.youtubeTitle       || '',
               youtubeDescription: entry.youtubeDescription || '',
-              tiktokCaption:      entry.tiktokCaption       || '',
-              pinnedComment:      entry.pinnedComment       || '',
-              music:              entry.music               || '',
+              tiktokCaption:      entry.tiktokCaption      || '',
+              pinnedComment:      entry.pinnedComment      || '',
+              music:              entry.music              || '',
+              musicMood:          entry.musicMood          || '',
             };
           }
 
@@ -129,6 +206,295 @@ jobs:
           console.log('Week info written to out/.week_info.json');
           EOF
 
+      - name: Download music per day (Jamendo trending -> FMA -> Pixabay -> prev track)
+        env:
+          JAMENDO_CLIENT_ID: ${{ secrets.JAMENDO_CLIENT_ID }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+        run: |
+          node << 'EOF'
+          const https = require('https');
+          const http  = require('http');
+          const fs    = require('fs');
+
+          const JAMENDO_KEY = process.env.JAMENDO_CLIENT_ID;
+          const PIXABAY_KEY = process.env.PIXABAY_API_KEY;
+
+          const info    = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+          const days    = info.days;
+          const dayMeta = info.dayMeta || {};
+
+          const DAY_MOODS = {
+            29:'emotional',30:'upbeat',31:'motivational',32:'electronic',
+            33:'relaxing',34:'powerful',35:'calm',36:'powerful',
+            37:'calm',38:'dramatic',39:'upbeat',40:'inspiring',
+            41:'powerful',42:'calm',43:'motivational',44:'emotional',
+            45:'upbeat',46:'powerful',47:'relaxing',48:'inspiring',
+            49:'calm',50:'upbeat',51:'motivational',52:'powerful',
+            53:'electronic',54:'inspiring',55:'upbeat',56:'powerful',
+            57:'calm',58:'electronic',59:'motivational',60:'upbeat',
+            61:'powerful',62:'inspiring',63:'calm',64:'powerful',
+            65:'motivational',66:'upbeat',67:'dramatic',68:'inspiring',
+            69:'calm',70:'powerful',71:'upbeat',72:'motivational',
+            73:'powerful',74:'calm',75:'inspiring',76:'electronic',
+            77:'upbeat',78:'powerful',79:'motivational',80:'dramatic',
+            81:'inspiring',82:'calm',83:'upbeat',84:'powerful',
+            85:'motivational',86:'inspiring',87:'dramatic',88:'powerful',
+            89:'upbeat',90:'inspiring',
+          };
+
+          const JAMENDO_TAGS = {
+            motivational:'motivational+upbeat', upbeat:'happy+upbeat',
+            powerful:'powerful+dramatic', calm:'relaxing+ambient',
+            emotional:'emotional+piano', electronic:'electronic+techno',
+            relaxing:'relaxing+chill', dramatic:'dramatic+epic',
+            inspiring:'inspiring+uplifting',
+          };
+
+          const PIXABAY_MOODS = {
+            motivational:'upbeat', upbeat:'upbeat', powerful:'powerful',
+            calm:'relaxing', emotional:'emotional', electronic:'electronic',
+            relaxing:'relaxing', dramatic:'dramatic', inspiring:'inspiring',
+          };
+
+          function fetchJSON(url) {
+            return new Promise((resolve, reject) => {
+              const lib = url.startsWith('https') ? https : http;
+              lib.get(url, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
+                if (res.statusCode === 301 || res.statusCode === 302)
+                  return fetchJSON(res.headers.location).then(resolve).catch(reject);
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => {
+                  try { resolve(JSON.parse(data)); }
+                  catch(e) { reject(new Error('JSON parse failed')); }
+                });
+              }).on('error', reject);
+            });
+          }
+
+          function downloadFile(url, dest) {
+            return new Promise((resolve, reject) => {
+              const file = fs.createWriteStream(dest);
+              const get = (u) => {
+                const lib = u.startsWith('https') ? https : http;
+                lib.get(u, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
+                  if (res.statusCode === 301 || res.statusCode === 302) {
+                    file.close(); return get(res.headers.location);
+                  }
+                  if (res.statusCode !== 200) {
+                    file.close(); reject(new Error('HTTP ' + res.statusCode)); return;
+                  }
+                  res.pipe(file);
+                  file.on('finish', () => { file.close(); resolve(); });
+                }).on('error', e => { file.close(); reject(e); });
+              };
+              get(url);
+            });
+          }
+
+          function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+          async function tryJamendo(mood, dest) {
+            if (!JAMENDO_KEY) return false;
+            try {
+              const tag  = JAMENDO_TAGS[mood] || 'motivational+upbeat';
+              const url  = 'https://api.jamendo.com/v3.0/tracks/' +
+                '?client_id=' + JAMENDO_KEY +
+                '&format=json&limit=10&tags=' + tag +
+                '&order=popularity_week&audioformat=mp32&license_cc=1';
+              const data   = await fetchJSON(url);
+              const tracks = (data.results || []).filter(t => t.audio);
+              if (tracks.length === 0) throw new Error('No results for: ' + tag);
+              const pick = tracks[Math.floor(Math.random() * Math.min(5, tracks.length))];
+              console.log('Jamendo: "' + pick.name + '" by ' + pick.artist_name);
+              await downloadFile(pick.audio, dest);
+              const size = fs.statSync(dest).size;
+              if (size < 50000) throw new Error('File too small: ' + size);
+              console.log('Jamendo OK: ' + Math.round(size/1024) + 'KB');
+              return true;
+            } catch(e) {
+              console.log('Jamendo failed: ' + e.message);
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+              return false;
+            }
+          }
+
+          async function tryFMA(mood, dest) {
+            try {
+              const genreMap = {
+                motivational:'Hip-Hop', upbeat:'Pop', powerful:'Classical',
+                calm:'Ambient', emotional:'Classical', electronic:'Electronic',
+                relaxing:'Ambient', dramatic:'Classical', inspiring:'Pop',
+              };
+              const genre = genreMap[mood] || 'Pop';
+              const url   = 'https://freemusicarchive.org/api/get/tracks.json' +
+                '?genre_title=' + encodeURIComponent(genre) +
+                '&limit=10&sort_by=track_listens&sort_dir=desc&api_key=60BLHNQCAOUFPIBZ';
+              const data   = await fetchJSON(url);
+              const tracks = (data.dataset || []).filter(t => t.track_url);
+              if (tracks.length === 0) throw new Error('No results for: ' + genre);
+              for (const track of tracks.slice(0, 5)) {
+                try {
+                  await downloadFile(track.track_url, dest);
+                  const size = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
+                  if (size > 50000) {
+                    console.log('FMA OK: "' + track.track_title + '" — ' + Math.round(size/1024) + 'KB');
+                    return true;
+                  }
+                  if (fs.existsSync(dest)) fs.unlinkSync(dest);
+                } catch(e) { /* try next */ }
+              }
+              throw new Error('All FMA tracks failed');
+            } catch(e) {
+              console.log('FMA failed: ' + e.message);
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+              return false;
+            }
+          }
+
+          async function tryPixabay(mood, dest) {
+            if (!PIXABAY_KEY) return false;
+            try {
+              const pmood = PIXABAY_MOODS[mood] || 'upbeat';
+              const url   = 'https://pixabay.com/api/videos/music/?key=' + PIXABAY_KEY +
+                '&mood=' + pmood + '&per_page=10';
+              const data = await fetchJSON(url);
+              const hits = (data.hits || []).filter(h => h.audio);
+              if (hits.length === 0) throw new Error('No results for mood: ' + pmood);
+              const pick = hits[Math.floor(Math.random() * Math.min(5, hits.length))];
+              console.log('Pixabay: "' + pick.title + '"');
+              await downloadFile(pick.audio, dest);
+              const size = fs.statSync(dest).size;
+              if (size < 50000) throw new Error('File too small: ' + size);
+              console.log('Pixabay OK: ' + Math.round(size/1024) + 'KB');
+              return true;
+            } catch(e) {
+              console.log('Pixabay music failed: ' + e.message);
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+              return false;
+            }
+          }
+
+          (async () => {
+            let downloaded = 0, skipped = 0, failed = 0;
+            const results = [];
+
+            for (const day of days) {
+              const dest = 'public/music/' + day + '.mp3';
+
+              if (fs.existsSync(dest) && fs.statSync(dest).size > 50000) {
+                console.log('SKIP (cached): ' + day + '.mp3');
+                skipped++;
+                results.push({ day, status: 'cached' });
+                continue;
+              }
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+
+              const dayNum = parseInt(day.replace('day', ''));
+              const mood   = (dayMeta[day] && dayMeta[day].musicMood) || DAY_MOODS[dayNum] || 'motivational';
+              console.log('\n--- ' + day + ' | mood: ' + mood + ' ---');
+
+              let ok = await tryJamendo(mood, dest);
+              if (!ok) { await sleep(1000); ok = await tryFMA(mood, dest); }
+              if (!ok) { await sleep(1000); ok = await tryPixabay(mood, dest); }
+
+              if (!ok) {
+                let prev = dayNum - 1;
+                while (prev >= 1) {
+                  const pf = 'public/music/day' + prev + '.mp3';
+                  if (fs.existsSync(pf) && fs.statSync(pf).size > 50000) {
+                    fs.copyFileSync(pf, dest);
+                    console.log(day + ': copied day' + prev + '.mp3 as last resort');
+                    ok = true; break;
+                  }
+                  prev--;
+                }
+              }
+
+              if (ok) { downloaded++; results.push({ day, status: 'downloaded', mood }); }
+              else    { failed++;    results.push({ day, status: 'failed', mood });
+                        console.log('FINAL FAIL: ' + day); }
+
+              await sleep(500);
+            }
+
+            fs.writeFileSync('out/.music_results.json', JSON.stringify(results, null, 2));
+            console.log('\n--- Music Summary ---');
+            console.log('Downloaded: ' + downloaded + ' | Cached: ' + skipped + ' | Failed: ' + failed);
+
+            if (failed > 0 && failed === days.length) {
+              console.log('CRITICAL: All music failed'); process.exit(1);
+            }
+          })();
+          EOF
+
+      - name: Fetch TikTok trending sounds (weekly inspiration)
+        continue-on-error: true
+        run: |
+          node << 'EOF'
+          const https = require('https');
+          const fs    = require('fs');
+
+          const ENDPOINTS = [
+            'https://www.tiktok.com/api/creative_center/music/trending/?aid=1988&count=10&period=7&page=1',
+            'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/music/list?period=7&page=1&limit=10',
+          ];
+
+          function fetchJSON(url) {
+            return new Promise((resolve, reject) => {
+              https.get(url, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                  'Accept': 'application/json',
+                  'Referer': 'https://ads.tiktok.com/',
+                }
+              }, res => {
+                if (res.statusCode === 301 || res.statusCode === 302)
+                  return fetchJSON(res.headers.location).then(resolve).catch(reject);
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => {
+                  try { resolve(JSON.parse(data)); }
+                  catch(e) { reject(new Error('Not JSON')); }
+                });
+              }).on('error', reject);
+            });
+          }
+
+          (async () => {
+            let sounds = [];
+            for (const url of ENDPOINTS) {
+              try {
+                const data  = await fetchJSON(url);
+                const items = data?.data?.list || data?.music_list || data?.data?.music_list || [];
+                if (items.length > 0) {
+                  sounds = items.slice(0, 10).map((item, i) => ({
+                    rank: i + 1,
+                    title:      item.music_info?.title  || item.title  || 'Trending #' + (i+1),
+                    artist:     item.music_info?.author || item.author || 'Unknown',
+                    usageCount: item.post_num || item.use_count || '--',
+                    soundId:    item.music_id || item.id || null,
+                    scrapedAt:  new Date().toISOString(),
+                  }));
+                  console.log('Fetched ' + sounds.length + ' trending sounds');
+                  break;
+                }
+              } catch(e) { console.log('TikTok endpoint failed: ' + e.message); }
+            }
+
+            fs.writeFileSync('out/.trending_sounds.json', JSON.stringify(sounds, null, 2));
+
+            if (sounds.length > 0) {
+              console.log('\nTop 5 Trending This Week:');
+              sounds.slice(0, 5).forEach(s =>
+                console.log('  ' + s.rank + '. ' + s.title + ' -- ' + s.artist + ' (' + s.usageCount + ' videos)')
+              );
+            } else {
+              console.log('No trending sounds fetched (TikTok API may have rotated)');
+            }
+          })();
+          EOF
+
       - name: Run pre-render validator
         run: |
           if [ -f "validate.js" ]; then
@@ -136,39 +502,6 @@ jobs:
           else
             echo "validate.js not found - skipping"
           fi
-
-      - name: Validate music files
-        run: |
-          node << 'EOF'
-          const fs   = require('fs');
-          const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
-          const days = info.days;
-
-          console.log('Checking music for: ' + days.join(', '));
-
-          let missing = 0;
-          for (const day of days) {
-            const p = 'public/music/' + day + '.mp3';
-            if (!fs.existsSync(p)) {
-              console.log('MISSING MUSIC: ' + p);
-              missing++;
-            } else {
-              const size = fs.statSync(p).size;
-              if (size < 50000) {
-                console.log('CORRUPT MUSIC (too small): ' + p + ' (' + size + ' bytes)');
-                missing++;
-              } else {
-                console.log('OK music: ' + day + '.mp3 (' + Math.round(size/1024) + 'KB)');
-              }
-            }
-          }
-
-          if (missing > 0) {
-            console.log(missing + ' music file(s) missing or corrupt.');
-            process.exit(1);
-          }
-          console.log('All music files OK');
-          EOF
 
       - name: Download background videos (Pixabay + Unsplash fallback)
         env:
@@ -231,8 +564,6 @@ jobs:
 
           function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-          // Create a Ken Burns video from a still image using ffmpeg
-          // Duration: 8 seconds (240 frames at 30fps) — enough for one clip slot
           async function makeKenBurnsFromImage(imgUrl, dest, query) {
             const tmpImg = dest + '_tmp.jpg';
             try {
@@ -240,7 +571,6 @@ jobs:
               const size = fs.existsSync(tmpImg) ? fs.statSync(tmpImg).size : 0;
               if (size < 5000) throw new Error('Image too small: ' + size);
 
-              // Ken Burns: slow zoom in with slight pan
               execSync(
                 'ffmpeg -loop 1 -i "' + tmpImg + '" ' +
                 '-vf "scale=1920:3840,zoompan=z=\'min(zoom+0.0008,1.3)\':x=\'iw/2-(iw/zoom/2)\':y=\'ih/2-(ih/zoom/2)\':d=240:s=1080x1920:fps=30" ' +
@@ -252,7 +582,7 @@ jobs:
               const outSize = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
               if (outSize < 50000) throw new Error('Ken Burns output too small: ' + outSize);
 
-              console.log('Ken Burns OK: ' + path.basename(dest) + ' from image (' + Math.round(outSize/1024) + 'KB)');
+              console.log('Ken Burns OK: ' + path.basename(dest) + ' (' + Math.round(outSize/1024) + 'KB)');
               return true;
             } catch(e) {
               console.log('Ken Burns FAILED: ' + e.message);
@@ -262,27 +592,16 @@ jobs:
             }
           }
 
-          // Unsplash fallback — fetch image and convert to Ken Burns video
           async function tryUnsplash(query, dest) {
-            if (!UNSPLASH_KEY) {
-              // Try without auth key (50 req/hr demo limit)
-              console.log('No UNSPLASH_ACCESS_KEY set — trying demo endpoint');
-            }
             try {
               const cleanQ = encodeURIComponent(query.replace(/vertical/gi, '').trim());
-              const url    = UNSPLASH_KEY
-                ? 'https://api.unsplash.com/search/photos?query=' + cleanQ + '&per_page=3&orientation=portrait&client_id=' + UNSPLASH_KEY
-                : 'https://source.unsplash.com/1080x1920/?' + cleanQ;
-
               if (!UNSPLASH_KEY) {
-                // source.unsplash.com returns a redirect to an image directly
                 return await makeKenBurnsFromImage('https://source.unsplash.com/1080x1920/?' + cleanQ, dest, query);
               }
-
-              const data = await fetchJSON(url);
+              const url    = 'https://api.unsplash.com/search/photos?query=' + cleanQ + '&per_page=3&orientation=portrait&client_id=' + UNSPLASH_KEY;
+              const data   = await fetchJSON(url);
               const results = data.results || [];
               if (results.length === 0) throw new Error('No Unsplash results for: ' + query);
-
               const imgUrl = results[0].urls.regular || results[0].urls.small;
               return await makeKenBurnsFromImage(imgUrl, dest, query);
             } catch(e) {
@@ -311,7 +630,6 @@ jobs:
 
                 let success = false;
 
-                // ── Try Pixabay (2 attempts) ──
                 for (let attempt = 1; attempt <= 2 && !success; attempt++) {
                   try {
                     const urlV = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY
@@ -352,35 +670,21 @@ jobs:
                   }
                 }
 
-                // ── Unsplash Ken Burns fallback ──
                 if (!success) {
-                  console.log('Pixabay exhausted — trying Unsplash Ken Burns: ' + item.id);
+                  console.log('Pixabay exhausted -- trying Unsplash Ken Burns: ' + item.id);
                   const kbOk = await tryUnsplash(item.q, dest);
-                  if (kbOk) {
-                    success  = true;
-                    kenBurns++;
-                  }
+                  if (kbOk) { success = true; kenBurns++; }
                 }
 
-                if (!success) {
-                  console.log('FINAL FAIL: ' + item.id);
-                  failed++;
-                }
+                if (!success) { console.log('FINAL FAIL: ' + item.id); failed++; }
 
                 await sleep(500);
               }
             }
 
-            console.log('');
-            console.log('--- Download Summary ---');
-            console.log('Downloaded (Pixabay): ' + downloaded);
-            console.log('Ken Burns (Unsplash): ' + kenBurns);
-            console.log('Skipped (cached):     ' + skipped);
-            console.log('Failed:               ' + failed);
-
-            if (failed > 0) {
-              console.log('WARNING: ' + failed + ' clip(s) failed all sources. Render may have blank backgrounds.');
-            }
+            console.log('\n--- Video Download Summary ---');
+            console.log('Pixabay: ' + downloaded + ' | Ken Burns: ' + kenBurns + ' | Cached: ' + skipped + ' | Failed: ' + failed);
+            if (failed > 0) console.log('WARNING: ' + failed + ' clip(s) failed. Render may have blank backgrounds.');
           })();
           EOF
 
@@ -494,18 +798,16 @@ jobs:
             const m  = Math.floor((totalMs % 3600000) / 60000);
             const s  = Math.floor((totalMs % 60000) / 1000);
             const ms = totalMs % 1000;
-            return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0') + ',' + String(ms).padStart(3,'0');
+            return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' +
+                   String(s).padStart(2,'0') + ',' + String(ms).padStart(3,'0');
           }
 
-          const srcDir = 'src';
-          const contentFiles = fs.readdirSync(srcDir)
-            .filter(f => f.match(/^week\d+-content\.js$/));
-          const weekNums = contentFiles
-            .map(f => parseInt(f.match(/week(\d+)/)[1]))
-            .sort((a, b) => b - a);
-          const activeFile = path.join(srcDir, 'week' + weekNums[0] + '-content.js');
+          const srcDir      = 'src';
+          const contentFiles = fs.readdirSync(srcDir).filter(f => f.match(/^week\d+-content\.js$/));
+          const weekNums    = contentFiles.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b - a);
+          const activeFile  = path.join(srcDir, 'week' + weekNums[0] + '-content.js');
+          const source      = fs.readFileSync(activeFile, 'utf8');
 
-          const source = fs.readFileSync(activeFile, 'utf8');
           const defaultMatch = source.match(/export\s+default\s+(\[[\s\S]*\]);?\s*$/m);
           const namedMatch   = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/m);
           const arrayStr     = defaultMatch ? defaultMatch[1] : (namedMatch ? namedMatch[1] : null);
@@ -550,14 +852,12 @@ jobs:
           const REFRESH_TOKEN = process.env.YOUTUBE_REFRESH_TOKEN;
 
           if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
-            console.log('YouTube secrets not configured — skipping auto-upload.');
-            console.log('Add YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN to repo secrets.');
+            console.log('YouTube secrets not configured -- skipping auto-upload.');
             process.exit(0);
           }
 
           const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
 
-          // Determine which days to upload
           const daysOverride = '${{ github.event.inputs.days_override }}';
           const uploadDays   = daysOverride
             ? daysOverride.split(',').map(d => d.trim()).filter(Boolean)
@@ -608,22 +908,19 @@ jobs:
             }, body);
 
             const data = JSON.parse(res.body);
-            if (!data.access_token) {
-              throw new Error('Failed to get access token: ' + res.body);
-            }
+            if (!data.access_token) throw new Error('Failed to get access token: ' + res.body);
             return data.access_token;
           }
 
           async function uploadVideo(accessToken, filePath, meta) {
             const fileSize = fs.statSync(filePath).size;
 
-            // Step 1: Initiate resumable upload
             const metadata = JSON.stringify({
               snippet: {
                 title:       meta.title.slice(0, 100),
                 description: meta.description,
                 tags:        meta.tags,
-                categoryId:  '22', // People & Blogs
+                categoryId:  '22',
               },
               status: {
                 privacyStatus:           'public',
@@ -636,33 +933,31 @@ jobs:
               path:     '/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',
               method:   'POST',
               headers:  {
-                'Authorization':            'Bearer ' + accessToken,
-                'Content-Type':             'application/json',
-                'X-Upload-Content-Type':    'video/mp4',
-                'X-Upload-Content-Length':  fileSize,
-                'Content-Length':           Buffer.byteLength(metadata),
+                'Authorization':           'Bearer ' + accessToken,
+                'Content-Type':            'application/json',
+                'X-Upload-Content-Type':   'video/mp4',
+                'X-Upload-Content-Length': fileSize,
+                'Content-Length':          Buffer.byteLength(metadata),
               },
             }, metadata);
 
-            if (initRes.status !== 200) {
-              throw new Error('Resumable upload init failed: HTTP ' + initRes.status + ' ' + initRes.body);
-            }
+            if (initRes.status !== 200)
+              throw new Error('Upload init failed: HTTP ' + initRes.status + ' ' + initRes.body);
 
             const uploadUrl = initRes.headers.location;
-            if (!uploadUrl) throw new Error('No upload URL in response headers');
+            if (!uploadUrl) throw new Error('No upload URL in response');
 
-            // Step 2: Upload file in chunks
-            const CHUNK = 8 * 1024 * 1024; // 8MB chunks
-            const fileHandle = fs.openSync(filePath, 'r');
+            const CHUNK       = 8 * 1024 * 1024;
+            const fileHandle  = fs.openSync(filePath, 'r');
             let uploadedBytes = 0;
-            let videoId = null;
+            let videoId       = null;
 
             while (uploadedBytes < fileSize) {
-              const chunkSize  = Math.min(CHUNK, fileSize - uploadedBytes);
-              const buffer     = Buffer.alloc(chunkSize);
+              const chunkSize = Math.min(CHUNK, fileSize - uploadedBytes);
+              const buffer    = Buffer.alloc(chunkSize);
               fs.readSync(fileHandle, buffer, 0, chunkSize, uploadedBytes);
 
-              const urlObj = new URL(uploadUrl);
+              const urlObj   = new URL(uploadUrl);
               const chunkRes = await new Promise((resolve, reject) => {
                 const req = https.request({
                   hostname: urlObj.hostname,
@@ -686,13 +981,10 @@ jobs:
               uploadedBytes += chunkSize;
 
               if (chunkRes.status === 200 || chunkRes.status === 201) {
-                const parsed = JSON.parse(chunkRes.body);
-                videoId = parsed.id;
+                videoId = JSON.parse(chunkRes.body).id;
                 break;
               } else if (chunkRes.status === 308) {
-                // Resume Incomplete — continue
-                const pct = Math.round((uploadedBytes / fileSize) * 100);
-                console.log('Uploading... ' + pct + '% (' + Math.round(uploadedBytes/1024/1024) + 'MB)');
+                console.log('Uploading... ' + Math.round((uploadedBytes / fileSize) * 100) + '%');
               } else {
                 throw new Error('Chunk upload failed: HTTP ' + chunkRes.status + ' ' + chunkRes.body);
               }
@@ -706,9 +998,7 @@ jobs:
             const body = JSON.stringify({
               snippet: {
                 videoId,
-                topLevelComment: {
-                  snippet: { textOriginal: text },
-                },
+                topLevelComment: { snippet: { textOriginal: text } },
               },
             });
 
@@ -717,15 +1007,13 @@ jobs:
               path:     '/youtube/v3/commentThreads?part=snippet',
               method:   'POST',
               headers:  {
-                'Authorization': 'Bearer ' + accessToken,
-                'Content-Type':  'application/json',
+                'Authorization':  'Bearer ' + accessToken,
+                'Content-Type':   'application/json',
                 'Content-Length': Buffer.byteLength(body),
               },
             }, body);
 
-            if (res.status !== 200) {
-              throw new Error('Comment post failed: HTTP ' + res.status);
-            }
+            if (res.status !== 200) throw new Error('Comment failed: HTTP ' + res.status);
             return JSON.parse(res.body).id;
           }
 
@@ -745,23 +1033,22 @@ jobs:
             for (const day of uploadDays) {
               const filePath = path.join('out', day + '_final.mp4');
               if (!fs.existsSync(filePath)) {
-                console.log('SKIP: ' + day + ' - video file not found');
+                console.log('SKIP: ' + day + ' -- video file not found');
                 continue;
               }
 
               const meta = (info.dayMeta || {})[day];
               if (!meta || !meta.youtubeTitle) {
-                console.log('SKIP: ' + day + ' - no metadata found');
+                console.log('SKIP: ' + day + ' -- no metadata');
                 continue;
               }
 
               const sizeMB = Math.round(fs.statSync(filePath).size / 1024 / 1024 * 10) / 10;
-              console.log('Uploading ' + day + ' (' + sizeMB + 'MB): ' + meta.youtubeTitle.slice(0, 60) + '...');
+              console.log('Uploading ' + day + ' (' + sizeMB + 'MB): ' + meta.youtubeTitle.slice(0, 60));
 
               try {
                 const tags = (meta.tiktokCaption.match(/#\w+/g) || [])
-                  .map(t => t.replace('#', ''))
-                  .slice(0, 20);
+                  .map(t => t.replace('#', '')).slice(0, 20);
 
                 const videoId = await uploadVideo(accessToken, filePath, {
                   title:       meta.youtubeTitle,
@@ -770,10 +1057,8 @@ jobs:
                 });
 
                 if (!videoId) throw new Error('No video ID returned');
-
                 console.log('Uploaded: ' + day + ' -> https://youtu.be/' + videoId);
 
-                // Post pinned comment
                 if (meta.pinnedComment && !meta.pinnedComment.startsWith('[UPDATE')) {
                   try {
                     await postComment(accessToken, videoId, meta.pinnedComment);
@@ -792,14 +1077,10 @@ jobs:
               }
             }
 
-            // Write upload results for notification step
             fs.writeFileSync('out/.upload_results.json', JSON.stringify(results, null, 2));
 
-            console.log('');
-            console.log('--- YouTube Upload Summary ---');
-            console.log('Uploaded: ' + uploaded);
-            console.log('Failed:   ' + failed);
-
+            console.log('\n--- YouTube Upload Summary ---');
+            console.log('Uploaded: ' + uploaded + ' | Failed: ' + failed);
             for (const r of results) {
               if (r.status === 'ok') console.log('  ' + r.day + ' -> ' + r.url);
               else console.log('  ' + r.day + ' -> FAILED: ' + r.error);
@@ -811,9 +1092,7 @@ jobs:
         if: success()
         run: |
           node << 'EOF'
-          const fs   = require('fs');
-          const path = require('path');
-
+          const fs      = require('fs');
           const info    = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
           const today   = new Date().toISOString().slice(0, 10);
           const runNum  = process.env.GITHUB_RUN_NUMBER || '?';
@@ -823,7 +1102,6 @@ jobs:
           let uploads = [];
           try { uploads = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
 
-          // Count rendered videos
           const rendered = info.days.filter(d => fs.existsSync('out/' + d + '_final.mp4'));
 
           const uploadedLinks = uploads
@@ -840,7 +1118,7 @@ jobs:
             encodeURIComponent(label) + '-' + encodeURIComponent(msg) + '-' + color + ')';
 
           const readme = [
-            '# DWB — Daily Wealth Building',
+            '# DWB -- Daily Wealth Building',
             '',
             '@DailyWealthBuilding | 90-Day Public Affiliate Challenge',
             '',
@@ -849,7 +1127,7 @@ jobs:
             badge('Days', minDay + '--' + maxDay, 'green') + ' ' +
             badge('Videos', rendered.length + '/' + info.days.length, rendered.length === info.days.length ? 'brightgreen' : 'orange'),
             '',
-            '## Latest Render — ' + today,
+            '## Latest Render -- ' + today,
             '',
             '| Field | Value |',
             '|---|---|',
@@ -862,11 +1140,13 @@ jobs:
             '',
             '## Pipeline',
             '',
-            '- Remotion 4.0 → GitHub Actions (Monday 6AM UTC)',
+            '- Remotion 4.0 -> GitHub Actions (Monday 6AM UTC)',
             '- 1080x1920 @ 30fps | 900 frames | h264',
-            '- Pixabay video clips + Unsplash Ken Burns fallback',
-            '- YouTube auto-upload via Data API v3',
-            '- Telegram notifications via ntfy.sh',
+            '- Music: Jamendo trending -> FMA -> Pixabay fallback',
+            '- SFX: Mixkit (fresh random per render)',
+            '- Video: Pixabay + Unsplash Ken Burns fallback',
+            '- YouTube auto-upload with title, description, pinned comment',
+            '- WhatsApp notifications via UltraMsg',
             '',
             '---',
             '_Auto-updated by GitHub Actions on ' + today + '_',
@@ -895,14 +1175,22 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Send completion notification
+      - name: Send WhatsApp notification (UltraMsg + ntfy fallback)
         if: always()
         env:
+          ULTRAMSG_INSTANCE: ${{ secrets.ULTRAMSG_INSTANCE }}
+          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           node << 'EOF'
           const https = require('https');
           const fs    = require('fs');
+
+          const INSTANCE = process.env.ULTRAMSG_INSTANCE;
+          const TOKEN    = process.env.ULTRAMSG_TOKEN;
+          const PHONE    = process.env.WHATSAPP_PHONE;
+          const NTFY     = process.env.NTFY_TOPIC;
 
           const jobStatus = '${{ job.status }}';
           const runNumber = '${{ github.run_number }}';
@@ -914,9 +1202,16 @@ jobs:
           let uploads = [];
           try { uploads = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
 
+          let musicResults = [];
+          try { musicResults = JSON.parse(fs.readFileSync('out/.music_results.json', 'utf8')); } catch(e) {}
+
+          let trending = [];
+          try { trending = JSON.parse(fs.readFileSync('out/.trending_sounds.json', 'utf8')); } catch(e) {}
+
           const STATUS = isSuccess ? 'COMPLETE' : 'FAILED';
-          let passed   = 0;
-          const lines  = [
+          let passed = 0;
+
+          const lines = [
             'DWB ' + info.week.toUpperCase() + ' | Run #' + runNumber + ' | ' + STATUS,
             '',
           ];
@@ -925,10 +1220,12 @@ jobs:
             const file   = 'out/' + day + '_final.mp4';
             const exists = fs.existsSync(file);
             if (exists) {
-              const size = Math.round(fs.statSync(file).size / (1024*1024) * 10) / 10;
+              const size   = Math.round(fs.statSync(file).size / (1024*1024) * 10) / 10;
               const upload = uploads.find(u => u.day === day);
               const ytLink = upload && upload.status === 'ok' ? ' | ' + upload.url : '';
-              lines.push(day + ' OK - ' + size + 'MB' + ytLink);
+              const music  = musicResults.find(m => m.day === day);
+              const mood   = music ? ' [' + (music.mood || '') + ']' : '';
+              lines.push(day + ' OK - ' + size + 'MB' + mood + ytLink);
               passed++;
             } else {
               lines.push(day + ' FAILED');
@@ -940,27 +1237,91 @@ jobs:
 
           const ytCount = uploads.filter(u => u.status === 'ok').length;
           if (ytCount > 0) lines.push('YouTube: ' + ytCount + ' uploaded');
-          if (isSuccess && passed === info.days.length) lines.push('All done. Check YouTube.');
+
+          if (trending.length > 0) {
+            lines.push('');
+            lines.push('Top TikTok Sounds This Week:');
+            trending.slice(0, 3).forEach(s =>
+              lines.push('  ' + s.rank + '. ' + s.title + ' - ' + s.artist)
+            );
+          }
+
+          if (isSuccess && passed === info.days.length) {
+            lines.push('');
+            lines.push('All done. Check YouTube.');
+          }
 
           const message = lines.join('\n');
-          const title   = 'DWB ' + (isSuccess ? 'DONE' : 'FAILED') + ' - ' + info.week + ' - ' + passed + '/' + info.days.length;
 
-          const options = {
-            hostname: 'ntfy.sh',
-            path:     '/' + process.env.NTFY_TOPIC,
-            method:   'POST',
-            headers:  {
-              'Title':          title,
-              'Priority':       isSuccess ? 'default' : 'high',
-              'Tags':           isSuccess ? 'white_check_mark,clapper' : 'x,warning',
-              'Content-Length': Buffer.byteLength(message),
-            }
-          };
+          function sendWhatsApp() {
+            return new Promise((resolve) => {
+              if (!INSTANCE || !TOKEN || !PHONE) {
+                console.log('UltraMsg secrets not set -- skipping WhatsApp');
+                resolve(false);
+                return;
+              }
 
-          const req = https.request(options, res => {
-            console.log('Notification sent: HTTP ' + res.statusCode);
-          });
-          req.on('error', e => console.log('Notification failed: ' + e.message));
-          req.write(message);
-          req.end();
+              const body = new URLSearchParams({
+                token: TOKEN,
+                to:    PHONE,
+                body:  message,
+              }).toString();
+
+              const req = https.request({
+                hostname: 'api.ultramsg.com',
+                path:     '/' + INSTANCE + '/messages/chat',
+                method:   'POST',
+                headers:  {
+                  'Content-Type':   'application/x-www-form-urlencoded',
+                  'Content-Length': Buffer.byteLength(body),
+                }
+              }, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => {
+                  if (res.statusCode === 200) {
+                    console.log('WhatsApp notification sent via UltraMsg');
+                    resolve(true);
+                  } else {
+                    console.log('UltraMsg error: HTTP ' + res.statusCode + ' -- ' + data);
+                    resolve(false);
+                  }
+                });
+              });
+              req.on('error', e => { console.log('UltraMsg error: ' + e.message); resolve(false); });
+              req.write(body);
+              req.end();
+            });
+          }
+
+          function sendNtfy() {
+            return new Promise((resolve) => {
+              if (!NTFY) { resolve(false); return; }
+              const data = Buffer.from(message);
+              const req  = https.request({
+                hostname: 'ntfy.sh',
+                port:     443,
+                path:     '/' + NTFY,
+                method:   'POST',
+                headers:  {
+                  'Content-Type':   'text/plain',
+                  'Content-Length': data.length,
+                  'Title':          'DWB ' + (isSuccess ? 'DONE' : 'FAILED') + ' - ' + info.week + ' - ' + passed + '/' + info.days.length,
+                  'Priority':       isSuccess ? 'default' : 'high',
+                  'Tags':           isSuccess ? 'white_check_mark,clapper' : 'x,warning',
+                },
+              }, res => {
+                console.log('ntfy fallback sent: HTTP ' + res.statusCode);
+                resolve(true);
+              });
+              req.on('error', e => { console.log('ntfy error: ' + e.message); resolve(false); });
+              req.write(data);
+              req.end();
+            });
+          }
+
+          (async () => {
+            const waOk = await sendWhatsApp();
+            if (!waOk) await sendNtfy();
+          })();
           EOF
