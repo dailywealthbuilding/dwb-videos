@@ -1,7 +1,12 @@
 node_modules/
-output/
+out/
 .remotion/
+public/videos/
+public/music/
+public/sfx/
 *.mp4
-*.mov
-.env
+*.mp3
 .DS_Store
+.env
+.env.local
+trending-sounds.json
