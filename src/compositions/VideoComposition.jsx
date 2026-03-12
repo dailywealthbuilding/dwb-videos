@@ -242,9 +242,33 @@ const BORDER_COLORS = {
 
 // ── Phase 2: Day-specific special layers ──
 const DAY_SPECIAL_LAYERS = {
+  // Week 5 (Days 29-35)
   day32: { matrixRain: true, matrixOpacity: 0.12 },
+  // Week 6 (Days 36-42)
   day38: { matrixRain: true, matrixOpacity: 0.10 },
   day41: { matrixRain: true, matrixOpacity: 0.10 },
+  // Week 7 - Trust Phase (Days 43-49)
+  day43: { matrixRain: true, matrixOpacity: 0.08 },
+  day47: { matrixRain: true, matrixOpacity: 0.09 },
+  // Week 8 - Momentum Phase (Days 50-56)
+  day50: { matrixRain: true, matrixOpacity: 0.10 },
+  day54: { matrixRain: true, matrixOpacity: 0.09 },
+  // Week 9 - Systems Phase (Days 57-63)
+  day57: { matrixRain: true, matrixOpacity: 0.10 },
+  day60: { matrixRain: true, matrixOpacity: 0.12 },
+  day63: { matrixRain: true, matrixOpacity: 0.09 },
+  // Week 10 - Authority Phase (Days 64-70)
+  day64: { matrixRain: true, matrixOpacity: 0.10 },
+  day67: { matrixRain: true, matrixOpacity: 0.09 },
+  day70: { matrixRain: true, matrixOpacity: 0.14 },
+  // Weeks 11-13 - Activation Phase (Days 71-90)
+  day71: { matrixRain: true, matrixOpacity: 0.10 },
+  day75: { matrixRain: true, matrixOpacity: 0.12 },
+  day77: { matrixRain: true, matrixOpacity: 0.10 },
+  day80: { matrixRain: true, matrixOpacity: 0.14 },
+  day84: { matrixRain: true, matrixOpacity: 0.12 },
+  day87: { matrixRain: true, matrixOpacity: 0.15 },
+  day90: { matrixRain: true, matrixOpacity: 0.18 },
 };
 
 // Clip boundary frames (4 equal clips in 900-frame video)
