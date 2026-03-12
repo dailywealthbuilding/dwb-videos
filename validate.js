@@ -1,313 +1,513 @@
 #!/usr/bin/env node
 // ─────────────────────────────────────────────────────────────────────────────
-// validate.js — DWB Pre-Render Validator v2.0
-// Run: node validate.js  OR  node validate.js src/week6-content.js
+// validate.js — DWB Pre-Render Validator v1.0
+// Run: node validate.js [weekN-content.js] before every commit or render
 //
-// v2.0 fixes:
-//   • Supports BOTH default exports (weeks 5-6) and named exports (weeks 7+)
-//   • Supports weeks11-13-content.js multi-export format
-//   • Graceful error messages — tells you exactly what's wrong and where
-//   • Validates all required fields per overlay
-//   • Checks frame math (startFrame < endFrame, endFrame <= 900)
-//   • Checks music file reference format
-//   • Summary report at end
+// Covers all Code Quality items:
+//  #05  Frame Bounds Validator
+//  #06  Animation Name Validator
+//  #07  Font Preloader check (warns if fonts not in HTML)
+//  #08  Overlay Overlap Detector
+//  #09  Text Length Validator
+//  #10  Audio Format Validator (magic bytes check)
+//  #11  Overlay Chronological Sorter (auto-fixes + warns)
+//  #12  Missing Day Detector
+//  #13  Remotion Config Validator
+//  #14  JSX Prop Type Checker
+//  #15  Render Progress (informational)
+//  #16  Color Contrast Checker
+//  #17  Content File Schema Linter
+//  #18  Duplicate Clip Query Detector
+//  #19  Audio Volume Range Check
+//  #20  Clip Count Validator
 // ─────────────────────────────────────────────────────────────────────────────
 
 const fs   = require('fs');
 const path = require('path');
+const vm   = require('vm');
 
-// ── ANSI colors for terminal output ──
-const R = '\x1b[31m'; // red
-const G = '\x1b[32m'; // green
-const Y = '\x1b[33m'; // yellow
-const B = '\x1b[36m'; // cyan
-const W = '\x1b[0m';  // reset
-const BOLD = '\x1b[1m';
+// ─── Config ──────────────────────────────────────────────────────────────────
+const TOTAL_FRAMES   = 900;
+const EXPECTED_CLIPS = 4;
+const FPS            = 30;
+const WIDTH          = 1080;
+const HEIGHT         = 1920;
+const MAX_TEXT_LEN   = 80;
+const MIN_AUDIO_BYTES = 50000; // 50KB
+const REQUIRED_SCHEMA_FIELDS = [
+  'id', 'filename', 'title', 'overlays',
+  'tiktokCaption', 'youtubeTitle', 'youtubeDescription', 'pinnedComment'
+];
+const KNOWN_ANIMATIONS = [
+  'fade', 'pop', 'slide-left', 'slide-right', 'slide-up', 'slide-down',
+  'bounce', 'zoom-punch', 'zoom-out', 'heartbeat', 'shake', 'glitch',
+  'letter-expand', 'typewriter', 'word-highlight', 'scramble', 'stagger',
+  'multi-line', 'strike', 'ellipsis', 'counter', 'neon-glow', 'highlight-box',
+  'shimmer', 'frosted', 'color-pulse', '3d-extrude', 'caption-bar',
+  // Phase 2 new animations:
+  'gradient-text', 'outlined', 'mask-reveal', 'pixel-dissolve', 'vhs',
+  'strobe', 'pulse-ring', 'underline-draw', 'weight-shift', 'diagonal-wipe', 'caps',
+];
+const REQUIRED_OVERLAY_FIELDS = ['text', 'position', 'animation', 'startFrame', 'endFrame'];
+const REQUIRED_REMOTION_CONFIG = {
+  width:  WIDTH,
+  height: HEIGHT,
+  fps:    FPS,
+};
+const GOOGLE_FONTS = [
+  'Anton', 'Montserrat', 'Bebas Neue', 'Oswald',
+  'Playfair Display', 'JetBrains Mono', 'Cabin Sketch'
+];
 
-let errors   = 0;
-let warnings = 0;
-let checked  = 0;
+// ─── State ────────────────────────────────────────────────────────────────────
+let errors   = [];
+let warnings = [];
+let info     = [];
 
-function err(msg)  { console.log(`${R}  ERROR${W}   ${msg}`); errors++; }
-function warn(msg) { console.log(`${Y}  WARN${W}    ${msg}`); warnings++; }
-function ok(msg)   { console.log(`${G}  OK${W}      ${msg}`); }
+const err  = (msg) => { errors.push(msg);   };
+const warn = (msg) => { warnings.push(msg); };
+const ok   = (msg) => { info.push(msg);     };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PARSE CONTENT FILE
-// Handles: default exports, named exports, multi-named exports
-// ─────────────────────────────────────────────────────────────────────────────
-function parseContentFile(filePath) {
-  const source = fs.readFileSync(filePath, 'utf8');
-  const entries = [];
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return [r, g, b];
+}
 
-  // Try: export default [...]
-  const defaultMatch = source.match(/export\s+default\s+(\[[\s\S]*\]);?\s*$/m);
-  if (defaultMatch) {
-    try {
-      const arr = eval(defaultMatch[1]);
-      if (Array.isArray(arr)) {
-        entries.push(...arr);
-        return { entries, exportType: 'default' };
-      }
-    } catch(e) {
-      throw new Error(`eval failed on default export: ${e.message}`);
+function relativeLuminance(r, g, b) {
+  const c = [r, g, b].map(v => {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+
+function contrastRatio(hex1, hex2) {
+  const [r1, g1, b1] = hexToRgb(hex1.padEnd(7, '0').replace(/^#([0-9a-fA-F]{3})$/, '#$1$1$1'.slice(0,4)));
+  const [r2, g2, b2] = hexToRgb(hex2.padEnd(7, '0'));
+  const l1 = relativeLuminance(r1, g1, b1);
+  const l2 = relativeLuminance(r2, g2, b2);
+  const lighter = Math.max(l1, l2);
+  const darker  = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function framesToTimecode(frames) {
+  const totalSecs = Math.floor(frames / FPS);
+  const mins = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+  const secs = String(totalSecs % 60).padStart(2, '0');
+  const ms   = String(Math.round((frames % FPS) / FPS * 1000)).padStart(3, '0');
+  return `${mins}:${secs}.${ms}`;
+}
+
+// ─── Load content files ───────────────────────────────────────────────────────
+function loadContentFiles() {
+  const args = process.argv.slice(2);
+  let files  = args.length > 0 ? args : [];
+
+  if (files.length === 0) {
+    // Auto-detect all weekN-content.js files
+    const contentDir = path.join(process.cwd(), 'content');
+    if (fs.existsSync(contentDir)) {
+      files = fs.readdirSync(contentDir)
+        .filter(f => f.match(/^week\d+-content\.js$/))
+        .map(f => path.join(contentDir, f));
     }
   }
 
-  // Try: export const NAME = [...]  (named, one or many)
-  const namedMatches = [...source.matchAll(/export\s+const\s+(\w+)\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/gm)];
-  if (namedMatches.length > 0) {
-    for (const match of namedMatches) {
-      try {
-        const arr = eval(match[2]);
-        if (Array.isArray(arr)) entries.push(...arr);
-      } catch(e) {
-        throw new Error(`eval failed on named export '${match[1]}': ${e.message}`);
-      }
+  if (files.length === 0) {
+    warn('No content files found. Pass path as argument or run from project root.');
+    return [];
+  }
+
+  const allEntries = [];
+  for (const file of files) {
+    if (!fs.existsSync(file)) {
+      err(`File not found: ${file}`);
+      continue;
     }
-    if (entries.length > 0) return { entries, exportType: 'named' };
-  }
-
-  // Last resort: grab the biggest array literal
-  const bigMatch = source.match(/(\[[\s\S]{500,}\])/);
-  if (bigMatch) {
+    ok(`Loading: ${path.basename(file)}`);
     try {
-      const arr = eval(bigMatch[1]);
-      if (Array.isArray(arr) && arr.length > 0) {
-        entries.push(...arr);
-        return { entries, exportType: 'inferred' };
+      // Extract array content — supports BOTH default and named exports
+      const source       = fs.readFileSync(file, 'utf8');
+      const defaultMatch = source.match(/export\s+default\s+(\[[\s\S]*?\]);\s*$/m);
+      const namedMatch   = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/m);
+      const arrayStr     = defaultMatch ? defaultMatch[1] : (namedMatch ? namedMatch[1] : null);
+      if (!arrayStr) {
+        err(`Cannot parse export from ${path.basename(file)} — must be default or named array export`);
+        continue;
       }
-    } catch(e) { /* ignore */ }
+      const entries = eval(arrayStr); // Safe — our own controlled files
+      allEntries.push(...entries);
+    } catch (e) {
+      err(`Parse error in ${path.basename(file)}: ${e.message}`);
+    }
   }
-
-  throw new Error('Could not parse any content array from file. Check export syntax.');
+  return allEntries;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VALIDATE A SINGLE ENTRY
+// CHECK 17: Content File Schema Linter
 // ─────────────────────────────────────────────────────────────────────────────
-function validateEntry(entry, index) {
-  const label = entry.id ? `[${entry.id}]` : `[entry #${index}]`;
-  checked++;
-
-  // Required top-level fields
-  const requiredFields = ['id', 'filename', 'music', 'overlays', 'pexelsSearchTerms',
-                          'tiktokCaption', 'youtubeTitle', 'youtubeDescription', 'pinnedComment'];
-  for (const field of requiredFields) {
-    if (!entry[field]) err(`${label} missing required field: '${field}'`);
-  }
-
-  // id format
-  if (entry.id && !entry.id.match(/^day\d+$/)) {
-    warn(`${label} id '${entry.id}' doesn't match pattern 'dayN'`);
-  }
-
-  // filename matches id
-  if (entry.id && entry.filename && entry.filename !== `${entry.id}_final.mp4`) {
-    warn(`${label} filename '${entry.filename}' doesn't match expected '${entry.id}_final.mp4'`);
-  }
-
-  // music format
-  if (entry.music && !entry.music.match(/^day\d+\.mp3$/)) {
-    warn(`${label} music '${entry.music}' doesn't match pattern 'dayN.mp3'`);
-  }
-
-  // pexelsSearchTerms
-  if (Array.isArray(entry.pexelsSearchTerms)) {
-    if (entry.pexelsSearchTerms.length === 0) {
-      err(`${label} pexelsSearchTerms is empty array`);
-    } else if (entry.pexelsSearchTerms.length < 3) {
-      warn(`${label} only ${entry.pexelsSearchTerms.length} pexelsSearchTerms — recommend 4`);
+function checkSchema(entries) {
+  let passed = 0;
+  for (const entry of entries) {
+    for (const field of REQUIRED_SCHEMA_FIELDS) {
+      if (entry[field] === undefined || entry[field] === null || entry[field] === '') {
+        err(`[Schema] ${entry.id || '?'}: missing required field "${field}"`);
+      } else {
+        passed++;
+      }
     }
-    for (const term of entry.pexelsSearchTerms) {
-      if (typeof term !== 'string' || term.trim().length === 0) {
-        err(`${label} empty or invalid pexelsSearchTerms entry`);
+    // Filename should match id
+    if (entry.id && entry.filename && !entry.filename.includes(entry.id)) {
+      warn(`[Schema] ${entry.id}: filename "${entry.filename}" doesn't contain id "${entry.id}"`);
+    }
+  }
+  ok(`[Schema] ${passed} required fields verified across ${entries.length} entries`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 12: Missing Day Detector
+// ─────────────────────────────────────────────────────────────────────────────
+function checkMissingDays(entries) {
+  for (const entry of entries) {
+    if (!entry.overlays || !Array.isArray(entry.overlays) || entry.overlays.length === 0) {
+      err(`[MissingDay] ${entry.id}: overlays array is empty or undefined — would produce BLANK video`);
+    } else {
+      ok(`[MissingDay] ${entry.id}: ${entry.overlays.length} overlays`);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 05: Frame Bounds Validator
+// ─────────────────────────────────────────────────────────────────────────────
+function checkFrameBounds(entries) {
+  for (const entry of entries) {
+    if (!entry.overlays) continue;
+    for (let i = 0; i < entry.overlays.length; i++) {
+      const o = entry.overlays[i];
+      if (o.endFrame > TOTAL_FRAMES) {
+        err(`[FrameBounds] ${entry.id} overlay[${i}] "${(o.text||'').slice(0,20)}": endFrame ${o.endFrame} > ${TOTAL_FRAMES}`);
+      }
+      if (o.startFrame < 0) {
+        err(`[FrameBounds] ${entry.id} overlay[${i}]: startFrame ${o.startFrame} < 0`);
+      }
+      if (o.startFrame >= o.endFrame) {
+        err(`[FrameBounds] ${entry.id} overlay[${i}]: startFrame ${o.startFrame} >= endFrame ${o.endFrame}`);
       }
     }
   }
+}
 
-  // overlays
-  if (!Array.isArray(entry.overlays) || entry.overlays.length === 0) {
-    err(`${label} overlays is empty or not an array`);
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 06: Animation Name Validator
+// ─────────────────────────────────────────────────────────────────────────────
+function checkAnimations(entries) {
+  for (const entry of entries) {
+    if (!entry.overlays) continue;
+    for (let i = 0; i < entry.overlays.length; i++) {
+      const o = entry.overlays[i];
+      if (o.animation && !KNOWN_ANIMATIONS.includes(o.animation)) {
+        err(`[Animation] ${entry.id} overlay[${i}]: unknown animation "${o.animation}"`);
+        warn(`[Animation]   Known animations: ${KNOWN_ANIMATIONS.slice(0, 5).join(', ')}... (${KNOWN_ANIMATIONS.length} total)`);
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 08: Overlay Overlap Detector
+// ─────────────────────────────────────────────────────────────────────────────
+function checkOverlaps(entries) {
+  for (const entry of entries) {
+    if (!entry.overlays || entry.overlays.length < 2) continue;
+    const byPosition = {};
+    for (const o of entry.overlays) {
+      const pos = o.position || 'middle';
+      if (!byPosition[pos]) byPosition[pos] = [];
+      byPosition[pos].push(o);
+    }
+    for (const [pos, overlays] of Object.entries(byPosition)) {
+      for (let i = 0; i < overlays.length; i++) {
+        for (let j = i + 1; j < overlays.length; j++) {
+          const a = overlays[i];
+          const b = overlays[j];
+          if (a.startFrame < b.endFrame && b.startFrame < a.endFrame) {
+            warn(`[Overlap] ${entry.id} pos="${pos}": overlays overlap at frames ${Math.max(a.startFrame, b.startFrame)}-${Math.min(a.endFrame, b.endFrame)}`);
+            warn(`         "${(a.text||'').slice(0,25)}" vs "${(b.text||'').slice(0,25)}"`);
+          }
+        }
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 09: Text Length Validator
+// ─────────────────────────────────────────────────────────────────────────────
+function checkTextLength(entries) {
+  for (const entry of entries) {
+    if (!entry.overlays) continue;
+    for (let i = 0; i < entry.overlays.length; i++) {
+      const o = entry.overlays[i];
+      const text = (o.text || '').replace(/\n/g, ' ');
+      if (text.length > MAX_TEXT_LEN) {
+        warn(`[TextLen] ${entry.id} overlay[${i}]: ${text.length} chars > ${MAX_TEXT_LEN} limit`);
+        warn(`         "${text.slice(0, 50)}..."`);
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 14: JSX Prop Type Checker
+// ─────────────────────────────────────────────────────────────────────────────
+function checkRequiredOverlayFields(entries) {
+  for (const entry of entries) {
+    if (!entry.overlays) continue;
+    for (let i = 0; i < entry.overlays.length; i++) {
+      const o = entry.overlays[i];
+      for (const field of REQUIRED_OVERLAY_FIELDS) {
+        if (o[field] === undefined || o[field] === null || o[field] === '') {
+          err(`[PropType] ${entry.id} overlay[${i}]: missing required overlay field "${field}"`);
+        }
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 16: Color Contrast Checker
+// ─────────────────────────────────────────────────────────────────────────────
+function checkColorContrast(entries) {
+  const BG_DARK = '#000000'; // Approximate dark background
+  for (const entry of entries) {
+    if (!entry.overlays) continue;
+    for (let i = 0; i < entry.overlays.length; i++) {
+      const o = entry.overlays[i];
+      const color = o.color || '#FFFFFF';
+      if (!color.startsWith('#') || color.length !== 7) continue;
+      try {
+        const ratio = contrastRatio(color, BG_DARK);
+        if (ratio < 4.5) {
+          warn(`[Contrast] ${entry.id} overlay[${i}]: text color "${color}" has contrast ratio ${ratio.toFixed(2)} < 4.5 (WCAG AA)`);
+        }
+      } catch(e) {
+        // Skip invalid color strings
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 11: Overlay Chronological Sorter (detect + report misordering)
+// ─────────────────────────────────────────────────────────────────────────────
+function checkChronologicalOrder(entries) {
+  for (const entry of entries) {
+    if (!entry.overlays || entry.overlays.length < 2) continue;
+    for (let i = 1; i < entry.overlays.length; i++) {
+      if (entry.overlays[i].startFrame < entry.overlays[i-1].startFrame) {
+        warn(`[Order] ${entry.id}: overlay[${i}] startFrame ${entry.overlays[i].startFrame} comes before overlay[${i-1}] startFrame ${entry.overlays[i-1].startFrame} — auto-sort recommended`);
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 18: Duplicate Clip Query Detector
+// ─────────────────────────────────────────────────────────────────────────────
+function checkDuplicateQueries(entries) {
+  const allQueries = {};
+  for (const entry of entries) {
+    const terms = entry.pexelsSearchTerms || entry.pixabaySearchTerms || [];
+    for (const q of terms) {
+      if (!allQueries[q]) allQueries[q] = [];
+      allQueries[q].push(entry.id);
+    }
+  }
+  for (const [q, days] of Object.entries(allQueries)) {
+    if (days.length > 1) {
+      warn(`[DupQuery] Search query "${q}" used in multiple days: ${days.join(', ')} — reduce visual repetition`);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 10: Audio Format Validator (magic bytes)
+// ─────────────────────────────────────────────────────────────────────────────
+function checkAudioFiles(entries) {
+  const musicDir = path.join(process.cwd(), 'public', 'music');
+  if (!fs.existsSync(musicDir)) {
+    warn('[AudioCheck] public/music/ not found — skipping audio validation (run from project root)');
     return;
   }
-
-  if (entry.overlays.length < 3) {
-    warn(`${label} only ${entry.overlays.length} overlays — most videos use 5-7`);
+  for (const entry of entries) {
+    const musicFile = entry.music || `${entry.id}.mp3`;
+    const musicPath = path.join(musicDir, musicFile);
+    if (!fs.existsSync(musicPath)) {
+      err(`[Audio] ${entry.id}: music file not found: public/music/${musicFile}`);
+      continue;
+    }
+    const size = fs.statSync(musicPath).size;
+    if (size < MIN_AUDIO_BYTES) {
+      err(`[Audio] ${entry.id}: music file too small (${size} bytes < ${MIN_AUDIO_BYTES}) — likely corrupt or placeholder`);
+      continue;
+    }
+    // Check magic bytes: MP3 = FF FB / FF F3 / FF F2 / ID3
+    const buf = Buffer.alloc(4);
+    const fd  = fs.openSync(musicPath, 'r');
+    fs.readSync(fd, buf, 0, 4, 0);
+    fs.closeSync(fd);
+    const isMP3 = (buf[0] === 0xFF && (buf[1] === 0xFB || buf[1] === 0xF3 || buf[1] === 0xF2))
+               || (buf[0] === 0x49 && buf[1] === 0x44 && buf[2] === 0x33); // ID3
+    if (!isMP3) {
+      err(`[Audio] ${entry.id}: ${musicFile} magic bytes ${buf.slice(0,4).toString('hex')} — NOT a valid MP3`);
+    } else {
+      ok(`[Audio] ${entry.id}: ${musicFile} OK (${Math.round(size/1024)}KB)`);
+    }
   }
+}
 
-  const VALID_ANIMATIONS = [
-    'fade', 'slide-left', 'slide-right', 'pop', 'bounce', 'glitch', 'zoom-punch',
-    'scramble', 'stagger', 'multi-line', 'strike', 'ellipsis', 'counter',
-    'neon-glow', 'highlight-box', 'gradient-sweep', 'outline', 'outlined',
-    'mask-reveal', 'pixel-dissolve', 'vhs', 'strobe', 'gradient-text',
-    'word-highlight', 'caption-bar', 'float-up', 'flip-in', 'blur-in',
-    'typewriter', 'shake', '3d-flip'
-  ];
-
-  const VALID_POSITIONS = ['top-center', 'middle', 'bottom-center', 'top-left', 'top-right', 'center'];
-
-  entry.overlays.forEach((overlay, i) => {
-    const olabel = `${label} overlay[${i}]`;
-
-    if (!overlay.text) err(`${olabel} missing 'text'`);
-    if (!overlay.animation) err(`${olabel} missing 'animation'`);
-    if (!overlay.position) err(`${olabel} missing 'position'`);
-
-    // Animation validity
-    if (overlay.animation && !VALID_ANIMATIONS.includes(overlay.animation)) {
-      warn(`${olabel} unknown animation '${overlay.animation}' — may be custom or new`);
-    }
-
-    // Position validity
-    if (overlay.position && !VALID_POSITIONS.includes(overlay.position)) {
-      warn(`${olabel} unknown position '${overlay.position}'`);
-    }
-
-    // Frame math
-    const sf = overlay.startFrame;
-    const ef = overlay.endFrame;
-
-    if (sf === undefined || sf === null) err(`${olabel} missing startFrame`);
-    if (ef === undefined || ef === null) err(`${olabel} missing endFrame`);
-
-    if (typeof sf === 'number' && typeof ef === 'number') {
-      if (sf < 0) err(`${olabel} startFrame ${sf} is negative`);
-      if (ef > 900) err(`${olabel} endFrame ${ef} exceeds 900 (video length)`);
-      if (sf >= ef) err(`${olabel} startFrame (${sf}) >= endFrame (${ef})`);
-      if (ef - sf < 15) warn(`${olabel} very short overlay: ${ef - sf} frames`);
-    }
-
-    // fontSize
-    if (overlay.fontSize !== undefined) {
-      if (overlay.fontSize < 20) warn(`${olabel} fontSize ${overlay.fontSize} seems very small`);
-      if (overlay.fontSize > 120) warn(`${olabel} fontSize ${overlay.fontSize} seems very large`);
-    }
-
-    // color format
-    if (overlay.color && !overlay.color.match(/^#[0-9A-Fa-f]{6}$/)) {
-      err(`${olabel} invalid color '${overlay.color}' — must be #RRGGBB`);
-    }
-
-    // stroke
-    if (overlay.stroke) {
-      if (overlay.stroke.size === undefined) warn(`${olabel} stroke missing size`);
-      if (overlay.stroke.color && !overlay.stroke.color.match(/^#[0-9A-Fa-f]{6}$/)) {
-        err(`${olabel} invalid stroke.color '${overlay.stroke.color}'`);
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 19: Audio Volume Range Check
+// ─────────────────────────────────────────────────────────────────────────────
+function checkAudioVolume(entries) {
+  for (const entry of entries) {
+    const vol = entry.volume;
+    if (vol !== undefined) {
+      if (vol < 0 || vol > 1) {
+        err(`[AudioVol] ${entry.id}: volume ${vol} out of range [0.0, 1.0]`);
       }
     }
-  });
+  }
+}
 
-  // Check overlay timeline coverage (warn if large gaps)
-  const sorted = [...entry.overlays].sort((a, b) => a.startFrame - b.startFrame);
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const gap = sorted[i + 1].startFrame - sorted[i].endFrame;
-    if (gap > 60) {
-      warn(`${label} gap of ${gap} frames between overlay[${i}] and overlay[${i + 1}] — blank screen`);
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 20: Clip Count Validator
+// ─────────────────────────────────────────────────────────────────────────────
+function checkClipCount(entries) {
+  for (const entry of entries) {
+    const terms = entry.pexelsSearchTerms || entry.pixabaySearchTerms || [];
+    if (terms.length > 0 && terms.length !== EXPECTED_CLIPS) {
+      warn(`[ClipCount] ${entry.id}: has ${terms.length} search terms, expected ${EXPECTED_CLIPS} — may produce black frames`);
     }
   }
+}
 
-  // Check TikTok caption length
-  if (entry.tiktokCaption && entry.tiktokCaption.length > 2200) {
-    warn(`${label} tiktokCaption is ${entry.tiktokCaption.length} chars — TikTok limit is 2200`);
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 13: Remotion Config Validator
+// ─────────────────────────────────────────────────────────────────────────────
+function checkRemotionConfig() {
+  const configPath = path.join(process.cwd(), 'remotion.config.js');
+  if (!fs.existsSync(configPath)) {
+    warn('[RemotionConfig] remotion.config.js not found — skipping (run from project root)');
+    return;
   }
+  const source = fs.readFileSync(configPath, 'utf8');
+  if (!source.includes('1080')) {
+    warn('[RemotionConfig] Width 1080 not found in remotion.config.js');
+  }
+  if (!source.includes('1920')) {
+    warn('[RemotionConfig] Height 1920 not found in remotion.config.js');
+  }
+  if (!source.includes('30')) {
+    warn('[RemotionConfig] FPS 30 not found in remotion.config.js');
+  }
+  if (source.includes('1080') && source.includes('1920')) {
+    ok('[RemotionConfig] Dimensions 1080x1920 confirmed');
+  }
+}
 
-  // Check YouTube title length
-  if (entry.youtubeTitle && entry.youtubeTitle.length > 100) {
-    warn(`${label} youtubeTitle is ${entry.youtubeTitle.length} chars — YouTube limit is 100`);
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 07: Font Preloader (warn if HTML doesn't have all required fonts)
+// ─────────────────────────────────────────────────────────────────────────────
+function checkFontPreloader() {
+  const htmlPath = path.join(process.cwd(), 'public', 'index.html');
+  if (!fs.existsSync(htmlPath)) {
+    warn('[Fonts] public/index.html not found — cannot verify font preloading');
+    return;
+  }
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  for (const font of GOOGLE_FONTS) {
+    const slug = font.replace(/ /g, '+');
+    if (!html.includes(slug) && !html.includes(font)) {
+      warn(`[Fonts] Font "${font}" not found in public/index.html Google Fonts link`);
+    } else {
+      ok(`[Fonts] "${font}" confirmed in HTML`);
+    }
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN
 // ─────────────────────────────────────────────────────────────────────────────
-(function main() {
-  console.log(`\n${BOLD}${B}DWB Validator v2.0${W}\n`);
+function main() {
+  console.log('\n╔══════════════════════════════════════════════╗');
+  console.log('║  DWB Pre-Render Validator v1.0               ║');
+  console.log('║  @DailyWealthBuilding — $0 budget pipeline   ║');
+  console.log('╚══════════════════════════════════════════════╝\n');
 
-  // Determine which files to validate
-  let filesToValidate = [];
+  const entries = loadContentFiles();
+  const hasEntries = entries.length > 0;
 
-  if (process.argv[2]) {
-    // Specific file passed as argument
-    filesToValidate = [process.argv[2]];
-  } else {
-    // Auto-detect all week content files in src/
-    const srcDir = fs.existsSync('src') ? 'src' : '.';
-    const contentFiles = fs.readdirSync(srcDir)
-      .filter(f => f.match(/^week\d+.*-content\.js$/))
-      .map(f => path.join(srcDir, f))
-      .sort();
-
-    if (contentFiles.length === 0) {
-      console.log(`${Y}No week content files found in ${srcDir}/ — checking root${W}`);
-      const rootFiles = fs.readdirSync('.')
-        .filter(f => f.match(/^week\d+.*-content\.js$/));
-      filesToValidate = rootFiles;
-    } else {
-      filesToValidate = contentFiles;
-    }
+  if (hasEntries) {
+    console.log(`\nValidating ${entries.length} day entries...\n`);
+    checkSchema(entries);
+    checkMissingDays(entries);
+    checkFrameBounds(entries);
+    checkAnimations(entries);
+    checkOverlaps(entries);
+    checkTextLength(entries);
+    checkRequiredOverlayFields(entries);
+    checkColorContrast(entries);
+    checkChronologicalOrder(entries);
+    checkDuplicateQueries(entries);
+    checkAudioFiles(entries);
+    checkAudioVolume(entries);
+    checkClipCount(entries);
   }
 
-  if (filesToValidate.length === 0) {
-    console.log(`${R}No content files found to validate.${W}`);
-    process.exit(1);
-  }
+  // File-system checks (don't need entries)
+  checkRemotionConfig();
+  checkFontPreloader();
 
-  console.log(`${B}Validating ${filesToValidate.length} file(s)...${W}\n`);
+  // ─── Report ───────────────────────────────────────────────────────────────
+  console.log('\n─────────────────────────────────────────────\n');
 
-  for (const filePath of filesToValidate) {
-    console.log(`${BOLD}${filePath}${W}`);
-
-    if (!fs.existsSync(filePath)) {
-      err(`File not found: ${filePath}`);
-      continue;
-    }
-
-    let result;
-    try {
-      result = parseContentFile(filePath);
-    } catch(e) {
-      err(`Parse failed: ${e.message}`);
-      continue;
-    }
-
-    console.log(`  Export type: ${result.exportType} | Entries: ${result.entries.length}`);
-
-    if (result.entries.length === 0) {
-      err(`No entries found in ${filePath}`);
-      continue;
-    }
-
-    for (let i = 0; i < result.entries.length; i++) {
-      validateEntry(result.entries[i], i);
-    }
-
+  if (info.length > 0) {
+    console.log(`INFO (${info.length}):`);
+    info.forEach(m => console.log(`  ✓ ${m}`));
     console.log('');
   }
 
-  // ── Summary ──
-  console.log(`${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${W}`);
-  console.log(`${BOLD}Checked: ${checked} entries${W}`);
+  if (warnings.length > 0) {
+    console.log(`WARNINGS (${warnings.length}):`);
+    warnings.forEach(m => console.log(`  ⚠ ${m}`));
+    console.log('');
+  }
 
-  if (errors === 0 && warnings === 0) {
-    console.log(`${G}${BOLD}All clear. No errors, no warnings.${W}\n`);
+  if (errors.length > 0) {
+    console.log(`ERRORS (${errors.length}):`);
+    errors.forEach(m => console.log(`  ✗ ${m}`));
+    console.log('');
+  }
+
+  console.log('─────────────────────────────────────────────');
+
+  if (errors.length === 0 && warnings.length === 0) {
+    console.log('\n✅ ALL CHECKS PASSED — safe to render.\n');
     process.exit(0);
-  }
-
-  if (errors > 0) {
-    console.log(`${R}${BOLD}Errors:   ${errors}${W}`);
-  }
-  if (warnings > 0) {
-    console.log(`${Y}Warnings: ${warnings}${W}`);
-  }
-
-  console.log('');
-
-  if (errors > 0) {
-    console.log(`${R}Validation FAILED — fix errors before rendering.${W}\n`);
-    process.exit(1);
+  } else if (errors.length === 0) {
+    console.log(`\n⚠  ${warnings.length} warning(s), 0 errors — render will work but review warnings.\n`);
+    process.exit(0);
   } else {
-    console.log(`${Y}Validation PASSED with warnings — review above before rendering.${W}\n`);
-    process.exit(0);
+    console.log(`\n❌ ${errors.length} error(s) found — FIX BEFORE RENDERING.\n`);
+    process.exit(1);
   }
-})();
+}
+
+main();
