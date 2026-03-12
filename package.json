@@ -1,12 +1,17 @@
 {
   "name": "daily-wealth-building-videos",
   "version": "1.0.0",
+  "type": "module",
   "description": "Automated faceless video generator for Daily Wealth Building",
   "scripts": {
     "start": "remotion studio",
-    "render-all": "node render-all.js"
+    "render-all": "node render-all.js",
+    "fetch-trending": "node scripts/fetch-trending-audio.js",
+    "fetch-trending:quick": "node scripts/fetch-trending-audio.js --count 5",
+    "fetch-trending:metadata": "node scripts/fetch-trending-audio.js --skip-download"
   },
   "dependencies": {
+    "puppeteer": "^22.0.0",
     "@remotion/cli": "4.0.220",
     "@remotion/compositor-linux-x64-gnu": "4.0.220",
     "@remotion/renderer": "4.0.220",

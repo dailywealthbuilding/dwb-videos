@@ -1,0 +1,2 @@
+# Trending audio files will be downloaded here by scripts/fetch-trending-audio.js
+# Run: npm run fetch-trending
