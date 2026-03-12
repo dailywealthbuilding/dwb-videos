@@ -1,18 +1,23 @@
 {
-  "name": "daily-wealth-building-videos",
+  "name": "dwb-videos",
   "version": "1.0.0",
-  "description": "Automated faceless video generator for Daily Wealth Building",
+  "description": "@DailyWealthBuilding 90-Day Automated Video Pipeline",
   "scripts": {
-    "start": "remotion studio",
-    "render-all": "node render-all.js"
+    "start": "npx remotion studio",
+    "render": "npx remotion render src/index.jsx",
+    "validate": "node validate.js"
   },
   "dependencies": {
     "@remotion/cli": "4.0.220",
-    "@remotion/compositor-linux-x64-gnu": "4.0.220",
-    "@remotion/renderer": "4.0.220",
+    "@remotion/media-utils": "4.0.220",
     "remotion": "4.0.220"
   },
-  "remotion": {
-    "entryPoint": "src/index.jsx"
+  "devDependencies": {
+    "@sparticuz/chromium": "^121.0.0",
+    "axios": "^1.6.0",
+    "puppeteer-core": "^21.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
