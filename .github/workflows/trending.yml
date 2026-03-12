@@ -1,0 +1,198 @@
+name: Weekly TikTok Trending Sounds
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'  # Monday 5AM UTC = 8AM EAT (runs BEFORE render)
+  workflow_dispatch: {}
+
+jobs:
+  trending:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Scrape TikTok trending sounds
+        run: |
+          node << 'EOF'
+          const https = require('https');
+          const fs    = require('fs');
+
+          const ENDPOINTS = [
+            'https://www.tiktok.com/api/creative_center/music/trending/?aid=1988&count=20&period=7&page=1',
+            'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/music/list?period=7&page=1&limit=20',
+          ];
+
+          function fetchJSON(url) {
+            return new Promise((resolve, reject) => {
+              https.get(url, {
+                headers: {
+                  'User-Agent':  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+                  'Accept':      'application/json, text/plain, */*',
+                  'Referer':     'https://ads.tiktok.com/',
+                  'Accept-Language': 'en-US,en;q=0.9',
+                }
+              }, res => {
+                if (res.statusCode === 301 || res.statusCode === 302)
+                  return fetchJSON(res.headers.location).then(resolve).catch(reject);
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => {
+                  try { resolve(JSON.parse(data)); }
+                  catch(e) { reject(new Error('Not JSON: ' + data.slice(0, 100))); }
+                });
+              }).on('error', reject);
+            });
+          }
+
+          (async () => {
+            let sounds = [];
+
+            for (const url of ENDPOINTS) {
+              try {
+                const data  = await fetchJSON(url);
+                const items = data?.data?.list || data?.music_list || data?.data?.music_list || [];
+                if (items.length > 0) {
+                  sounds = items.slice(0, 10).map((item, i) => ({
+                    rank:       i + 1,
+                    title:      item.music_info?.title  || item.title  || 'Trending #' + (i+1),
+                    artist:     item.music_info?.author || item.author || 'Unknown',
+                    usageCount: item.post_num || item.use_count || '--',
+                    soundId:    item.music_id || item.id || null,
+                    duration:   item.music_info?.duration || null,
+                    scrapedAt:  new Date().toISOString(),
+                    week:       new Date().toISOString().slice(0, 10),
+                  }));
+                  console.log('Fetched ' + sounds.length + ' trending sounds from: ' + url.split('?')[0]);
+                  break;
+                }
+              } catch(e) {
+                console.log('Endpoint failed: ' + e.message);
+              }
+            }
+
+            if (sounds.length === 0) {
+              console.log('No sounds fetched -- TikTok API may have changed');
+              console.log('Writing empty array to avoid stale data');
+            }
+
+            fs.writeFileSync('trending-sounds.json', JSON.stringify({
+              updatedAt: new Date().toISOString(),
+              sounds,
+            }, null, 2));
+
+            console.log('\nTop 10 Trending This Week:');
+            sounds.forEach(s =>
+              console.log('  ' + s.rank + '. ' + s.title + ' by ' + s.artist + ' (' + s.usageCount + ' videos)')
+            );
+          })();
+          EOF
+
+      - name: Commit trending sounds to repo
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add trending-sounds.json
+          git diff --staged --quiet || git commit -m "chore: update trending TikTok sounds [skip ci]"
+          git push
+
+      - name: Send top 5 to WhatsApp via UltraMsg
+        env:
+          ULTRAMSG_INSTANCE: ${{ secrets.ULTRAMSG_INSTANCE }}
+          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          node << 'EOF'
+          const https = require('https');
+          const fs    = require('fs');
+
+          const INSTANCE = process.env.ULTRAMSG_INSTANCE;
+          const TOKEN    = process.env.ULTRAMSG_TOKEN;
+          const PHONE    = process.env.WHATSAPP_PHONE;
+          const NTFY     = process.env.NTFY_TOPIC;
+
+          let data = { sounds: [] };
+          try { data = JSON.parse(fs.readFileSync('trending-sounds.json', 'utf8')); } catch(e) {}
+
+          const sounds = data.sounds || [];
+          const today  = new Date().toISOString().slice(0, 10);
+
+          const lines = [
+            'DWB TRENDING SOUNDS - Week of ' + today,
+            '',
+            'Add ONE of these to your TikTok after upload:',
+            '',
+          ];
+
+          if (sounds.length > 0) {
+            sounds.slice(0, 5).forEach(s =>
+              lines.push(s.rank + '. ' + s.title + ' - ' + s.artist + ' (' + s.usageCount + ' videos)')
+            );
+            lines.push('');
+            lines.push('Use in TikTok editor after uploading your silent video.');
+          } else {
+            lines.push('No sounds fetched this week - check TikTok manually.');
+          }
+
+          const message = lines.join('\n');
+
+          function sendWhatsApp() {
+            return new Promise((resolve) => {
+              if (!INSTANCE || !TOKEN || !PHONE) { resolve(false); return; }
+              const body = new URLSearchParams({ token: TOKEN, to: PHONE, body: message }).toString();
+              const req = https.request({
+                hostname: 'api.ultramsg.com',
+                path:     '/' + INSTANCE + '/messages/chat',
+                method:   'POST',
+                headers:  { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
+              }, res => {
+                let d = '';
+                res.on('data', c => d += c);
+                res.on('end', () => {
+                  if (res.statusCode === 200) { console.log('WhatsApp sent'); resolve(true); }
+                  else { console.log('UltraMsg error: ' + res.statusCode); resolve(false); }
+                });
+              });
+              req.on('error', () => resolve(false));
+              req.write(body);
+              req.end();
+            });
+          }
+
+          function sendNtfy() {
+            return new Promise((resolve) => {
+              if (!NTFY) { resolve(false); return; }
+              const d = Buffer.from(message);
+              const req = https.request({
+                hostname: 'ntfy.sh', port: 443, path: '/' + NTFY, method: 'POST',
+                headers: {
+                  'Content-Type': 'text/plain', 'Content-Length': d.length,
+                  'Title': 'DWB Trending Sounds - ' + today,
+                  'Tags': 'musical_note', 'Priority': 'default',
+                }
+              }, res => { console.log('ntfy sent: HTTP ' + res.statusCode); resolve(true); });
+              req.on('error', () => resolve(false));
+              req.write(d);
+              req.end();
+            });
+          }
+
+          (async () => {
+            const waOk = await sendWhatsApp();
+            if (!waOk) await sendNtfy();
+          })();
+          EOF
