@@ -21,14 +21,13 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js with npm cache
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --prefer-offline
+        run: npm install
 
       - name: Install chrome-headless-shell
         run: npx remotion browser ensure
@@ -1146,7 +1145,7 @@ jobs:
             '- SFX: Mixkit (fresh random per render)',
             '- Video: Pixabay + Unsplash Ken Burns fallback',
             '- YouTube auto-upload with title, description, pinned comment',
-            '- WhatsApp notifications via UltraMsg',
+            '- Push notifications via ntfy',
             '',
             '---',
             '_Auto-updated by GitHub Actions on ' + today + '_',
@@ -1175,23 +1174,16 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Send WhatsApp notification (UltraMsg + ntfy fallback)
+      - name: Send ntfy notification
         if: always()
         env:
-          ULTRAMSG_INSTANCE: ${{ secrets.ULTRAMSG_INSTANCE }}
-          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
-          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           node << 'EOF'
           const https = require('https');
           const fs    = require('fs');
 
-          const INSTANCE = process.env.ULTRAMSG_INSTANCE;
-          const TOKEN    = process.env.ULTRAMSG_TOKEN;
-          const PHONE    = process.env.WHATSAPP_PHONE;
-          const NTFY     = process.env.NTFY_TOPIC;
-
+          const NTFY      = process.env.NTFY_TOPIC;
           const jobStatus = '${{ job.status }}';
           const runNumber = '${{ github.run_number }}';
           const isSuccess = jobStatus === 'success';
@@ -1253,75 +1245,25 @@ jobs:
 
           const message = lines.join('\n');
 
-          function sendWhatsApp() {
-            return new Promise((resolve) => {
-              if (!INSTANCE || !TOKEN || !PHONE) {
-                console.log('UltraMsg secrets not set -- skipping WhatsApp');
-                resolve(false);
-                return;
-              }
+          if (!NTFY) { console.log('NTFY_TOPIC not set -- skipping notification'); process.exit(0); }
 
-              const body = new URLSearchParams({
-                token: TOKEN,
-                to:    PHONE,
-                body:  message,
-              }).toString();
-
-              const req = https.request({
-                hostname: 'api.ultramsg.com',
-                path:     '/' + INSTANCE + '/messages/chat',
-                method:   'POST',
-                headers:  {
-                  'Content-Type':   'application/x-www-form-urlencoded',
-                  'Content-Length': Buffer.byteLength(body),
-                }
-              }, res => {
-                let data = '';
-                res.on('data', d => data += d);
-                res.on('end', () => {
-                  if (res.statusCode === 200) {
-                    console.log('WhatsApp notification sent via UltraMsg');
-                    resolve(true);
-                  } else {
-                    console.log('UltraMsg error: HTTP ' + res.statusCode + ' -- ' + data);
-                    resolve(false);
-                  }
-                });
-              });
-              req.on('error', e => { console.log('UltraMsg error: ' + e.message); resolve(false); });
-              req.write(body);
-              req.end();
-            });
-          }
-
-          function sendNtfy() {
-            return new Promise((resolve) => {
-              if (!NTFY) { resolve(false); return; }
-              const data = Buffer.from(message);
-              const req  = https.request({
-                hostname: 'ntfy.sh',
-                port:     443,
-                path:     '/' + NTFY,
-                method:   'POST',
-                headers:  {
-                  'Content-Type':   'text/plain',
-                  'Content-Length': data.length,
-                  'Title':          'DWB ' + (isSuccess ? 'DONE' : 'FAILED') + ' - ' + info.week + ' - ' + passed + '/' + info.days.length,
-                  'Priority':       isSuccess ? 'default' : 'high',
-                  'Tags':           isSuccess ? 'white_check_mark,clapper' : 'x,warning',
-                },
-              }, res => {
-                console.log('ntfy fallback sent: HTTP ' + res.statusCode);
-                resolve(true);
-              });
-              req.on('error', e => { console.log('ntfy error: ' + e.message); resolve(false); });
-              req.write(data);
-              req.end();
-            });
-          }
-
-          (async () => {
-            const waOk = await sendWhatsApp();
-            if (!waOk) await sendNtfy();
-          })();
+          const data = Buffer.from(message);
+          const req  = https.request({
+            hostname: 'ntfy.sh',
+            port:     443,
+            path:     '/' + NTFY,
+            method:   'POST',
+            headers:  {
+              'Content-Type':   'text/plain',
+              'Content-Length': data.length,
+              'Title':          'DWB ' + (isSuccess ? 'DONE' : 'FAILED') + ' - ' + info.week + ' - ' + passed + '/' + info.days.length,
+              'Priority':       isSuccess ? 'default' : 'high',
+              'Tags':           isSuccess ? 'white_check_mark,clapper' : 'x,warning',
+            },
+          }, res => {
+            console.log('ntfy sent: HTTP ' + res.statusCode);
+          });
+          req.on('error', e => console.log('ntfy error: ' + e.message));
+          req.write(data);
+          req.end();
           EOF
