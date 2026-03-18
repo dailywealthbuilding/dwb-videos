@@ -44,48 +44,53 @@ jobs:
           mkdir -p out/srt
           mkdir -p out/chapters
 
-      - name: Download SFX (Mixkit fresh random per render)
+      - name: Download SFX (Freesound CDN + ffmpeg silent fallback)
         run: |
+          sudo apt-get install -y ffmpeg -q
           node << 'EOF'
           const https = require('https');
+          const http  = require('http');
           const fs    = require('fs');
 
+          // ── Updated SFX pools — Freesound CDN direct links (no auth needed) ──
           const SFX_POOLS = {
             'whoosh': [
-              'https://assets.mixkit.co/sfx/preview/mixkit-fast-small-sweep-transition-166.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-arrow-whoosh-1491.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-cinematic-fast-whoosh-transition-1780.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-swoosh-and-thud-2257.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-wind-howl-whoosh-ambience-232.mp3',
+              'https://freesound.org/data/previews/396/396765_4284968-lq.mp3',
+              'https://freesound.org/data/previews/573/573577_1015240-lq.mp3',
+              'https://freesound.org/data/previews/399/399934_4284968-lq.mp3',
+              'https://freesound.org/data/previews/320/320775_5260872-lq.mp3',
+              'https://freesound.org/data/previews/521/521645_11861866-lq.mp3',
             ],
             'impact': [
-              'https://assets.mixkit.co/sfx/preview/mixkit-cinematic-impact-hit-1455.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-dramatic-cinematic-impact-2897.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-cinematic-tension-hit-2898.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-drum-and-bass-kick-2297.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-electric-bass-hit-2873.mp3',
+              'https://freesound.org/data/previews/387/387232_7255534-lq.mp3',
+              'https://freesound.org/data/previews/351/351563_3399912-lq.mp3',
+              'https://freesound.org/data/previews/398/398025_7255534-lq.mp3',
+              'https://freesound.org/data/previews/269/269538_5123851-lq.mp3',
+              'https://freesound.org/data/previews/436/436765_8326614-lq.mp3',
             ],
             'cheer': [
-              'https://assets.mixkit.co/sfx/preview/mixkit-stadium-crowd-cheer-476.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-small-crowd-applause-521.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-crowd-cheer-and-applause-518.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-audience-light-applause-479.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-crowd-short-cheer-510.mp3',
+              'https://freesound.org/data/previews/270/270545_5123851-lq.mp3',
+              'https://freesound.org/data/previews/322/322431_5260872-lq.mp3',
+              'https://freesound.org/data/previews/264/264594_1430420-lq.mp3',
+              'https://freesound.org/data/previews/363/363929_6594550-lq.mp3',
+              'https://freesound.org/data/previews/277/277020_5187254-lq.mp3',
             ],
             'ping': [
-              'https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-bonus-earned-in-video-game-2058.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3',
-              'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
+              'https://freesound.org/data/previews/411/411642_5121236-lq.mp3',
+              'https://freesound.org/data/previews/320/320652_5260872-lq.mp3',
+              'https://freesound.org/data/previews/341/341695_5858296-lq.mp3',
+              'https://freesound.org/data/previews/539/539836_11421380-lq.mp3',
+              'https://freesound.org/data/previews/256/256113_3263906-lq.mp3',
             ],
           };
 
           function download(url, dest) {
             return new Promise((resolve, reject) => {
               const file = fs.createWriteStream(dest);
-              const get = (u) => {
-                https.get(u, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
+              const lib  = url.startsWith('https') ? https : http;
+              const get  = (u) => {
+                const l = u.startsWith('https') ? https : http;
+                l.get(u, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
                   if (res.statusCode === 301 || res.statusCode === 302) {
                     file.close(); return get(res.headers.location);
                   }
@@ -117,11 +122,22 @@ jobs:
                   if (fs.existsSync(dest)) fs.unlinkSync(dest);
                 }
               }
-              if (!success) console.log('WARNING: Could not download ' + slot + '.mp3');
+              if (!success) console.log('WARNING: Could not download ' + slot + '.mp3 -- ffmpeg will create silent fallback');
             }
             console.log('SFX download complete');
           })();
           EOF
+
+          # ── ffmpeg silent fallback — if any SFX still missing, create 1s silent MP3 ──
+          for SFX in whoosh impact ping cheer; do
+            FILE="public/sfx/${SFX}.mp3"
+            if [ ! -f "$FILE" ] || [ ! -s "$FILE" ]; then
+              echo "Creating silent fallback for ${SFX}.mp3"
+              ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono -t 1 -q:a 9 -acodec libmp3lame "$FILE" -y -loglevel error
+              echo "Silent fallback created: ${SFX}.mp3"
+            fi
+          done
+          echo "SFX check complete"
 
       - name: Detect active week from content files
         run: |
@@ -732,10 +748,6 @@ jobs:
           echo "--- Render complete in ${TOTAL_SECS}s | Passed: ${RENDER_PASSED} | Failed: ${RENDER_FAILED} ---"
 
           if [ $RENDER_FAILED -gt 0 ]; then exit 1; fi
-
-      - name: Install ffmpeg
-        if: success()
-        run: sudo apt-get install -y ffmpeg -q
 
       - name: Generate thumbnails
         if: success()
