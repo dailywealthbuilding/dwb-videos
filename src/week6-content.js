@@ -1,0 +1,932 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// src/week6-content.js — DWB Week 6 — Days 36–42
+// Theme: Money Myths & The Wealth Gap
+// Export: default (weeks 5–6 use default export)
+//
+// Music guide:
+//   day36: punchy/energetic      day37: motivational/driving
+//   day38: confident/smooth      day39: dramatic/intense
+//   day40: educational/focused   day41: rebellious/energetic
+//   day42: uplifting/inspiring
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default [
+
+  // ── DAY 36 ──────────────────────────────────────────────────────────────────
+  {
+    id: "day36",
+    filename: "day36_final.mp4",
+    music: "day36.mp3",
+    musicMood: "punchy",
+    title: "Why Your Savings Account Is Losing You Money",
+    pexelsSearchTerms: [
+      "person stressed checking bank account vertical",
+      "money disappearing inflation concept vertical",
+      "piggy bank broken empty coins vertical",
+      "person frustrated looking at phone bills vertical"
+    ],
+    overlays: [
+      {
+        text: "YOUR SAVINGS ACCOUNT\nIS LOSING YOU MONEY 💸",
+        font: "Anton",
+        color: "#00FF44",
+        stroke: { size: 3, color: "#000000" },
+        animation: "zoom-punch",
+        startFrame: 0,
+        endFrame: 30,
+        position: "top-center",
+        fontSize: 64
+      },
+      {
+        text: "You've been told\nsaving money = smart.\nThat's half the truth.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 30,
+        endFrame: 75,
+        position: "middle",
+        fontSize: 54
+      },
+      {
+        text: "Meanwhile inflation\neats your savings\nevery single year.",
+        font: "Montserrat",
+        color: "#FF4444",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 75,
+        endFrame: 135,
+        position: "middle",
+        fontSize: 54
+      },
+      {
+        text: "Your bank earns\nmore from YOUR money\nthan you ever will.",
+        font: "Anton",
+        color: "#FFD700",
+        stroke: { size: 3, color: "#000000" },
+        animation: "glitch",
+        startFrame: 135,
+        endFrame: 195,
+        position: "middle",
+        fontSize: 56
+      },
+      {
+        text: "The lie:\n'Just save more.'\nThe truth: saving alone\nis a slow loss.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 195,
+        endFrame: 255,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "The formula:\nKeep 3 months expenses\nas safety net.\nInvest the rest.",
+        font: "Montserrat",
+        color: "#00FF88",
+        stroke: { size: 2, color: "#000000" },
+        animation: "highlight-box",
+        startFrame: 255,
+        endFrame: 375,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "Wealthy people\nkeep savings lean.\nThey put money to work.",
+        font: "Montserrat",
+        color: "#FFD700",
+        stroke: { size: 2, color: "#000000" },
+        animation: "word-highlight",
+        startFrame: 375,
+        endFrame: 450,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "Action today:\nCheck your savings rate.\nMove anything extra\ninto index funds.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 450,
+        endFrame: 570,
+        position: "middle",
+        fontSize: 48
+      },
+      {
+        text: "That 'safe' feeling\nis the most expensive\nfeeling you own.",
+        font: "Montserrat",
+        color: "#FF4444",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 570,
+        endFrame: 660,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "Is your money\nworking FOR you\nor AGAINST you?\nComment YES or NO 👇",
+        font: "Anton",
+        color: "#00FF44",
+        stroke: { size: 3, color: "#000000" },
+        animation: "bounce",
+        startFrame: 660,
+        endFrame: 900,
+        position: "bottom-center",
+        fontSize: 56
+      }
+    ],
+    tiktokCaption: "Your savings account feels safe — but that feeling is costing you thousands 💸 Is your money working FOR you or AGAINST you? Comment YES or NO 👇 #savingsaccount #moneytips #wealthbuilding #financialliteracy #day36",
+    youtubeTitle: "Why Your Savings Account Is Losing You Money | Day 36/90 | Daily Wealth Building",
+    youtubeDescription: "Day 36 of 90 — Why 'just save more' is keeping you financially stuck and what to do instead.\n\n→ How inflation silently erodes your savings every year\n→ How banks profit from your money while you earn pennies\n→ The 3-month emergency fund rule\n→ What to do with money beyond your safety net\n→ The mindset shift from saving to investing\n\n🔔 Subscribe for daily wealth building content\n@DailyWealthBuilding\n\n#DailyWealthBuilding #savingsaccount #moneytips #wealthbuilding #financialliteracy",
+    pinnedComment: "Saving isn't bad — saving ONLY is. Keep 3 months of expenses liquid, put everything else to work. Your bank is already investing your money. Why aren't you?"
+  },
+
+  // ── DAY 37 ──────────────────────────────────────────────────────────────────
+  {
+    id: "day37",
+    filename: "day37_final.mp4",
+    music: "day37.mp3",
+    musicMood: "motivational",
+    title: "If You Earn Under 1K Per Month Stop These Habits",
+    pexelsSearchTerms: [
+      "young person worried counting money vertical",
+      "person checking empty wallet broke vertical",
+      "stressed person looking at monthly expenses vertical",
+      "person cancelling subscription on phone vertical"
+    ],
+    overlays: [
+      {
+        text: "EARNING UNDER $1K/MONTH?\nSTOP THESE HABITS. 🚫",
+        font: "Anton",
+        color: "#FF9900",
+        stroke: { size: 3, color: "#000000" },
+        animation: "pop",
+        startFrame: 0,
+        endFrame: 30,
+        position: "top-center",
+        fontSize: 60
+      },
+      {
+        text: "At this income level\nevery bad habit\ncosts you months of progress.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 30,
+        endFrame: 75,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "You work hard.\nNothing is left\nby month end.\nEvery. Single. Month.",
+        font: "Montserrat",
+        color: "#FF4444",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 75,
+        endFrame: 135,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "What's eating it:\nForgotten subscriptions.\nDaily eating out.\nImpulse purchases.",
+        font: "Anton",
+        color: "#FFD700",
+        stroke: { size: 3, color: "#000000" },
+        animation: "glitch",
+        startFrame: 135,
+        endFrame: 195,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "The lie:\n'I just need to earn more.'\nYou need to plug\nthe leaks first.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 195,
+        endFrame: 255,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "The formula:\nTrack every expense\nfor 7 days straight.\nCut the bottom 3.",
+        font: "Montserrat",
+        color: "#00FF88",
+        stroke: { size: 2, color: "#000000" },
+        animation: "highlight-box",
+        startFrame: 255,
+        endFrame: 375,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "People who escaped\nthis range didn't\nearn more first.\nThey spent less first.",
+        font: "Montserrat",
+        color: "#FFD700",
+        stroke: { size: 2, color: "#000000" },
+        animation: "word-highlight",
+        startFrame: 375,
+        endFrame: 450,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "Right now:\nOpen your bank app.\nFind one subscription\nyou forgot. Cancel it.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 450,
+        endFrame: 570,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "Same income.\nDifferent habits.\nCompletely different life\nin 90 days.",
+        font: "Montserrat",
+        color: "#FF9900",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 570,
+        endFrame: 660,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "What do you spend on\nthat you KNOW\nyou shouldn't?\nDrop it below 👇",
+        font: "Anton",
+        color: "#FF9900",
+        stroke: { size: 3, color: "#000000" },
+        animation: "bounce",
+        startFrame: 660,
+        endFrame: 900,
+        position: "bottom-center",
+        fontSize: 56
+      }
+    ],
+    tiktokCaption: "Earning under $1K/month — these habits are exactly why nothing is left at month end 🚫 What's the ONE thing you spend on that you KNOW you shouldn't? Drop it below 👇 #budgeting #moneytips #financialfreedom #brokemindset #day37",
+    youtubeTitle: "If You Earn Under $1K Per Month Stop These Habits | Day 37/90 | Daily Wealth Building",
+    youtubeDescription: "Day 37 of 90 — Why earning more won't fix anything until you plug the leaks first.\n\n→ The hidden expenses draining low-income earners monthly\n→ Why subscriptions and daily eating out are silent killers\n→ The 7-day expense tracking challenge\n→ How to cut the bottom 3 expenses without suffering\n→ Why spending habits always change before income does\n\n🔔 Subscribe for daily wealth building content\n@DailyWealthBuilding\n\n#DailyWealthBuilding #budgeting #moneytips #financialliteracy #wealthbuilding",
+    pinnedComment: "Earning more without fixing habits just means losing more, faster. Track everything for 7 days — you'll find at least 3 things you forgot you were paying for."
+  },
+
+  // ── DAY 38 ──────────────────────────────────────────────────────────────────
+  {
+    id: "day38",
+    filename: "day38_final.mp4",
+    music: "day38.mp3",
+    musicMood: "confident",
+    title: "Rich People Don't Save Money — Here's What They Do Instead",
+    pexelsSearchTerms: [
+      "confident successful person investing phone vertical",
+      "stock market chart growing upward vertical",
+      "business person reviewing portfolio vertical",
+      "wealthy lifestyle minimal luxury vertical"
+    ],
+    overlays: [
+      {
+        text: "RICH PEOPLE DON'T\nSAVE MONEY. 🔑",
+        font: "Anton",
+        color: "#4499FF",
+        stroke: { size: 3, color: "#000000" },
+        animation: "zoom-punch",
+        startFrame: 0,
+        endFrame: 30,
+        position: "top-center",
+        fontSize: 68
+      },
+      {
+        text: "And no — this doesn't\nmean they spend\neverything they make.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 30,
+        endFrame: 75,
+        position: "middle",
+        fontSize: 54
+      },
+      {
+        text: "Most people save money\nand wait.\nWealthy people can't\nafford to wait.",
+        font: "Montserrat",
+        color: "#FF4444",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 75,
+        endFrame: 135,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "Idle money\nis losing money.\nEvery day it sits still\nis a day it shrinks.",
+        font: "Anton",
+        color: "#FFD700",
+        stroke: { size: 3, color: "#000000" },
+        animation: "glitch",
+        startFrame: 135,
+        endFrame: 195,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "What you weren't told:\nRich people pay\nthemselves FIRST —\nthen deploy capital.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 195,
+        endFrame: 255,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "The formula:\nEarn → Invest first\n→ Live on what's left.\nNot the other way.",
+        font: "Montserrat",
+        color: "#00FF88",
+        stroke: { size: 2, color: "#000000" },
+        animation: "highlight-box",
+        startFrame: 255,
+        endFrame: 375,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "Every wealthy person\ninvests before\nthey enjoy.\nNot after.",
+        font: "Montserrat",
+        color: "#FFD700",
+        stroke: { size: 2, color: "#000000" },
+        animation: "word-highlight",
+        startFrame: 375,
+        endFrame: 450,
+        position: "middle",
+        fontSize: 54
+      },
+      {
+        text: "This week:\nDecide one amount\nto auto-invest\nbefore spending anything.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 450,
+        endFrame: 570,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "You can't save\nyour way to wealth.\nYou have to\ndeploy your way there.",
+        font: "Montserrat",
+        color: "#4499FF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 570,
+        endFrame: 660,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "Are you saving money\nor deploying it?\nTell me your approach\nbelow 👇",
+        font: "Anton",
+        color: "#4499FF",
+        stroke: { size: 3, color: "#000000" },
+        animation: "bounce",
+        startFrame: 660,
+        endFrame: 900,
+        position: "bottom-center",
+        fontSize: 56
+      }
+    ],
+    tiktokCaption: "Rich people don't just save money — they deploy it 🔑 Are you saving money or deploying it? Tell me your current approach below 👇 #investing #wealthmindset #richmindset #moneytips #day38",
+    youtubeTitle: "Rich People Don't Save Money — Here's What They Do Instead | Day 38/90 | Daily Wealth Building",
+    youtubeDescription: "Day 38 of 90 — The difference between saving money and deploying capital, and why it changes everything.\n\n→ Why idle money is losing money every day\n→ The 'pay yourself first' method wealthy people use\n→ The invest-before-you-spend framework\n→ How to start deploying even tiny amounts\n→ Why you can't save your way to financial freedom\n\n🔔 Subscribe for daily wealth building content\n@DailyWealthBuilding\n\n#DailyWealthBuilding #investing #wealthmindset #moneytips #financialfreedom",
+    pinnedComment: "The formula is: earn → invest first → live on the rest. Not earn → spend → invest whatever's left. That ordering is everything."
+  },
+
+  // ── DAY 39 ──────────────────────────────────────────────────────────────────
+  {
+    id: "day39",
+    filename: "day39_final.mp4",
+    music: "day39.mp3",
+    musicMood: "dramatic",
+    title: "Getting a Raise Won't Make You Rich — Here's Why",
+    pexelsSearchTerms: [
+      "person celebrating promotion office vertical",
+      "lifestyle inflation new car luxury vertical",
+      "person upgrading apartment moving vertical",
+      "shopping bags consumer spending vertical"
+    ],
+    overlays: [
+      {
+        text: "A RAISE WON'T\nMAKE YOU RICH. ❌",
+        font: "Anton",
+        color: "#FF44FF",
+        stroke: { size: 3, color: "#000000" },
+        animation: "pop",
+        startFrame: 0,
+        endFrame: 30,
+        position: "top-center",
+        fontSize: 68
+      },
+      {
+        text: "Most people get a raise\nand immediately upgrade\ntheir lifestyle to match.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 30,
+        endFrame: 75,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "New car. Bigger place.\nBetter phone.\nSame empty bank account.\nDifferent number.",
+        font: "Montserrat",
+        color: "#FF4444",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 75,
+        endFrame: 135,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "It's called\nlifestyle inflation.\nIt eats every raise\nbefore you feel it.",
+        font: "Anton",
+        color: "#FFD700",
+        stroke: { size: 3, color: "#000000" },
+        animation: "glitch",
+        startFrame: 135,
+        endFrame: 195,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "The lie:\n'I'll start investing\nonce I earn enough.'\nThat day never comes.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 195,
+        endFrame: 255,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "The formula:\nFreeze your lifestyle.\nInvest 100% of\nevery future raise.",
+        font: "Montserrat",
+        color: "#00FF88",
+        stroke: { size: 2, color: "#000000" },
+        animation: "highlight-box",
+        startFrame: 255,
+        endFrame: 375,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "The people who won\nlived on old income\nlong after their\nearnings went up.",
+        font: "Montserrat",
+        color: "#FFD700",
+        stroke: { size: 2, color: "#000000" },
+        animation: "word-highlight",
+        startFrame: 375,
+        endFrame: 450,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "Next raise you get:\nDon't touch it.\nAuto-invest the full\namount before it lands.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 450,
+        endFrame: 570,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "Income went up.\nLifestyle stayed flat.\nGap between them?\nThat's your wealth.",
+        font: "Montserrat",
+        color: "#FF44FF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 570,
+        endFrame: 660,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "Did your last raise\nactually change\nyour financial position?\nHonest answers 👇",
+        font: "Anton",
+        color: "#FF44FF",
+        stroke: { size: 3, color: "#000000" },
+        animation: "bounce",
+        startFrame: 660,
+        endFrame: 900,
+        position: "bottom-center",
+        fontSize: 54
+      }
+    ],
+    tiktokCaption: "Getting a raise won't make you rich if lifestyle inflation eats it first ❌ Did your last raise actually improve your financial position? Honest answers only 👇 #lifestyleinflation #wealthbuilding #moneymindset #financialfreedom #day39",
+    youtubeTitle: "Getting a Raise Won't Make You Rich — Here's Why | Day 39/90 | Daily Wealth Building",
+    youtubeDescription: "Day 39 of 90 — Why lifestyle inflation destroys every raise before you feel it, and how to break the cycle.\n\n→ What lifestyle inflation is and how to spot it\n→ Why 'I'll invest when I earn more' never works\n→ The freeze-your-lifestyle strategy\n→ How to invest 100% of every future raise automatically\n→ The gap between income and expenses is your real wealth\n\n🔔 Subscribe for daily wealth building content\n@DailyWealthBuilding\n\n#DailyWealthBuilding #lifestyleinflation #wealthbuilding #moneymindset #salary",
+    pinnedComment: "Wealth = the gap between what you earn and what you spend. Every raise widens that gap — unless you upgrade your lifestyle to close it again. Choose wisely."
+  },
+
+  // ── DAY 40 ──────────────────────────────────────────────────────────────────
+  {
+    id: "day40",
+    filename: "day40_final.mp4",
+    music: "day40.mp3",
+    musicMood: "focused",
+    title: "The Investing Method Most People Completely Overlook",
+    pexelsSearchTerms: [
+      "person researching investments laptop vertical",
+      "compound interest growth chart vertical",
+      "long term investing concept money growing vertical",
+      "person planning financial future phone vertical"
+    ],
+    overlays: [
+      {
+        text: "THE INVESTING METHOD\nMOST PEOPLE OVERLOOK 👀",
+        font: "Anton",
+        color: "#FF6600",
+        stroke: { size: 3, color: "#000000" },
+        animation: "zoom-punch",
+        startFrame: 0,
+        endFrame: 30,
+        position: "top-center",
+        fontSize: 60
+      },
+      {
+        text: "Everyone is chasing\ncrypto, stocks, side hustles.\nMeanwhile this works quietly.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 30,
+        endFrame: 75,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "The problem:\nMost people think\ninvesting requires\nlarge upfront capital.",
+        font: "Montserrat",
+        color: "#FF4444",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 75,
+        endFrame: 135,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "So they wait.\nAnd wait.\nAnd by the time\nthey start — years gone.",
+        font: "Anton",
+        color: "#FFD700",
+        stroke: { size: 3, color: "#000000" },
+        animation: "glitch",
+        startFrame: 135,
+        endFrame: 195,
+        position: "middle",
+        fontSize: 54
+      },
+      {
+        text: "The truth nobody tells:\nTime IN the market\nbeats TIMING the market.\nAlways.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 195,
+        endFrame: 255,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "The method:\nDCA — buy a fixed\namount every month.\nRegardless of price.",
+        font: "Montserrat",
+        color: "#00FF88",
+        stroke: { size: 2, color: "#000000" },
+        animation: "highlight-box",
+        startFrame: 255,
+        endFrame: 375,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "Dollar Cost Averaging\nremoves emotion.\nYou win in dips.\nYou win in peaks.",
+        font: "Montserrat",
+        color: "#FFD700",
+        stroke: { size: 2, color: "#000000" },
+        animation: "word-highlight",
+        startFrame: 375,
+        endFrame: 450,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "Start today:\nPick an index fund.\nSet a monthly amount.\nAutomate it. Done.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 450,
+        endFrame: 570,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "The boring method\nis the one that\nactually builds wealth\nover time.",
+        font: "Montserrat",
+        color: "#FF6600",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 570,
+        endFrame: 660,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "Are you investing\nconsistently or\nwaiting for the\n'right time'? 👇",
+        font: "Anton",
+        color: "#FF6600",
+        stroke: { size: 3, color: "#000000" },
+        animation: "bounce",
+        startFrame: 660,
+        endFrame: 900,
+        position: "bottom-center",
+        fontSize: 58
+      }
+    ],
+    tiktokCaption: "The boring investing method that most people overlook — and it's the one that actually works 👀 Are you investing consistently or still waiting for the right time? 👇 #indexfunds #dca #investing101 #wealthbuilding #day40",
+    youtubeTitle: "The Investing Method Most People Completely Overlook | Day 40/90 | Daily Wealth Building",
+    youtubeDescription: "Day 40 of 90 — Dollar Cost Averaging explained and why it beats every complicated strategy.\n\n→ Why waiting for the 'right time' destroys years of growth\n→ What Dollar Cost Averaging (DCA) actually is\n→ How DCA removes emotion from investing entirely\n→ How to set it up automatically in under 10 minutes\n→ Why boring consistent investing beats exciting risky bets\n\n🔔 Subscribe for daily wealth building content\n@DailyWealthBuilding\n\n#DailyWealthBuilding #indexfunds #DCA #investing101 #wealthbuilding #compoundinterest",
+    pinnedComment: "DCA = buy a fixed amount every single month, no matter what the market is doing. You win when prices drop (you buy more units) and you win when it rises (your units gain value). Simple. Boring. It works."
+  },
+
+  // ── DAY 41 ──────────────────────────────────────────────────────────────────
+  {
+    id: "day41",
+    filename: "day41_final.mp4",
+    music: "day41.mp3",
+    musicMood: "rebellious",
+    title: "3 Money Lies Your Parents Taught You",
+    pexelsSearchTerms: [
+      "parent teaching child about money vertical",
+      "person unlearning old habits concept vertical",
+      "school education financial literacy gap vertical",
+      "person breaking free from old thinking vertical"
+    ],
+    overlays: [
+      {
+        text: "3 MONEY LIES\nYOUR PARENTS\nTAUGHT YOU 🚨",
+        font: "Anton",
+        color: "#00AAFF",
+        stroke: { size: 3, color: "#000000" },
+        animation: "pop",
+        startFrame: 0,
+        endFrame: 30,
+        position: "top-center",
+        fontSize: 64
+      },
+      {
+        text: "They weren't trying\nto mislead you.\nThey taught what\nthey were taught.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 30,
+        endFrame: 75,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "But outdated money advice\nin today's economy\nis quietly\nkeeping you broke.",
+        font: "Montserrat",
+        color: "#FF4444",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 75,
+        endFrame: 135,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "Lie #1:\n'Get a stable job\nand save for retirement.'\nPensions barely exist now.",
+        font: "Anton",
+        color: "#FFD700",
+        stroke: { size: 3, color: "#000000" },
+        animation: "glitch",
+        startFrame: 135,
+        endFrame: 195,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "Lie #2:\n'Debt is always bad.'\nGood debt builds assets.\nBad debt buys things.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 195,
+        endFrame: 255,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "Lie #3:\n'One income is enough.'\nThe wealthy average\n7 income streams.",
+        font: "Montserrat",
+        color: "#00FF88",
+        stroke: { size: 2, color: "#000000" },
+        animation: "highlight-box",
+        startFrame: 255,
+        endFrame: 375,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "The new rules:\nBuild assets. Use debt\nstrategically. Diversify\nyour income now.",
+        font: "Montserrat",
+        color: "#FFD700",
+        stroke: { size: 2, color: "#000000" },
+        animation: "word-highlight",
+        startFrame: 375,
+        endFrame: 450,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "This week:\nIdentify which lie\nyou're still living.\nThen unlearn it.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 450,
+        endFrame: 570,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "The rules changed.\nThe advice didn't.\nThat gap is why\nyou feel stuck.",
+        font: "Montserrat",
+        color: "#00AAFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 570,
+        endFrame: 660,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "Which of these lies\nwere you told\ngrowing up?\nNumber 1, 2 or 3? 👇",
+        font: "Anton",
+        color: "#00AAFF",
+        stroke: { size: 3, color: "#000000" },
+        animation: "bounce",
+        startFrame: 660,
+        endFrame: 900,
+        position: "bottom-center",
+        fontSize: 56
+      }
+    ],
+    tiktokCaption: "3 money lies your parents taught you — they weren't wrong, the rules just changed 🚨 Which of these were you told growing up? Comment 1, 2 or 3 below 👇 #moneymindset #financialliteracy #parentadvice #wealthbuilding #day41",
+    youtubeTitle: "3 Money Lies Your Parents Taught You | Day 41/90 | Daily Wealth Building",
+    youtubeDescription: "Day 41 of 90 — Three pieces of financial advice that made sense decades ago but are hurting you today.\n\n→ Why 'get a stable job and save' is broken advice in 2026\n→ The difference between good debt and bad debt\n→ Why one income stream is now a liability, not a plan\n→ The new rules of wealth building in the modern economy\n→ How to identify which outdated belief is holding you back\n\n🔔 Subscribe for daily wealth building content\n@DailyWealthBuilding\n\n#DailyWealthBuilding #moneymindset #financialliteracy #multipleincomestreams #wealthbuilding",
+    pinnedComment: "They taught us to survive in an economy that no longer exists. The rules changed. Job security is gone, pensions are rare, one income isn't enough. Unlearning is the first step."
+  },
+
+  // ── DAY 42 ──────────────────────────────────────────────────────────────────
+  {
+    id: "day42",
+    filename: "day42_final.mp4",
+    music: "day42.mp3",
+    musicMood: "uplifting",
+    title: "How I Started Earning Online From Zero — The Exact Method",
+    pexelsSearchTerms: [
+      "person working laptop earning money online vertical",
+      "affiliate marketing passive income concept vertical",
+      "person celebrating first online income vertical",
+      "digital nomad working anywhere freedom vertical"
+    ],
+    overlays: [
+      {
+        text: "FROM $0 TO EARNING\nONLINE — THE METHOD 🔥",
+        font: "Anton",
+        color: "#FFD700",
+        stroke: { size: 3, color: "#000000" },
+        animation: "zoom-punch",
+        startFrame: 0,
+        endFrame: 30,
+        position: "top-center",
+        fontSize: 62
+      },
+      {
+        text: "Not a course.\nNot a coach.\nNot a magic system.\nA method you can start today.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 30,
+        endFrame: 75,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "The pain:\nEveryone says\n'make money online'\nbut nobody shows how.",
+        font: "Montserrat",
+        color: "#FF4444",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 75,
+        endFrame: 135,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "They sell you\nthe dream.\nNot the actual\nstep-by-step path.",
+        font: "Anton",
+        color: "#FFD700",
+        stroke: { size: 3, color: "#000000" },
+        animation: "glitch",
+        startFrame: 135,
+        endFrame: 195,
+        position: "middle",
+        fontSize: 56
+      },
+      {
+        text: "The truth:\nAffiliate marketing\nlets you earn\nwithout a product.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 195,
+        endFrame: 255,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "The formula:\nNiche → Content\n→ Recommend products\n→ Earn commissions.",
+        font: "Montserrat",
+        color: "#00FF88",
+        stroke: { size: 2, color: "#000000" },
+        animation: "highlight-box",
+        startFrame: 255,
+        endFrame: 375,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "No upfront cost.\nNo inventory.\nNo customer service.\nJust content and links.",
+        font: "Montserrat",
+        color: "#FFD700",
+        stroke: { size: 2, color: "#000000" },
+        animation: "word-highlight",
+        startFrame: 375,
+        endFrame: 450,
+        position: "middle",
+        fontSize: 50
+      },
+      {
+        text: "Start today:\nFind a free affiliate\nprogram in your niche.\nGet your link.",
+        font: "Montserrat",
+        color: "#FFFFFF",
+        stroke: { size: 2, color: "#000000" },
+        animation: "fade",
+        startFrame: 450,
+        endFrame: 570,
+        position: "middle",
+        fontSize: 49
+      },
+      {
+        text: "The model works.\nI'm proving it daily\nfor 90 days\nin public. Watch.",
+        font: "Montserrat",
+        color: "#FFD700",
+        stroke: { size: 2, color: "#000000" },
+        animation: "slide-left",
+        startFrame: 570,
+        endFrame: 660,
+        position: "middle",
+        fontSize: 52
+      },
+      {
+        text: "What's stopping you\nfrom starting\nonline income today?\nDrop your answer 👇",
+        font: "Anton",
+        color: "#FFD700",
+        stroke: { size: 3, color: "#000000" },
+        animation: "bounce",
+        startFrame: 660,
+        endFrame: 900,
+        position: "bottom-center",
+        fontSize: 56
+      }
+    ],
+    tiktokCaption: "From $0 to earning online — the actual method, not the hype 🔥 What's the ONE thing stopping you from starting right now? Drop your honest answer 👇 #affiliatemarketing #makemoneyonline #passiveincome #sidehustle #day42",
+    youtubeTitle: "How I Started Earning Online From Zero — The Exact Method | Day 42/90 | Daily Wealth Building",
+    youtubeDescription: "Day 42 of 90 — Week 6 finale. The exact affiliate marketing method that costs nothing to start.\n\n→ Why affiliate marketing works without a product or audience\n→ The 4-step formula: niche → content → recommend → earn\n→ How to find legitimate free affiliate programs today\n→ Why this model has zero upfront cost\n→ Week 6 recap and what's coming in Week 7\n\n🔔 Subscribe for daily wealth building content\n@DailyWealthBuilding\n\n#DailyWealthBuilding #affiliatemarketing #makemoneyonline #passiveincome #sidehustle #day42of90",
+    pinnedComment: "Affiliate marketing = recommend products you already believe in, earn a commission when someone buys through your link. No product. No inventory. No customer service. Just content and consistency."
+  },
+
+];
