@@ -682,4 +682,3 @@ export const week10Videos = [
   }
 
 ];
-
