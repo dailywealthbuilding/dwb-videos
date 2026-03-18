@@ -1,42 +1,49 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// src/index.jsx — DWB Remotion Root v3.0 — REPLACE EXISTING
+// src/index.jsx — DWB Remotion Root v4.0 — REPLACE EXISTING
 //
-// v3.0 changes:
-//   • Weeks 7–13 registered (Days 43–90 — full 90-day challenge complete)
-//   • Supports both default exports (weeks 5–6) and named exports (weeks 7–13)
-//   • Smart flat array handles mixed export styles automatically
-//   • No other files need changes when adding future challenge weeks
-//
-// TO ADD A NEW WEEK:
-//   1. Create src/weekN-content.js → export const weekNVideos = [...]
-//   2. Import it below and spread into ALL_CONTENT
-//   3. Done. render.yml auto-detects the new file too.
+// v4.0 changes:
+//   • safeRequire() — missing week files return [] instead of crashing bundle
+//   • No need to upload ALL past week files to the repo
+//   • Only the ACTIVE week file needs to exist in src/
+//   • Adding new weeks: just drop the file in src/ — nothing else to change
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { registerRoot, Composition } from 'remotion';
 import { VideoComposition } from './compositions/VideoComposition.jsx';
 
-// ── Weeks 5 & 6 (default exports — existing format) ──
-import week5Content from './week5-content.js';
-import week6Content from './week6-content.js';
-
-// ── Week 7 (Days 43–49) ──
-import { week7Videos } from './week7-content.js';
-
-// ── Week 8 (Days 50–56) ──
-import { week8Videos } from './week8-content.js';
-
-// ── Week 9 (Days 57–63) ──
-import { week9Videos } from './week9-content.js';
-
-// ── Week 10 (Days 64–70) ──
-import { week10Videos } from './week10-content.js';
-
-// ── Weeks 11–13 (Days 71–90) ──
-import { week11Videos, week12Videos, week13Videos } from './weeks11-13-content.js';
+// ─────────────────────────────────────────────────────────────────────────────
+// safeRequire — loads a week file if it exists, returns [] if not found
+// ─────────────────────────────────────────────────────────────────────────────
+function safeRequire(modulePath) {
+  try {
+    const m = require(modulePath);
+    // Handle default export (weeks 5–6) or named export (weeks 7+)
+    if (m.default && Array.isArray(m.default)) return m.default;
+    const named = Object.values(m).find(v => Array.isArray(v));
+    if (named) return named;
+    return [];
+  } catch (e) {
+    return [];
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ALL_CONTENT — every video entry across all 90 days, in order
+// Load all weeks safely — missing files silently return []
+// ─────────────────────────────────────────────────────────────────────────────
+const week5Content  = safeRequire('./week5-content.js');
+const week6Content  = safeRequire('./week6-content.js');
+const week7Videos   = safeRequire('./week7-content.js');
+const week8Videos   = safeRequire('./week8-content.js');
+const week9Videos   = safeRequire('./week9-content.js');
+const week10Videos  = safeRequire('./week10-content.js');
+
+// weeks11-13 exports multiple named arrays — load all three safely
+const week11Videos  = (() => { try { return require('./weeks11-13-content.js').week11Videos || []; } catch(e) { return []; } })();
+const week12Videos  = (() => { try { return require('./weeks11-13-content.js').week12Videos || []; } catch(e) { return []; } })();
+const week13Videos  = (() => { try { return require('./weeks11-13-content.js').week13Videos || []; } catch(e) { return []; } })();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ALL_CONTENT — every loaded entry, in order
 // ─────────────────────────────────────────────────────────────────────────────
 const ALL_CONTENT = [
   ...week5Content,
@@ -68,7 +75,7 @@ function validateEntry(entry) {
 export const RemotionRoot = () => {
   const valid = ALL_CONTENT.filter(entry => validateEntry(entry).length === 0);
 
-  console.log(`[DWB v3] ${valid.length} compositions loaded | ${valid[0]?.id} → ${valid[valid.length - 1]?.id}`);
+  console.log(`[DWB v4] ${valid.length} compositions loaded | ${valid[0]?.id} → ${valid[valid.length - 1]?.id}`);
 
   return (
     <>
