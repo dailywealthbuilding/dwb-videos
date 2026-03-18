@@ -1,46 +1,72 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// src/index.jsx — DWB Remotion Root v4.0 — REPLACE EXISTING
+// src/index.jsx — DWB Remotion Root v4.1 — REPLACE EXISTING
 //
-// v4.0 changes:
-//   • safeRequire() — missing week files return [] instead of crashing bundle
-//   • No need to upload ALL past week files to the repo
-//   • Only the ACTIVE week file needs to exist in src/
-//   • Adding new weeks: just drop the file in src/ — nothing else to change
+// v4.1 fix:
+//   • Replaced safeRequire(variable) with inline try/catch string literals
+//   • Webpack requires static string paths to resolve modules at bundle time
+//   • safeRequire(variable) caused webpack to silently skip all week files
+//   • Each week file now loaded with a direct require('./weekN-content.js')
+//   • Missing files still return [] safely — behavior unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { registerRoot, Composition } from 'remotion';
 import { VideoComposition } from './compositions/VideoComposition.jsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// safeRequire — loads a week file if it exists, returns [] if not found
+// Week file loaders — each uses a static string literal so webpack can
+// resolve them at bundle time. Missing files return [] safely.
 // ─────────────────────────────────────────────────────────────────────────────
-function safeRequire(modulePath) {
-  try {
-    const m = require(modulePath);
-    // Handle default export (weeks 5–6) or named export (weeks 7+)
-    if (m.default && Array.isArray(m.default)) return m.default;
-    const named = Object.values(m).find(v => Array.isArray(v));
-    if (named) return named;
-    return [];
-  } catch (e) {
-    return [];
-  }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Load all weeks safely — missing files silently return []
-// ─────────────────────────────────────────────────────────────────────────────
-const week5Content  = safeRequire('./week5-content.js');
-const week6Content  = safeRequire('./week6-content.js');
-const week7Videos   = safeRequire('./week7-content.js');
-const week8Videos   = safeRequire('./week8-content.js');
-const week9Videos   = safeRequire('./week9-content.js');
-const week10Videos  = safeRequire('./week10-content.js');
+let week5Content = [];
+try {
+  const m = require('./week5-content.js');
+  week5Content = (m.default && Array.isArray(m.default)) ? m.default
+    : (Object.values(m).find(v => Array.isArray(v)) || []);
+} catch(e) {}
 
-// weeks11-13 exports multiple named arrays — load all three safely
-const week11Videos  = (() => { try { return require('./weeks11-13-content.js').week11Videos || []; } catch(e) { return []; } })();
-const week12Videos  = (() => { try { return require('./weeks11-13-content.js').week12Videos || []; } catch(e) { return []; } })();
-const week13Videos  = (() => { try { return require('./weeks11-13-content.js').week13Videos || []; } catch(e) { return []; } })();
+let week6Content = [];
+try {
+  const m = require('./week6-content.js');
+  week6Content = (m.default && Array.isArray(m.default)) ? m.default
+    : (Object.values(m).find(v => Array.isArray(v)) || []);
+} catch(e) {}
+
+let week7Videos = [];
+try {
+  const m = require('./week7-content.js');
+  week7Videos = (m.default && Array.isArray(m.default)) ? m.default
+    : (Object.values(m).find(v => Array.isArray(v)) || []);
+} catch(e) {}
+
+let week8Videos = [];
+try {
+  const m = require('./week8-content.js');
+  week8Videos = (m.default && Array.isArray(m.default)) ? m.default
+    : (Object.values(m).find(v => Array.isArray(v)) || []);
+} catch(e) {}
+
+let week9Videos = [];
+try {
+  const m = require('./week9-content.js');
+  week9Videos = (m.default && Array.isArray(m.default)) ? m.default
+    : (Object.values(m).find(v => Array.isArray(v)) || []);
+} catch(e) {}
+
+let week10Videos = [];
+try {
+  const m = require('./week10-content.js');
+  week10Videos = (m.default && Array.isArray(m.default)) ? m.default
+    : (Object.values(m).find(v => Array.isArray(v)) || []);
+} catch(e) {}
+
+let week11Videos = [];
+try { week11Videos = require('./weeks11-13-content.js').week11Videos || []; } catch(e) {}
+
+let week12Videos = [];
+try { week12Videos = require('./weeks11-13-content.js').week12Videos || []; } catch(e) {}
+
+let week13Videos = [];
+try { week13Videos = require('./weeks11-13-content.js').week13Videos || []; } catch(e) {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ALL_CONTENT — every loaded entry, in order
@@ -75,7 +101,7 @@ function validateEntry(entry) {
 export const RemotionRoot = () => {
   const valid = ALL_CONTENT.filter(entry => validateEntry(entry).length === 0);
 
-  console.log(`[DWB v4] ${valid.length} compositions loaded | ${valid[0]?.id} → ${valid[valid.length - 1]?.id}`);
+  console.log(`[DWB v4.1] ${valid.length} compositions loaded | ${valid[0]?.id} → ${valid[valid.length - 1]?.id}`);
 
   return (
     <>
