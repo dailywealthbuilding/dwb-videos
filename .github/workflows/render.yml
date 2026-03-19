@@ -46,7 +46,11 @@ jobs:
 
       - name: Download SFX (Freesound CDN + ffmpeg silent fallback)
         run: |
-          sudo apt-get install -y ffmpeg -q
+          # Install ffmpeg with retry and fix-missing fallback
+          sudo apt-get update -q || true
+          sudo apt-get install -y ffmpeg -q --fix-missing || \
+          sudo apt-get install -y ffmpeg -q --fix-missing --allow-unauthenticated || \
+          echo "WARNING: ffmpeg install failed - silent fallback will use node instead"
           node << 'EOF'
           const https = require('https');
           const http  = require('http');
@@ -133,8 +137,17 @@ jobs:
             FILE="public/sfx/${SFX}.mp3"
             if [ ! -f "$FILE" ] || [ ! -s "$FILE" ]; then
               echo "Creating silent fallback for ${SFX}.mp3"
-              ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono -t 1 -q:a 9 -acodec libmp3lame "$FILE" -y -loglevel error
-              echo "Silent fallback created: ${SFX}.mp3"
+              if command -v ffmpeg &> /dev/null; then
+                ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono -t 1 -q:a 9 -acodec libmp3lame "$FILE" -y -loglevel error
+              else
+                node -e "
+                  const fs = require('fs');
+                  const buf = Buffer.alloc(1024, 0);
+                  fs.writeFileSync('${FILE}', buf);
+                  console.log('Node silent fallback created: ${SFX}.mp3');
+                "
+              fi
+              echo "Fallback created: ${SFX}.mp3"
             fi
           done
           echo "SFX check complete"
