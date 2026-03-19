@@ -859,7 +859,7 @@ jobs:
           console.log('Generated ' + generated + ' SRT files');
           EOF
 
-      - name: Upload to YouTube
+      - name: Upload to YouTube (scheduled — 1 video per day at 9AM UTC)
         if: success()
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
@@ -887,17 +887,19 @@ jobs:
             ? daysOverride.split(',').map(d => d.trim()).filter(Boolean)
             : info.days;
 
-          function httpsPost(options, body) {
-            return new Promise((resolve, reject) => {
-              const req = https.request(options, res => {
-                let data = '';
-                res.on('data', d => data += d);
-                res.on('end', () => resolve({ status: res.statusCode, body: data, headers: res.headers }));
-              });
-              req.on('error', reject);
-              if (body) req.write(body);
-              req.end();
-            });
+          // ── Calculate publish times: Day 0 = Monday 9AM UTC, Day 1 = Tuesday 9AM UTC, etc.
+          function getPublishAt(dayIndex) {
+            const now   = new Date();
+            // Find this Monday at 9AM UTC
+            const day   = now.getUTCDay(); // 0=Sun, 1=Mon...
+            const diff  = (day === 0 ? -6 : 1 - day); // days back to Monday
+            const monday = new Date(Date.UTC(
+              now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff,
+              9, 0, 0, 0
+            ));
+            // Add dayIndex days
+            const publishDate = new Date(monday.getTime() + dayIndex * 24 * 60 * 60 * 1000);
+            return publishDate.toISOString();
           }
 
           function httpsRequest(options, body) {
@@ -920,23 +922,18 @@ jobs:
               refresh_token: REFRESH_TOKEN,
               grant_type:    'refresh_token',
             }).toString();
-
-            const res = await httpsPost({
+            const res = await httpsRequest({
               hostname: 'oauth2.googleapis.com',
               path:     '/token',
               method:   'POST',
-              headers:  {
-                'Content-Type':   'application/x-www-form-urlencoded',
-                'Content-Length': Buffer.byteLength(body),
-              }
+              headers:  { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
             }, body);
-
             const data = JSON.parse(res.body);
             if (!data.access_token) throw new Error('Failed to get access token: ' + res.body);
             return data.access_token;
           }
 
-          async function uploadVideo(accessToken, filePath, meta) {
+          async function uploadVideo(accessToken, filePath, meta, publishAt) {
             const fileSize = fs.statSync(filePath).size;
 
             const metadata = JSON.stringify({
@@ -947,7 +944,8 @@ jobs:
                 categoryId:  '22',
               },
               status: {
-                privacyStatus:           'public',
+                privacyStatus:           'private',
+                publishAt:               publishAt,
                 selfDeclaredMadeForKids: false,
               },
             });
@@ -1018,32 +1016,10 @@ jobs:
             return videoId;
           }
 
-          async function postComment(accessToken, videoId, text) {
-            const body = JSON.stringify({
-              snippet: {
-                videoId,
-                topLevelComment: { snippet: { textOriginal: text } },
-              },
-            });
-
-            const res = await httpsRequest({
-              hostname: 'www.googleapis.com',
-              path:     '/youtube/v3/commentThreads?part=snippet',
-              method:   'POST',
-              headers:  {
-                'Authorization':  'Bearer ' + accessToken,
-                'Content-Type':   'application/json',
-                'Content-Length': Buffer.byteLength(body),
-              },
-            }, body);
-
-            if (res.status !== 200) throw new Error('Comment failed: HTTP ' + res.status);
-            return JSON.parse(res.body).id;
-          }
-
           (async () => {
             let uploaded = 0, failed = 0;
-            const results = [];
+            const results    = [];
+            const scheduled  = [];
 
             let accessToken;
             try {
@@ -1054,8 +1030,10 @@ jobs:
               process.exit(1);
             }
 
-            for (const day of uploadDays) {
+            for (let i = 0; i < uploadDays.length; i++) {
+              const day      = uploadDays[i];
               const filePath = path.join('out', day + '_final.mp4');
+
               if (!fs.existsSync(filePath)) {
                 console.log('SKIP: ' + day + ' -- video file not found');
                 continue;
@@ -1067,8 +1045,9 @@ jobs:
                 continue;
               }
 
-              const sizeMB = Math.round(fs.statSync(filePath).size / 1024 / 1024 * 10) / 10;
-              console.log('Uploading ' + day + ' (' + sizeMB + 'MB): ' + meta.youtubeTitle.slice(0, 60));
+              const publishAt = getPublishAt(i);
+              const sizeMB    = Math.round(fs.statSync(filePath).size / 1024 / 1024 * 10) / 10;
+              console.log('Uploading ' + day + ' (' + sizeMB + 'MB) scheduled for: ' + publishAt);
 
               try {
                 const tags = (meta.tiktokCaption.match(/#\w+/g) || [])
@@ -1078,21 +1057,22 @@ jobs:
                   title:       meta.youtubeTitle,
                   description: meta.youtubeDescription,
                   tags,
-                });
+                }, publishAt);
 
                 if (!videoId) throw new Error('No video ID returned');
-                console.log('Uploaded: ' + day + ' -> https://youtu.be/' + videoId);
+                console.log('Scheduled: ' + day + ' -> https://youtu.be/' + videoId + ' | publishes: ' + publishAt);
 
-                if (meta.pinnedComment && !meta.pinnedComment.startsWith('[UPDATE')) {
-                  try {
-                    await postComment(accessToken, videoId, meta.pinnedComment);
-                    console.log('Pinned comment posted: ' + day);
-                  } catch(e) {
-                    console.log('Pinned comment FAILED (non-fatal): ' + e.message);
-                  }
-                }
+                // Save for pin-comments.yml to pick up later
+                scheduled.push({
+                  day,
+                  videoId,
+                  url:          'https://youtu.be/' + videoId,
+                  publishAt,
+                  pinnedComment: meta.pinnedComment || '',
+                  commentPosted: false,
+                });
 
-                results.push({ day, videoId, url: 'https://youtu.be/' + videoId, status: 'ok' });
+                results.push({ day, videoId, url: 'https://youtu.be/' + videoId, status: 'ok', publishAt });
                 uploaded++;
               } catch(e) {
                 console.log('UPLOAD FAILED: ' + day + ': ' + e.message);
@@ -1103,14 +1083,31 @@ jobs:
 
             fs.writeFileSync('out/.upload_results.json', JSON.stringify(results, null, 2));
 
+            // ── Merge with any existing scheduled videos (from previous weeks) ──
+            let existing = [];
+            try { existing = JSON.parse(fs.readFileSync('scheduled-videos.json', 'utf8')); } catch(e) {}
+            const merged = [...existing.filter(v => !v.commentPosted), ...scheduled];
+            fs.writeFileSync('scheduled-videos.json', JSON.stringify(merged, null, 2));
+            console.log('Saved ' + scheduled.length + ' scheduled videos to scheduled-videos.json');
+
             console.log('\n--- YouTube Upload Summary ---');
             console.log('Uploaded: ' + uploaded + ' | Failed: ' + failed);
             for (const r of results) {
-              if (r.status === 'ok') console.log('  ' + r.day + ' -> ' + r.url);
+              if (r.status === 'ok') console.log('  ' + r.day + ' -> ' + r.url + ' | publishes: ' + r.publishAt);
               else console.log('  ' + r.day + ' -> FAILED: ' + r.error);
             }
           })();
           EOF
+
+      - name: Commit scheduled-videos.json to repo
+        if: success()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || true
+          git add scheduled-videos.json
+          git diff --staged --quiet || git commit -m "chore: update scheduled videos [skip ci]"
+          git push
 
       - name: Update README with latest render stats
         if: success()
@@ -1184,6 +1181,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add README.md
           git diff --staged --quiet || git commit -m "chore: update README after render [skip ci]"
+          git pull --rebase origin main || true
           git push
 
       - name: Upload all export artifacts
