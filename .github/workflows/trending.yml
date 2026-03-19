@@ -105,7 +105,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add trending-sounds.json
+          git add -f trending-sounds.json
           git diff --staged --quiet || git commit -m "chore: update trending TikTok sounds [skip ci]"
           git push
 
