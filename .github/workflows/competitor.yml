@@ -113,17 +113,17 @@ jobs:
           async function analyzeWithGroq(videos) {
             if (!GROQ_KEY || videos.length === 0) return null;
             try {
-              const videoList = videos.map(v => `- [${v.channel}] "${v.title}"`).join('\n');
-              const prompt = `You are a finance content strategist. Analyze these recent videos from top finance creators and identify:
-1. Top 3 trending topics this week
-2. Top 3 content gaps (topics they haven't covered that would perform well)
-3. One specific video angle for @DailyWealthBuilding to create next week
-
-Recent competitor videos:
-${videoList}
-
-Respond in JSON only:
-{"trends":["topic1","topic2","topic3"],"gaps":["gap1","gap2","gap3"],"recommendation":"specific video angle for next week"}`;
+              const videoList = videos.map(function(v) {
+                return '- [' + v.channel + '] "' + v.title + '"';
+              }).join('\n');
+              const prompt = 'You are a finance content strategist. Analyze these recent videos from top finance creators and identify:\n'
+                + '1. Top 3 trending topics this week\n'
+                + '2. Top 3 content gaps (topics they have not covered that would perform well)\n'
+                + '3. One specific video angle for @DailyWealthBuilding to create next week\n\n'
+                + 'Recent competitor videos:\n'
+                + videoList + '\n\n'
+                + 'Respond in JSON only:\n'
+                + '{"trends":["topic1","topic2","topic3"],"gaps":["gap1","gap2","gap3"],"recommendation":"specific video angle for next week"}';
 
               const body = JSON.stringify({
                 model:       'llama-3.1-70b-versatile',
