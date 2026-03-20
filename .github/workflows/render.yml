@@ -736,7 +736,7 @@ jobs:
           })();
           EOF
 
-
+      - name: Download background videos (Smart Multi-Source Scorer)
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
@@ -1223,14 +1223,14 @@ jobs:
                          : o.position === 'bottom-center' ? 'h-th-80'
                          : '(h-th)/2';
 
-              return `drawtext=text='${text}':fontsize=28:fontcolor=white:borderw=2:bordercolor=black:x=(w-tw)/2:y=${yPos}:enable='between(t,${startSec},${endSec})'`;
+              return 'drawtext=text=\'' + text + '\':fontsize=28:fontcolor=white:borderw=2:bordercolor=black:x=(w-tw)/2:y=' + yPos + ':enable=\'between(t,' + startSec + ',' + endSec + ')\'';
             }).filter(Boolean).join(',');
 
             if (!filters) { skipped++; continue; }
 
             try {
               execSync(
-                `ffmpeg -i "${inFile}" -vf "${filters}" -c:a copy -c:v libx264 -crf 20 -preset fast "${tmpFile}" -y -loglevel error`,
+                'ffmpeg -i "' + inFile + '" -vf "' + filters + '" -c:a copy -c:v libx264 -crf 20 -preset fast "' + tmpFile + '" -y -loglevel error',
                 { stdio: 'pipe', timeout: 120000 }
               );
               if (fs.existsSync(tmpFile) && fs.statSync(tmpFile).size > 100000) {
