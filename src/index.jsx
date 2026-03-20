@@ -3,9 +3,9 @@
 //
 // v4.1 fix:
 //   • Replaced safeRequire(variable) with inline try/catch string literals
-//   • Webpack requires static string paths to resolve modules at bundle time
+//   • Webpack requires STATIC string paths to resolve modules at bundle time
 //   • safeRequire(variable) caused webpack to silently skip all week files
-//   • Each week file now loaded with a direct require('./weekN-content.js')
+//   • Each week now loaded with a direct require('./weekN-content.js')
 //   • Missing files still return [] safely — behavior unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -13,7 +13,7 @@ import { registerRoot, Composition } from 'remotion';
 import { VideoComposition } from './compositions/VideoComposition.jsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Week file loaders — each uses a static string literal so webpack can
+// Week file loaders — each uses a STATIC string literal so webpack can
 // resolve them at bundle time. Missing files return [] safely.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -59,6 +59,7 @@ try {
     : (Object.values(m).find(v => Array.isArray(v)) || []);
 } catch(e) {}
 
+// weeks11-13 exports multiple named arrays — load all three safely
 let week11Videos = [];
 try { week11Videos = require('./weeks11-13-content.js').week11Videos || []; } catch(e) {}
 
@@ -90,7 +91,7 @@ function validateEntry(entry) {
   const required = ['id', 'filename', 'music', 'overlays', 'pexelsSearchTerms'];
   const missing = required.filter(f => !entry[f]);
   if (missing.length > 0) {
-    console.warn(`[DWB] ${entry.id || 'UNKNOWN'} missing: ${missing.join(', ')}`);
+    console.warn('[DWB] ' + (entry.id || 'UNKNOWN') + ' missing: ' + missing.join(', '));
   }
   return missing;
 }
@@ -101,7 +102,7 @@ function validateEntry(entry) {
 export const RemotionRoot = () => {
   const valid = ALL_CONTENT.filter(entry => validateEntry(entry).length === 0);
 
-  console.log(`[DWB v4.1] ${valid.length} compositions loaded | ${valid[0]?.id} → ${valid[valid.length - 1]?.id}`);
+  console.log('[DWB v4.1] ' + valid.length + ' compositions loaded | ' + valid[0]?.id + ' -> ' + valid[valid.length - 1]?.id);
 
   return (
     <>
