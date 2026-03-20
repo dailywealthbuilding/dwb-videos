@@ -589,20 +589,21 @@ jobs:
           console.log('Scoring ' + hooks.length + ' hooks via Groq API (free)...');
 
           // ── Build prompt ──
-          const prompt = `You are an expert short-form finance video strategist. Score each hook below on a scale of 1-10 for viral potential on TikTok and YouTube Shorts.
+          const hookLines = hooks.map(function(h, i) {
+            return (i+1) + '. [' + h.id + '] Hook: "' + h.hook + '" | Topic: "' + h.topic + '"';
+          }).join('\n');
 
-Scoring criteria:
-- Pattern interrupt strength (does it stop scrolling?)
-- Clarity (readable in under 2 seconds?)
-- Emotional trigger (fear, curiosity, identity, surprise?)
-- Specificity (concrete vs vague?)
-- TikTok compliance (no false claims, no income promises?)
-
-Hooks to score:
-${hooks.map((h, i) => `${i+1}. [${h.id}] Hook: "${h.hook}" | Topic: "${h.topic}"`).join('\n')}
-
-Respond ONLY with valid JSON, no markdown, no explanation:
-{"scores":[{"id":"day36","score":8,"strength":"brief strength","weakness":"brief weakness","suggestion":"improved hook text"}],"avgScore":7.5,"weakest":"day37","strongest":"day36","readyToRender":true,"summary":"one line summary"}`;
+          const prompt = 'You are an expert short-form finance video strategist. Score each hook below on a scale of 1-10 for viral potential on TikTok and YouTube Shorts.\n\n'
+            + 'Scoring criteria:\n'
+            + '- Pattern interrupt strength (does it stop scrolling?)\n'
+            + '- Clarity (readable in under 2 seconds?)\n'
+            + '- Emotional trigger (fear, curiosity, identity, surprise?)\n'
+            + '- Specificity (concrete vs vague?)\n'
+            + '- TikTok compliance (no false claims, no income promises?)\n\n'
+            + 'Hooks to score:\n'
+            + hookLines + '\n\n'
+            + 'Respond ONLY with valid JSON, no markdown, no explanation:\n'
+            + '{"scores":[{"id":"day36","score":8,"strength":"brief strength","weakness":"brief weakness","suggestion":"improved hook text"}],"avgScore":7.5,"weakest":"day37","strongest":"day36","readyToRender":true,"summary":"one line summary"}';
 
           // ── Call Groq API ──
           function callGroq(prompt) {
