@@ -13,7 +13,7 @@ on:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360
     steps:
 
       - name: Checkout repo
@@ -609,7 +609,7 @@ jobs:
           function callGroq(prompt) {
             return new Promise((resolve, reject) => {
               const body = JSON.stringify({
-                model:       'llama-3.1-70b-versatile',
+                model:       'llama-3.3-70b-versatile',
                 max_tokens:  1000,
                 temperature: 0.3,
                 messages:    [{ role: 'user', content: prompt }],
@@ -1013,7 +1013,7 @@ jobs:
           // ─────────────────────────────────────────────────────────────────────
           (async () => {
             let downloaded = 0, skipped = 0, failed = 0, kenBurns = 0;
-            const sourceStats = { Pixabay: 0, Pexels: 0, Coverr: 0, Mixkit: 0, KenBurns: 0 };
+            const sourceStats = { Pixabay: 0, Pexels: 0, KenBurns: 0 };
 
             for (const [day, assets] of Object.entries(DAY_ASSETS)) {
               for (const item of assets) {
@@ -1031,24 +1031,21 @@ jobs:
                   console.log('RE-DL (corrupt): ' + item.id);
                 }
 
-                console.log('\n[' + item.id + '] Querying all sources for: "' + item.q + '"');
+                console.log('\n[' + item.id + '] Querying sources for: "' + item.q + '"');
 
-                // ── Fetch all 4 sources in parallel ──
-                const [pixabayClips, pexelsClips, coverrClips, mixkitClips] = await Promise.all([
+                // ── Fetch Pixabay + Pexels in parallel (Coverr/Mixkit APIs are dead) ──
+                const [pixabayClips, pexelsClips] = await Promise.all([
                   fetchPixabay(item.q),
                   fetchPexels(item.q),
-                  fetchCoverr(item.q),
-                  fetchMixkit(item.q),
                 ]);
 
                 // ── Score all candidates ──
-                const allClips = [...pixabayClips, ...pexelsClips, ...coverrClips, ...mixkitClips];
+                const allClips = [...pixabayClips, ...pexelsClips];
                 allClips.forEach(c => { c.score = scoreClip(c); });
                 allClips.sort((a, b) => b.score - a.score);
 
                 console.log('Candidates: ' + allClips.length + ' total — '
-                  + 'Pixabay:' + pixabayClips.length + ' Pexels:' + pexelsClips.length
-                  + ' Coverr:' + coverrClips.length + ' Mixkit:' + mixkitClips.length);
+                  + 'Pixabay:' + pixabayClips.length + ' Pexels:' + pexelsClips.length);
 
                 if (allClips.length > 0) {
                   console.log('Top scorer: ' + allClips[0].source
@@ -1091,9 +1088,7 @@ jobs:
 
             console.log('\n--- Smart Video Download Summary ---');
             console.log('Total: ' + downloaded + ' downloaded | ' + skipped + ' cached | ' + kenBurns + ' Ken Burns | ' + failed + ' failed');
-            console.log('Sources: Pixabay=' + sourceStats.Pixabay + ' Pexels=' + sourceStats.Pexels
-              + ' Coverr=' + sourceStats.Coverr + ' Mixkit=' + sourceStats.Mixkit
-              + ' KenBurns=' + sourceStats.KenBurns);
+            console.log('Sources: Pixabay=' + sourceStats.Pixabay + ' Pexels=' + sourceStats.Pexels + ' KenBurns=' + sourceStats.KenBurns);
             if (failed > 0) console.log('WARNING: ' + failed + ' clip(s) failed. Render may have blank backgrounds.');
           })();
           EOF
