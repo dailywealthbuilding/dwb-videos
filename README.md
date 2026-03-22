@@ -2,20 +2,20 @@
 
 @DailyWealthBuilding | 90-Day Public Affiliate Challenge
 
-![Last Render](https://img.shields.io/badge/Last%20Render-2026-03-19-gold) ![Week](https://img.shields.io/badge/Week-week6-blue) ![Days](https://img.shields.io/badge/Days-36--42-green) ![Videos](https://img.shields.io/badge/Videos-1%2F7-orange)
+![Last Render](https://img.shields.io/badge/Last%20Render-2026-03-22-gold) ![Week](https://img.shields.io/badge/Week-week6-blue) ![Days](https://img.shields.io/badge/Days-36--42-green) ![Videos](https://img.shields.io/badge/Videos-1%2F7-orange)
 
-## Latest Render -- 2026-03-19
+## Latest Render -- 2026-03-22
 
 | Field | Value |
 |---|---|
 | Week | week6 |
 | Days | day36, day37, day38, day39, day40, day41, day42 |
 | Rendered | 1 / 7 |
-| Run | [#89](https://github.com/dailywealthbuilding/dwb-videos/actions/runs/23278283116) |
+| Run | [#107](https://github.com/dailywealthbuilding/dwb-videos/actions/runs/23407376702) |
 
 ## YouTube Links
 
-- [day36](https://youtu.be/Gh5FscSaipM)
+- [day37](https://youtu.be/7a6WntMCG28)
 
 ## Pipeline
 
@@ -28,4 +28,4 @@
 - Push notifications via ntfy
 
 ---
-_Auto-updated by GitHub Actions on 2026-03-19_
+_Auto-updated by GitHub Actions on 2026-03-22_
