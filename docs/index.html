@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="3600">
+<title>DWB -- 90 Day Challenge Live Scoreboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Syne:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#020304;color:#e8edf2;font-family:Syne,sans-serif;min-height:100vh;padding:24px 16px 48px}
+body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(240,180,41,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(240,180,41,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+.container{max-width:700px;margin:0 auto;position:relative;z-index:1}
+.header{text-align:center;margin-bottom:32px;padding:32px 24px;background:linear-gradient(135deg,#050a0f,#040710);border:1px solid #1e2d3d;border-radius:16px}
+.day-badge{font-family:Space Mono,monospace;font-size:11px;letter-spacing:5px;color:#f0b429;text-transform:uppercase;margin-bottom:8px}
+.title{font-family:Bebas Neue,sans-serif;font-size:clamp(36px,8vw,64px);letter-spacing:3px;line-height:0.95;margin-bottom:8px}
+.g{color:#f0b429}.w{color:#e8edf2}.b{color:#4cc9f0}
+.subtitle{font-family:Space Mono,monospace;font-size:10px;color:#7a8fa0;letter-spacing:3px}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+@media(min-width:500px){.cards{grid-template-columns:repeat(4,1fr)}}
+.card{background:#0c1014;border:1px solid #1e2d3d;border-radius:12px;padding:16px;text-align:center}
+.card-num{font-family:Bebas Neue,sans-serif;font-size:36px;letter-spacing:2px;color:#f0b429;line-height:1}
+.card-label{font-family:Space Mono,monospace;font-size:9px;color:#7a8fa0;letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+.progress-section{background:#0c1014;border:1px solid #1e2d3d;border-radius:12px;padding:20px;margin-bottom:12px}
+.prog-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.prog-title{font-family:Space Mono,monospace;font-size:10px;color:#7a8fa0;letter-spacing:2px;text-transform:uppercase}
+.prog-val{font-family:Bebas Neue,sans-serif;font-size:22px;color:#f0b429;letter-spacing:2px}
+.bar{height:8px;background:#1e2d3d;border-radius:100px;overflow:hidden;margin-bottom:6px}
+.bar-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,#d4941a,#ffd166)}
+.bar-fill.blue{background:linear-gradient(90deg,#1a6fd4,#4cc9f0)}
+.prog-sub{font-family:Space Mono,monospace;font-size:9px;color:#3a4f60}
+.chart{background:#0c1014;border:1px solid #1e2d3d;border-radius:12px;padding:20px;margin-bottom:12px}
+.chart-title{font-family:Space Mono,monospace;font-size:10px;color:#7a8fa0;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px}
+.bars{display:flex;align-items:flex-end;gap:6px;height:80px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bar-v{width:100%;background:#f0b429;border-radius:4px 4px 0 0;min-height:2px}
+.bar-label{font-family:Space Mono,monospace;font-size:7px;color:#3a4f60;text-align:center}
+.milestone{background:#0c1014;border:1px solid #1e2d3d;border-radius:12px;padding:16px;margin-bottom:12px}
+.ms-title{font-family:Space Mono,monospace;font-size:10px;color:#7a8fa0;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+.ms-list{display:flex;flex-wrap:wrap;gap:6px}
+.ms-item{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-family:Space Mono,monospace;font-size:10px;font-weight:700}
+.ms-done{background:rgba(6,214,160,0.12);color:#06d6a0;border:1px solid rgba(6,214,160,0.25)}
+.ms-next{background:rgba(240,180,41,0.15);color:#f0b429;border:1px solid rgba(240,180,41,0.3)}
+.ms-future{background:#111820;color:#3a4f60;border:1px solid #1e2d3d}
+.footer{text-align:center;font-family:Space Mono,monospace;font-size:9px;color:#3a4f60;margin-top:20px;letter-spacing:2px}
+.live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#06d6a0;margin-right:4px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<div class="day-badge">Live -- Updated 2026-03-22</div>
+<div class="title"><div class="g">DAY 40</div><div class="w">OF</div><div class="b">90</div></div>
+<div class="subtitle">@DailyWealthBuilding -- 90-Day Public Challenge</div>
+</div>
+<div class="cards">
+<div class="card"><div class="card-num">40</div><div class="card-label">Day / 90</div></div>
+<div class="card"><div class="card-num">4</div><div class="card-label">Subscribers</div></div>
+<div class="card"><div class="card-num">4.5K</div><div class="card-label">Total Views</div></div>
+<div class="card"><div class="card-num">39</div><div class="card-label">Videos Live</div></div>
+</div>
+<div class="progress-section">
+<div class="prog-header"><div class="prog-title">Challenge Progress</div><div class="prog-val">44%</div></div>
+<div class="bar"><div class="bar-fill" style="width:44%"></div></div>
+<div class="prog-sub">50 days remaining</div>
+</div>
+<div class="progress-section">
+<div class="prog-header"><div class="prog-title">Next Milestone: 50 subs</div><div class="prog-val">8%</div></div>
+<div class="bar"><div class="bar-fill blue" style="width:8%"></div></div>
+<div class="prog-sub">46 subscribers to go</div>
+</div>
+
+<div class="milestone"><div class="ms-title">Subscriber Milestones</div><div class="ms-list"><div class="ms-item ms-next">next 50</div><div class="ms-item ms-future">100</div><div class="ms-item ms-future">250</div><div class="ms-item ms-future">500</div><div class="ms-item ms-future">1,000</div><div class="ms-item ms-future">2,500</div><div class="ms-item ms-future">5,000</div><div class="ms-item ms-future">10,000</div><div class="ms-item ms-future">25,000</div><div class="ms-item ms-future">50,000</div><div class="ms-item ms-future">100,000</div></div></div>
+<div class="footer"><span class="live-dot"></span>Auto-updates daily -- @DailyWealthBuilding -- 90-Day Public Challenge</div>
+</div>
+</body>
+</html>
