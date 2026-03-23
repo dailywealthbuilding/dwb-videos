@@ -35,45 +35,11 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-
-          const CLIENT_ID     = process.env.YOUTUBE_CLIENT_ID;
-          const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
-          const REFRESH_TOKEN = process.env.YOUTUBE_REFRESH_TOKEN;
-          const NTFY          = process.env.NTFY_TOPIC;
-
-          if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
-            console.log('YouTube secrets not configured -- skipping.');
-            process.exit(0);
-          }
-
-          // ── Load scheduled videos ──
-          let scheduled = [];
-          try {
-            scheduled = JSON.parse(fs.readFileSync('scheduled-videos.json', 'utf8'));
-          } catch(e) {
-            console.log('No scheduled-videos.json found -- nothing to process.');
-            process.exit(0);
-          }
-
-          const now = new Date();
-          const pending = scheduled.filter(v => {
+          node  {
             if (v.commentPosted) return false;
             if (!v.publishAt)    return false;
             // Only process videos that should have gone public by now
-            return new Date(v.publishAt) <= now;
-          });
-
-          console.log('Videos pending pinned comment: ' + pending.length);
-          if (pending.length === 0) {
-            console.log('Nothing to do today.');
-            process.exit(0);
-          }
-
-          function httpsRequest(options, body) {
-            return new Promise((resolve, reject) => {
+            return new Date(v.publishAt)  {
               const req = https.request(options, res => {
                 let data = '';
                 res.on('data', d => data += d);
