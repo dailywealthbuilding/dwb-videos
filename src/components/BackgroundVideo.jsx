@@ -187,11 +187,7 @@ const FlashTransition = ({ clipIndex, flashColor, duration }) => {
   const flashOpacity = interpolate(frame, [0, duration], [1, 0],
     { extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
   return (
-    <div style={{
-      position: 'absolute', inset: 0,
-      background: `rgba(255,255,255,${flashOpacity * 0.5})`,
-      zIndex: 5, pointerEvents: 'none',
-    }} />
+    
   );
 };
 
@@ -206,12 +202,7 @@ const HookBurst = ({ active }) => {
   const burstScale = interpolate(s, [0, 1], [1.12, 1.0]);
   const burstOpacity = interpolate(frame, [0, 3, 14], [0.7, 0, 0], { extrapolateRight: 'clamp' });
   return (
-    <div style={{
-      position: 'absolute', inset: 0,
-      transform: `scale(${burstScale})`,
-      zIndex: 4, pointerEvents: 'none',
-      background: `rgba(255,255,255,${burstOpacity})`,
-    }} />
+    
   );
 };
 
@@ -272,30 +263,17 @@ const BackgroundClip = ({ src, clipIndex, startFrame, clipDuration, profile, isF
   );
 
   return (
-    <Sequence from={startFrame} durationInFrames={clipDuration}>
-      <div style={{
-        position: 'absolute', inset: 0, opacity,
-        transform: `scale(${zoom}) translateX(${panX}px) translateY(${panY}px) rotate(${rotation}deg)`,
-        transformOrigin: 'center center',
-        willChange: 'transform',
-      }}>
-        <OffthreadVideo
-          src={src}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          muted
-        />
-      </div>
+    
+      
+        
+      
 
       {/* Flash at clip entry */}
-      <FlashTransition
-        clipIndex={clipIndex}
-        flashColor={profile.flash}
-        duration={profile.xfade}
-      />
+      
 
       {/* Hook burst on very first clip only */}
-      {isFirst && profile.hookBurst && <HookBurst active={true} />}
-    </Sequence>
+      {isFirst && profile.hookBurst && }
+    
   );
 };
 
@@ -306,17 +284,7 @@ const BackgroundClip = ({ src, clipIndex, startFrame, clipDuration, profile, isF
 const AmbientPulse = () => {
   const frame = useCurrentFrame();
   const pulseFrames = [120, 240, 360, 480, 600, 720];
-  const nearestPulse = pulseFrames.find(p => frame >= p && frame < p + 20);
-  if (!nearestPulse) return null;
-  const pulseFrame = frame - nearestPulse;
-  const brightness = interpolate(pulseFrame, [0, 5, 20], [1.0, 1.04, 1.0],
-    { extrapolateRight: 'clamp' });
-  if (brightness === 1.0) return null;
-  return (
-    <div style={{
-      position: 'absolute', inset: 0, zIndex: 3, pointerEvents: 'none',
-      background: `rgba(255,255,255,${(brightness - 1.0) * 0.35})`,
-    }} />
+  const nearestPulse = pulseFrames.find(p => frame >= p && frame 
   );
 };
 
@@ -332,12 +300,7 @@ const OutroFade = () => {
     [0, 1],
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
   );
-  if (fadeOpacity <= 0) return null;
-  return (
-    <div style={{
-      position: 'absolute', inset: 0, background: '#000000',
-      opacity: fadeOpacity, zIndex: 6, pointerEvents: 'none',
-    }} />
+  if (fadeOpacity 
   );
 };
 
@@ -366,26 +329,18 @@ export const BackgroundVideo = ({ videoId }) => {
   });
 
   return (
-    <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
+    
 
       {schedule.map(({ src, clipIndex, startFrame, dur }, i) => (
-        <BackgroundClip
-          key={i}
-          src={src}
-          clipIndex={clipIndex}
-          startFrame={startFrame}
-          clipDuration={dur}
-          profile={profile}
-          isFirst={i === 0}
-        />
+        
       ))}
 
       {/* Ambient brightness pulses — keeps long text holds alive */}
-      <AmbientPulse />
+      
 
       {/* Clean black fade at very end */}
-      <OutroFade />
+      
 
-    </div>
+    
   );
 };
