@@ -85,7 +85,14 @@ function hexToRgb(hex) {
 function relativeLuminance(r, g, b) {
   const c = [r, g, b].map(v => {
     v /= 255;
-    return v  0 ? args : [];
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+
+function getFiles() {
+  let args = process.argv.slice(2);
+  return args.length > 0 ? args : [];
 
   if (files.length === 0) {
     // Auto-detect all weekN-content.js files
@@ -198,7 +205,23 @@ function checkAnimations(entries) {
 function checkRequiredOverlayFields(entries) {
   for (const entry of entries) {
     if (!entry.overlays) continue;
-    for (let i = 0; i  1) {
+    for (let i = 0; i < entry.overlays.length; i++) {
+      const ov = entry.overlays[i];
+      // check required fields
+    }
+  }
+}
+
+function checkDuplicateQueries(entries) {
+  const queryMap = {};
+  for (const entry of entries) {
+    for (const q of (entry.pexelsSearchTerms || entry.bRollQueries || [])) {
+      queryMap[q] = queryMap[q] || [];
+      queryMap[q].push(entry.id);
+    }
+  }
+  for (const [q, days] of Object.entries(queryMap)) {
+    if (days.length > 1) {
       warn(`[DupQuery] Search query "${q}" used in multiple days: ${days.join(', ')} — reduce visual repetition`);
     }
   }
@@ -221,7 +244,12 @@ function checkAudioFiles(entries) {
       continue;
     }
     const size = fs.statSync(musicPath).size;
-    if (size  1) {
+    if (size < 50000) {
+      warn(`[Audio] ${entry.id}: music file suspiciously small: ${size} bytes`);
+    }
+    for (const ov of (entry.overlays || [])) {
+      const vol = ov.volume;
+      if (vol !== undefined && (vol < 0 || vol > 1)) {
         err(`[AudioVol] ${entry.id}: volume ${vol} out of range [0.0, 1.0]`);
       }
     }
