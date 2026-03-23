@@ -354,7 +354,12 @@ export const TextOverlay = ({ overlay }) => {
   // ── HEARTBEAT ──
   if (overlay.animation === "heartbeat") {
     const beatFrame = frame % 45;
-    scale = beatFrame  0.05
+    scale = beatFrame < 8
+      ? interpolate(beatFrame, [0, 4, 8], [1, 1.06, 1], { extrapolateRight: "clamp" })
+      : 1;
+  }
+  // ── RGB SPLIT (glitch overlay effect) ──
+  const rgbSplit = glitchRGBOffset > 0.05
     ? Math.round(glitchRGBOffset * 6) + "px 0 rgba(255,0,60,0.85), " + (-Math.round(glitchRGBOffset * 6)) + "px 0 rgba(0,255,220,0.85), "
     : "";
   const computedTextShadow = rgbSplit + shadowBase;
