@@ -35,19 +35,7 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-
-          const CLIENT_ID     = process.env.YOUTUBE_CLIENT_ID;
-          const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
-          const REFRESH_TOKEN = process.env.YOUTUBE_REFRESH_TOKEN;
-          const NTFY          = process.env.NTFY_TOPIC;
-
-          const MILESTONES = [50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
-
-          function httpsRequest(options, body) {
-            return new Promise((resolve, reject) => {
+          node  {
               const req = https.request(options, res => {
                 let data = '';
                 res.on('data', d => data += d);
@@ -135,36 +123,35 @@ jobs:
             var chartBars = '';
             chartData.forEach(function(d) {
               var h = Math.round((d.views / maxViews) * 76);
-              chartBars += '<div class="bar-col"><div class="bar-v" style="height:' + h + 'px"></div><div class="bar-label">' + d.week + '</div></div>';
+              chartBars += '' + d.week + '';
             });
 
             var chartSection = '';
             if (chartData.length > 0) {
-              chartSection = '<div class="chart"><div class="chart-title">Weekly Views</div><div class="bars">' + chartBars + '</div></div>';
+              chartSection = 'Weekly Views' + chartBars + '';
             }
 
             var milestoneItems = '';
             MILESTONES.forEach(function(m) {
-              if (m <= stats.subs) {
-                milestoneItems += '<div class="ms-item ms-done">checkmark ' + m.toLocaleString() + '</div>';
+              if (m checkmark ' + m.toLocaleString() + '';
               } else if (m === nextMs) {
-                milestoneItems += '<div class="ms-item ms-next">next ' + m.toLocaleString() + '</div>';
+                milestoneItems += 'next ' + m.toLocaleString() + '';
               } else {
-                milestoneItems += '<div class="ms-item ms-future">' + m.toLocaleString() + '</div>';
+                milestoneItems += '' + m.toLocaleString() + '';
               }
             });
 
             var subsRemaining = (nextMs - stats.subs).toLocaleString();
             var viewsK = (stats.views / 1000).toFixed(1);
 
-            return '<!DOCTYPE html>\n'
-              + '<html lang="en">\n<head>\n'
-              + '<meta charset="UTF-8">\n'
-              + '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
-              + '<meta http-equiv="refresh" content="3600">\n'
-              + '<title>DWB -- 90 Day Challenge Live Scoreboard</title>\n'
-              + '<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Syne:wght@400;700&display=swap" rel="stylesheet">\n'
-              + '<style>\n'
+            return '\n'
+              + '\n\n'
+              + '\n'
+              + '\n'
+              + '\n'
+              + 'DWB -- 90 Day Challenge Live Scoreboard\n'
+              + '\n'
+              + '\n'
               + '*{box-sizing:border-box;margin:0;padding:0}\n'
               + 'body{background:#020304;color:#e8edf2;font-family:Syne,sans-serif;min-height:100vh;padding:24px 16px 48px}\n'
               + 'body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(240,180,41,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(240,180,41,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}\n'
@@ -203,33 +190,33 @@ jobs:
               + '.footer{text-align:center;font-family:Space Mono,monospace;font-size:9px;color:#3a4f60;margin-top:20px;letter-spacing:2px}\n'
               + '.live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#06d6a0;margin-right:4px;animation:pulse 2s infinite}\n'
               + '@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}\n'
-              + '</style>\n</head>\n<body>\n'
-              + '<div class="container">\n'
-              + '<div class="header">\n'
-              + '<div class="day-badge">Live -- Updated ' + today + '</div>\n'
-              + '<div class="title"><div class="g">DAY ' + day + '</div><div class="w">OF</div><div class="b">90</div></div>\n'
-              + '<div class="subtitle">@DailyWealthBuilding -- 90-Day Public Challenge</div>\n'
-              + '</div>\n'
-              + '<div class="cards">\n'
-              + '<div class="card"><div class="card-num">' + day + '</div><div class="card-label">Day / 90</div></div>\n'
-              + '<div class="card"><div class="card-num">' + stats.subs.toLocaleString() + '</div><div class="card-label">Subscribers</div></div>\n'
-              + '<div class="card"><div class="card-num">' + viewsK + 'K</div><div class="card-label">Total Views</div></div>\n'
-              + '<div class="card"><div class="card-num">' + stats.videos + '</div><div class="card-label">Videos Live</div></div>\n'
-              + '</div>\n'
-              + '<div class="progress-section">\n'
-              + '<div class="prog-header"><div class="prog-title">Challenge Progress</div><div class="prog-val">' + pct + '%</div></div>\n'
-              + '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>\n'
-              + '<div class="prog-sub">' + (90 - day) + ' days remaining</div>\n'
-              + '</div>\n'
-              + '<div class="progress-section">\n'
-              + '<div class="prog-header"><div class="prog-title">Next Milestone: ' + nextMs.toLocaleString() + ' subs</div><div class="prog-val">' + msProgress + '%</div></div>\n'
-              + '<div class="bar"><div class="bar-fill blue" style="width:' + msProgress + '%"></div></div>\n'
-              + '<div class="prog-sub">' + subsRemaining + ' subscribers to go</div>\n'
-              + '</div>\n'
+              + '\n\n\n'
+              + '\n'
+              + '\n'
+              + 'Live -- Updated ' + today + '\n'
+              + 'DAY ' + day + 'OF90\n'
+              + '@DailyWealthBuilding -- 90-Day Public Challenge\n'
+              + '\n'
+              + '\n'
+              + '' + day + 'Day / 90\n'
+              + '' + stats.subs.toLocaleString() + 'Subscribers\n'
+              + '' + viewsK + 'KTotal Views\n'
+              + '' + stats.videos + 'Videos Live\n'
+              + '\n'
+              + '\n'
+              + 'Challenge Progress' + pct + '%\n'
+              + '\n'
+              + '' + (90 - day) + ' days remaining\n'
+              + '\n'
+              + '\n'
+              + 'Next Milestone: ' + nextMs.toLocaleString() + ' subs' + msProgress + '%\n'
+              + '\n'
+              + '' + subsRemaining + ' subscribers to go\n'
+              + '\n'
               + chartSection + '\n'
-              + '<div class="milestone"><div class="ms-title">Subscriber Milestones</div><div class="ms-list">' + milestoneItems + '</div></div>\n'
-              + '<div class="footer"><span class="live-dot"></span>Auto-updates daily -- @DailyWealthBuilding -- 90-Day Public Challenge</div>\n'
-              + '</div>\n</body>\n</html>';
+              + 'Subscriber Milestones' + milestoneItems + '\n'
+              + 'Auto-updates daily -- @DailyWealthBuilding -- 90-Day Public Challenge\n'
+              + '\n\n';
           }
 
           (async () => {
