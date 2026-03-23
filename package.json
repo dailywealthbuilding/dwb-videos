@@ -1,23 +1,25 @@
 {
   "name": "dwb-videos",
   "version": "1.0.0",
-  "description": "@DailyWealthBuilding 90-Day Automated Video Pipeline",
+  "description": "@DailyWealthBuilding — 90-Day Faceless Finance Channel Pipeline",
   "scripts": {
-    "start": "npx remotion studio",
-    "render": "npx remotion render src/index.jsx",
+    "start": "npx remotion preview src/index.jsx",
+    "build": "npx remotion render src/index.jsx",
     "validate": "node validate.js"
   },
   "dependencies": {
+    "@remotion/bundler": "4.0.220",
     "@remotion/cli": "4.0.220",
+    "@remotion/compositor-linux-x64-gnu": "4.0.220",
+    "@remotion/google-fonts": "4.0.220",
     "@remotion/media-utils": "4.0.220",
+    "@remotion/player": "4.0.220",
+    "@remotion/renderer": "4.0.220",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "remotion": "4.0.220"
   },
-  "devDependencies": {
-    "@sparticuz/chromium": "^121.0.0",
-    "axios": "^1.6.0",
-    "puppeteer-core": "^21.0.0"
-  },
-  "engines": {
-    "node": ">=18"
+  "remotion": {
+    "entryPoint": "src/index.jsx"
   }
 }
