@@ -37,10 +37,20 @@ const FireParticles = ({ opacity = 1 }) => {
   const COUNT = 22;
   const particles = [];
 
-  for (let i = 0; i  0.5 ? '#FF6600' : '#FFD700';
+  for (let i = 0; i < COUNT; i++) {
+    const seed    = i * 137.5;
+    const angle   = (seed % 360) * Math.PI / 180;
+    const speed   = 0.8 + (i % 5) * 0.15;
+    const size    = 6 + (i % 4) * 3;
+    const delay   = (i % 8) * 4;
+    const localF  = Math.max(0, frame - delay);
+    const x       = 50 + Math.cos(angle) * speed * localF * 0.5;
+    const y       = 50 + Math.sin(angle) * speed * localF * 0.5 - localF * localF * 0.008;
+    const opacity = interpolate(localF, [0, 8, 60, 80], [0, 1, 1, 0], { extrapolateRight: 'clamp' });
+    const color   = Math.random() > 0.5 ? '#FF6600' : '#FFD700';
 
     particles.push(
-       7 ? 1.5 : 0.5}px)`,
+       ${size > 7 ? 1.5 : 0.5}px)`,
         transform: `rotate(${Math.sin((frame + seed) * 0.08) * 12}deg)`,
         pointerEvents: 'none',
       }} />
@@ -106,17 +116,30 @@ const ConfettiParticles = ({ opacity = 1, burstFrame = 0 }) => {
   const COUNT = 30;
   const DURATION = 90;
 
-  if (localFrame  DURATION + 30) return null;
+  if (localFrame < 0 || localFrame > DURATION + 30) return null;
 
   const particles = [];
 
-  for (let i = 0; i  0.5;
+  for (let i = 0; i < COUNT; i++) {
+    const angle  = (i / COUNT) * Math.PI * 2;
+    const speed  = 0.5 + (i % 3) * 0.3;
+    const flip   = Math.random() > 0.5;
 
     const progress = Math.min(localFrame / DURATION, 1);
     const gravity = progress * progress * 80;
     const x = 50 + Math.cos(angle) * speed * progress * 35;
     const y = 40 + Math.sin(angle) * speed * progress * 35 + gravity;
-    const pOpacity = localFrame 
+    const pOpacity = interpolate(localFrame, [0, 6, DURATION - 10, DURATION], [0, 1, 1, 0], { extrapolateRight: 'clamp' });
+    particles.push(
+      <div key={i} style={{
+        position: 'absolute',
+        left: x + '%', top: y + '%',
+        width: size + 'px', height: size + 'px',
+        background: flip ? '#E8A920' : '#FFFFFF',
+        borderRadius: '50%',
+        opacity: pOpacity,
+        pointerEvents: 'none',
+      }} />
     );
   }
 
