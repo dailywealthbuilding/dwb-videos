@@ -11,6 +11,11 @@ const FONT_MAP = {
   Oswald:     "'Oswald', sans-serif",
   Mono:       "'JetBrains Mono', monospace",
   Playfair:   "'Playfair Display', serif",
+  // NEW — premium display fonts
+  Archivo:    "'Archivo Black', sans-serif",
+  Barlow:     "'Barlow Condensed', sans-serif",
+  Grotesk:    "'Space Grotesk', sans-serif",
+  Impact:     "'Impact', 'Anton', sans-serif",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,35 +47,8 @@ function ensureVisibleColor(color) {
     const r = parseInt(full.substring(0, 2), 16);
     const g = parseInt(full.substring(2, 4), 16);
     const b = parseInt(full.substring(4, 6), 16);
-    if ((0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.25) return "#FFFFFF";
-    return c;
-  }
-  if (c.startsWith("rgb")) {
-    const nums = c.match(/\d+/g);
-    if (nums && nums.length >= 3) {
-      if ((0.299 * +nums[0] + 0.587 * +nums[1] + 0.114 * +nums[2]) / 255 < 0.25) return "#FFFFFF";
-    }
-    return c;
-  }
-  return c;
-}
-
-function computeFontSize(baseFontSize, text) {
-  const charCount = (text || "").replace(/\n/g, "").length;
-  if (charCount <= 30) return baseFontSize;
-  if (charCount <= 50) return Math.max(baseFontSize * 0.85, 36);
-  if (charCount <= 70) return Math.max(baseFontSize * 0.72, 32);
-  return Math.max(baseFontSize * 0.60, 28);
-}
-
-const BASE_SHADOW = [
-  "0 2px 0 rgba(0,0,0,1)",
-  "0 4px 12px rgba(0,0,0,0.95)",
-  "0 8px 24px rgba(0,0,0,0.8)",
-  "0 0 40px rgba(0,0,0,0.6)",
-].join(", ");
-
-const NEON_SHADOW = (color) => [
+    if ((0.299 * r + 0.587 * g + 0.114 * b) / 255 = 3) {
+      if ((0.299 * +nums[0] + 0.587 * +nums[1] + 0.114 * +nums[2]) / 255  [
   `0 0 7px ${color}`,
   `0 0 14px ${color}`,
   `0 0 28px ${color}`,
@@ -96,13 +74,10 @@ const TypewriterText = ({ text, fontSize, fontFamily, color, fontWeight }) => {
     interpolate(frame, [0, 100], [0, chars.length], { extrapolateRight: "clamp" })
   );
   const visible = chars.slice(0, charsToShow).join("");
-  const cursorVisible = charsToShow < chars.length && Math.round(frame / 8) % 2 === 0;
-  return (
-    <div style={{ fontSize: `${fontSize}px`, fontFamily, color, fontWeight,
-      textShadow: BASE_SHADOW, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line" }}>
+  const cursorVisible = charsToShow 
       {visible}
-      {cursorVisible && <span style={{ color: "#FFD700" }}>|</span>}
-    </div>
+      {cursorVisible && |}
+    
   );
 };
 
@@ -120,30 +95,17 @@ const WordHighlightText = ({ text, fontSize, fontFamily, color, fontWeight, tota
   const blockOpacity = interpolate(frame, [totalFrames - 10, totalFrames], [1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
-    <div style={{ opacity: blockOpacity, textAlign: "center", lineHeight: 1.4 }}>
+    
       {lineWords.map((words, li) => (
-        <div key={li} style={{ display: "block" }}>
+        
           {words.map(({ word, idx }, wi) => {
             const isCurrent = idx === currentIdx;
-            const isPast = idx < currentIdx;
-            return (
-              <span key={idx} style={{
-                display: "inline-block",
-                marginRight: wi < words.length - 1 ? "0.28em" : 0,
-                fontFamily,
-                fontWeight: isCurrent ? "900" : fontWeight,
-                fontSize: isCurrent ? `${Math.round(fontSize * 1.1)}px` : `${fontSize}px`,
-                color: isCurrent ? "#FFD700" : isPast ? "rgba(255,255,255,0.5)" : color,
-                textShadow: isCurrent
-                  ? "0 0 28px rgba(255,215,0,1), 0 0 8px rgba(255,215,0,0.6), 0 2px 0 rgba(0,0,0,1), 0 4px 12px rgba(0,0,0,0.9)"
-                  : BASE_SHADOW,
-                transform: isCurrent ? "scale(1.08)" : "scale(1)",
-              }}>{word}</span>
+            const isPast = idx {word}
             );
           })}
-        </div>
+        
       ))}
-    </div>
+    
   );
 };
 
@@ -157,22 +119,20 @@ const ScrambleText = ({ text, fontSize, fontFamily, color, fontWeight, totalFram
     interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
   );
   return (
-    <div style={{ opacity, fontSize: `${fontSize}px`, fontFamily, color, fontWeight,
-      textShadow: BASE_SHADOW, textAlign: "center", lineHeight: 1.2,
-      letterSpacing: "0.04em", whiteSpace: "pre-line" }}>
+    
       {chars.map((ch, i) => {
-        if (ch === "\n") return <br key={i} />;
-        if (ch === " ") return <span key={i}>&nbsp;</span>;
+        if (ch === "\n") return ;
+        if (ch === " ") return &nbsp;;
         const charResolveFrame = Math.floor((i / Math.max(chars.length, 1)) * resolveEnd);
-        if (frame >= charResolveFrame) return <span key={i}>{ch}</span>;
+        if (frame >= charResolveFrame) return {ch};
         const seed = (frame * 7 + i * 13) % SCRAMBLE_CHARS.length;
         return (
-          <span key={i} style={{ color: "#FFD700", opacity: 0.85 }}>
+          
             {getScrambleChar(seed)}
-          </span>
+          
         );
       })}
-    </div>
+    
   );
 };
 
@@ -184,7 +144,7 @@ const MultiLineText = ({ text, fontSize, fontFamily, color, fontWeight, totalFra
   const blockOpacity = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
-    <div style={{ opacity: blockOpacity, textAlign: "center", lineHeight: 1.4 }}>
+    
       {lines.map((line, i) => {
         const lineFrame = frame - i * LINE_DELAY;
         const lineOpacity = interpolate(lineFrame, [0, 8], [0, 1],
@@ -193,15 +153,10 @@ const MultiLineText = ({ text, fontSize, fontFamily, color, fontWeight, totalFra
           { extrapolateLeft: "clamp", extrapolateRight: "clamp",
             easing: Easing.out(Easing.cubic) });
         return (
-          <div key={i} style={{
-            display: "block", opacity: lineOpacity,
-            transform: `translateY(${lineY}px)`,
-            fontFamily, fontSize: `${fontSize}px`, color, fontWeight,
-            textShadow: BASE_SHADOW, marginBottom: "0.15em",
-          }}>{line}</div>
+          {line}
         );
       })}
-    </div>
+    
   );
 };
 
@@ -221,27 +176,15 @@ const StrikeText = ({ text, fontSize, fontFamily, color, fontWeight, totalFrames
     interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
   );
   return (
-    <div style={{ opacity: blockOpacity, textAlign: "center", lineHeight: 1.6 }}>
-      <div style={{ position: "relative", display: "inline-block" }}>
-        <div style={{ fontFamily, fontSize: `${fontSize}px`, color: "rgba(255,255,255,0.7)",
-          fontWeight, textShadow: BASE_SHADOW }}>{wrongText}</div>
-        <div style={{
-          position: "absolute", top: "50%", left: 0,
-          height: "3px", background: "#E03434",
-          width: `${strikeWidth}%`,
-          boxShadow: "0 0 8px rgba(224,52,52,0.8)",
-          transform: "translateY(-50%)",
-        }} />
-      </div>
+    
+      
+        {wrongText}
+        
+      
       {correctText.length > 0 && (
-        <div style={{ opacity: correctOpacity, fontFamily,
-          fontSize: `${Math.round(fontSize * 1.05)}px`,
-          color: "#22C55E", fontWeight,
-          textShadow: "0 0 16px rgba(34,197,94,0.8), " + BASE_SHADOW,
-          marginTop: "0.2em",
-        }}>{correctText}</div>
+        {correctText}
       )}
-    </div>
+    
   );
 };
 
@@ -249,31 +192,23 @@ const StrikeText = ({ text, fontSize, fontFamily, color, fontWeight, totalFrames
 const EllipsisText = ({ text, fontSize, fontFamily, color, fontWeight, totalFrames }) => {
   const frame = useCurrentFrame();
   const LOADER_FRAMES = 40;
-  const showLoader = frame < LOADER_FRAMES;
-  const textOpacity = interpolate(frame, [LOADER_FRAMES, LOADER_FRAMES + 10], [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const exitOpacity = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const dot1 = Math.round(frame / 8) % 3 >= 0 ? 1 : 0.2;
+  const showLoader = frame = 0 ? 1 : 0.2;
   const dot2 = Math.round(frame / 8) % 3 >= 1 ? 1 : 0.2;
   const dot3 = Math.round(frame / 8) % 3 >= 2 ? 1 : 0.2;
   return (
-    <div style={{ textAlign: "center" }}>
+    
       {showLoader ? (
-        <div style={{ fontSize: `${fontSize * 1.4}px`, letterSpacing: "0.3em", color: "#FFD700",
-          textShadow: BASE_SHADOW }}>
-          <span style={{ opacity: dot1 }}>•</span>
-          <span style={{ opacity: dot2 }}>•</span>
-          <span style={{ opacity: dot3 }}>•</span>
-        </div>
+        
+          •
+          •
+          •
+        
       ) : (
-        <div style={{ opacity: Math.min(textOpacity, exitOpacity),
-          fontFamily, fontSize: `${fontSize}px`, color, fontWeight,
-          textShadow: BASE_SHADOW, lineHeight: 1.2, whiteSpace: "pre-line" }}>
+        
           {text}
-        </div>
+        
       )}
-    </div>
+    
   );
 };
 
@@ -286,17 +221,9 @@ const GradientText = ({ text, fontSize, fontFamily, fontWeight, totalFrames, str
     interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
   );
   return (
-    <div style={{
-      opacity, fontFamily, fontSize: `${fontSize}px`, fontWeight,
-      textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-      background: `linear-gradient(90deg, #FFD700 0%, #FFFFFF ${sweep - 15}%, #FFD700 ${sweep}%, #FFFFFF ${sweep + 15}%, #FFD700 100%)`,
-      WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-      backgroundClip: "text",
-      filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.9))",
-      ...strokeStyle,
-    }}>
+    
       {text}
-    </div>
+    
   );
 };
 
@@ -308,18 +235,9 @@ const PulseRingBG = ({ color }) => {
   const ringOpacity = interpolate(cycleFrame, [0, 10, 50, 55], [0, 0.5, 0.2, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
-    <div style={{ position: "absolute", inset: 0,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      pointerEvents: "none" }}>
-      <div style={{
-        width: "300px", height: "300px", borderRadius: "50%",
-        border: `3px solid ${color}`,
-        opacity: ringOpacity,
-        transform: `scale(${scale})`,
-        boxShadow: `0 0 20px ${color}60`,
-        position: "absolute",
-      }} />
-    </div>
+    
+      
+    
   );
 };
 
@@ -333,12 +251,15 @@ export const TextOverlay = ({ overlay }) => {
   const totalFrames = overlay.endFrame - overlay.startFrame;
   const rawText = overlay.text || "";
 
-  const safeColor   = ensureVisibleColor(overlay.color);
-  const posStyle    = POSITION_STYLES[overlay.position] || POSITION_STYLES.middle;
+  const safeColor    = ensureVisibleColor(overlay.color);
+  const posStyle     = POSITION_STYLES[overlay.position] || POSITION_STYLES.middle;
   const baseFontSize = overlay.fontSize || 68;
-  const fontSize    = computeFontSize(baseFontSize, rawText);
-  const fontFamily  = FONT_MAP[overlay.font] || "'Montserrat', sans-serif";
-  const fontWeight  = overlay.font === "Montserrat" ? "800" : "bold";
+  const fontSize     = computeFontSize(baseFontSize, rawText);
+  const fontFamily   = FONT_MAP[overlay.font] || "'Montserrat', sans-serif";
+  const fontWeight   = overlay.font === "Montserrat" ? "800" : "bold";
+  const fontStyle    = overlay.italic ? "italic" : "normal";
+  const extraSpacing = overlay.letterSpacing || "normal";
+  const useHeavyShadow = overlay.heavyShadow || overlay.font === "Anton" || overlay.font === "Archivo";
 
   let opacity         = 1;
   let translateX      = 0;
@@ -433,62 +354,12 @@ export const TextOverlay = ({ overlay }) => {
   // ── HEARTBEAT ──
   if (overlay.animation === "heartbeat") {
     const beatFrame = frame % 45;
-    scale = beatFrame < 8
-      ? interpolate(beatFrame, [0, 4, 8], [1, 1.06, 1], { extrapolateRight: "clamp" })
-      : 1;
-    opacity = Math.min(
-      interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
-      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
-    );
-  }
-
-  // ── SHAKE ──
-  if (overlay.animation === "shake") {
-    const shakeIntensity = interpolate(frame, [0, 8, 18], [1, 0.4, 0],
-      { extrapolateRight: "clamp", easing: Easing.out(Easing.quad) });
-    translateX = (Math.sin(frame * 2.8) * 14 + Math.sin(frame * 5.1) * 7) * shakeIntensity;
-    translateY = (Math.cos(frame * 3.2) * 10 + Math.cos(frame * 6.7) * 5) * shakeIntensity;
-    opacity = Math.min(
-      interpolate(frame, [0, 5], [0, 1], { extrapolateRight: "clamp" }),
-      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
-    );
-  }
-
-  // ── GLITCH ──
-  if (overlay.animation === "glitch") {
-    opacity = interpolate(frame, [0, 4], [0, 1], { extrapolateRight: "clamp" });
-    const initIntensity = interpolate(frame, [0, 15, 30], [1, 0.55, 0], { extrapolateRight: "clamp" });
-    const burstFrame = frame % 50;
-    const burstIntensity = burstFrame < 4
-      ? interpolate(burstFrame, [0, 2, 4], [0, 0.75, 0], { extrapolateRight: "clamp" })
-      : 0;
-    const intensity = Math.max(initIntensity, burstIntensity);
-    const jitter = [3, -2, 5, 0, -3, 1, 0, -5, 2, 0, 4, -1, 0];
-    translateX = jitter[frame % jitter.length] * intensity;
-    translateY = jitter[(frame + 4) % jitter.length] * intensity * 0.3;
-    glitchRGBOffset = intensity;
-  }
-
-  // ── LETTER-EXPAND ──
-  if (overlay.animation === "letter-expand") {
-    const spacingVal = interpolate(frame, [0, 16], [0.3, 0.06],
-      { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
-    letterSpacing = `${spacingVal}em`;
-    opacity = Math.min(
-      interpolate(frame, [0, 10], [0, 1], { extrapolateRight: "clamp" }),
-      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // TEXT SHADOW COMPUTATION
-  // ─────────────────────────────────────────────────────────────────────────
-  const rgbSplit = glitchRGBOffset > 0.05
-    ? `${Math.round(glitchRGBOffset * 6)}px 0 rgba(255,0,60,0.85), ${-Math.round(glitchRGBOffset * 6)}px 0 rgba(0,255,220,0.85), `
+    scale = beatFrame  0.05
+    ? Math.round(glitchRGBOffset * 6) + "px 0 rgba(255,0,60,0.85), " + (-Math.round(glitchRGBOffset * 6)) + "px 0 rgba(0,255,220,0.85), "
     : "";
-  const computedTextShadow = `${rgbSplit}${BASE_SHADOW}`;
+  const computedTextShadow = rgbSplit + shadowBase;
   const strokeStyle = overlay.stroke
-    ? { WebkitTextStroke: `${overlay.stroke.size}px ${overlay.stroke.color}`, textShadow: computedTextShadow }
+    ? { WebkitTextStroke: overlay.stroke.size + "px " + overlay.stroke.color, textShadow: computedTextShadow }
     : { textShadow: computedTextShadow };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -498,33 +369,27 @@ export const TextOverlay = ({ overlay }) => {
   // ── TYPEWRITER ──
   if (overlay.animation === "typewriter") {
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px", ...posStyle }}>
-        <TypewriterText text={rawText} fontSize={fontSize} fontFamily={fontFamily}
-          color={safeColor} fontWeight={fontWeight} />
-      </div>
+      
+        
+      
     );
   }
 
   // ── WORD-HIGHLIGHT ──
   if (overlay.animation === "word-highlight") {
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px", ...posStyle }}>
-        <WordHighlightText text={rawText} fontSize={fontSize} fontFamily={fontFamily}
-          color={safeColor} fontWeight={fontWeight} totalFrames={totalFrames} />
-      </div>
+      
+        
+      
     );
   }
 
   // ── SCRAMBLE ──
   if (overlay.animation === "scramble") {
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px", ...posStyle }}>
-        <ScrambleText text={rawText} fontSize={fontSize} fontFamily={fontFamily}
-          color={safeColor} fontWeight={fontWeight} totalFrames={totalFrames} />
-      </div>
+      
+        
+      
     );
   }
 
@@ -537,36 +402,30 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: blockOpacity, ...posStyle }}>
-        <div style={{ textAlign: "center", lineHeight: 1.3 }}>
+      
+        
           {words.map((word, i) => {
             const wf = frame - i * DELAY;
             const wo = interpolate(wf, [0, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
             const wy = interpolate(wf, [0, 8], [18, 0],
               { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
             return (
-              <span key={i} style={{ display: "inline-block", marginRight: "0.28em",
-                fontFamily, fontSize: `${fontSize}px`, color: safeColor, fontWeight,
-                opacity: wo, transform: `translateY(${wy}px)`, ...strokeStyle }}>
+              
                 {word}
-              </span>
+              
             );
           })}
-        </div>
-      </div>
+        
+      
     );
   }
 
   // ── MULTI-LINE ──
   if (overlay.animation === "multi-line") {
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px", ...posStyle }}>
-        <MultiLineText text={rawText} fontSize={fontSize} fontFamily={fontFamily}
-          color={safeColor} fontWeight={fontWeight} totalFrames={totalFrames} />
-      </div>
+      
+        
+      
     );
   }
 
@@ -577,23 +436,18 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: blockOpacity, ...posStyle }}>
-        <StrikeText text={rawText} fontSize={fontSize} fontFamily={fontFamily}
-          color={safeColor} fontWeight={fontWeight} totalFrames={totalFrames} />
-      </div>
+      
+        
+      
     );
   }
 
   // ── ELLIPSIS ──
   if (overlay.animation === "ellipsis") {
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px", ...posStyle }}>
-        <EllipsisText text={rawText} fontSize={fontSize} fontFamily={fontFamily}
-          color={safeColor} fontWeight={fontWeight} totalFrames={totalFrames} />
-      </div>
+      
+        
+      
     );
   }
 
@@ -613,13 +467,9 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: cOpacity, ...posStyle }}>
-        <div style={{ fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-          fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          ...strokeStyle }}>{displayText}</div>
-      </div>
+      
+        {displayText}
+      
     );
   }
 
@@ -632,15 +482,9 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: nOpacity, ...posStyle }}>
-        <div style={{ fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-          fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          textShadow: NEON_SHADOW(glowColor),
-          filter: `brightness(${pulseIntensity})`,
-        }}>{rawText}</div>
-      </div>
+      
+        {rawText}
+      
     );
   }
 
@@ -654,24 +498,12 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: hOpacity, ...posStyle }}>
-        <div style={{ position: "relative", display: "inline-block",
-          alignSelf: "center", padding: "8px 20px" }}>
-          <div style={{ position: "absolute", top: 0, left: 0, bottom: 0,
-            width: `${boxWidth}%`, background: boxColor,
-            borderRadius: "4px", zIndex: 0,
-            boxShadow: `0 0 20px ${boxColor}80`,
-          }} />
-          <div style={{ position: "relative", zIndex: 1,
-            fontFamily, fontSize: `${fontSize}px`,
-            color: boxColor === "#FFD700" ? "#000000" : "#FFFFFF",
-            fontWeight, textAlign: "center", lineHeight: 1.2,
-            whiteSpace: "pre-line",
-          }}>{rawText}</div>
-        </div>
-      </div>
+      
+        
+          
+          {rawText}
+        
+      
     );
   }
 
@@ -684,18 +516,9 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: gOpacity, ...posStyle }}>
-        <div style={{
-          fontFamily, fontSize: `${fontSize}px`, fontWeight,
-          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          background: `linear-gradient(90deg, #D4A017 0%, #FFFFFF ${sweepPos + 100}%, #FFD700 ${sweepPos + 150}%, #D4A017 100%)`,
-          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-          filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.9)) drop-shadow(0 4px 16px rgba(0,0,0,0.7))",
-        }}>{rawText}</div>
-      </div>
+      
+        {rawText}
+      
     );
   }
 
@@ -707,18 +530,9 @@ export const TextOverlay = ({ overlay }) => {
     );
     const strokeColor = overlay.strokeColor || safeColor;
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: oOpacity, ...posStyle }}>
-        <div style={{
-          fontFamily, fontSize: `${fontSize}px`, fontWeight,
-          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          WebkitTextStroke: `3px ${strokeColor}`,
-          WebkitTextFillColor: "transparent",
-          color: "transparent",
-          filter: `drop-shadow(0 0 12px ${strokeColor}80) drop-shadow(0 2px 8px rgba(0,0,0,0.9))`,
-        }}>{rawText}</div>
-      </div>
+      
+        {rawText}
+      
     );
   }
 
@@ -732,23 +546,12 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: sOpacity, ...posStyle }}>
-        <div style={{ position: "relative", display: "inline-block", alignSelf: "center" }}>
-          <div style={{ fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-            fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-            textShadow: BASE_SHADOW }}>{rawText}</div>
-          <div style={{
-            position: "absolute", inset: 0, pointerEvents: "none",
-            background: `linear-gradient(90deg, transparent ${shimmerPos - 15}%, rgba(255,255,255,0.55) ${shimmerPos}%, transparent ${shimmerPos + 15}%)`,
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            fontFamily, fontSize: `${fontSize}px`, fontWeight,
-            textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          }}>{rawText}</div>
-        </div>
-      </div>
+      
+        
+          {rawText}
+          {rawText}
+        
+      
     );
   }
 
@@ -760,24 +563,11 @@ export const TextOverlay = ({ overlay }) => {
     const translateYFrosted = interpolate(frame, [0, 12], [30, 0],
       { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 40px",
-        opacity: fOpacity, ...posStyle,
-        transform: `translateY(${translateYFrosted}px)` }}>
-        <div style={{
-          background: "rgba(0,0,0,0.55)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          borderRadius: "12px",
-          border: "1px solid rgba(255,255,255,0.12)",
-          padding: "18px 32px",
-          alignSelf: "center",
-        }}>
-          <div style={{ fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-            fontWeight, textAlign: "center", lineHeight: 1.25, whiteSpace: "pre-line",
-            textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{rawText}</div>
-        </div>
-      </div>
+      
+        
+          {rawText}
+        
+      
     );
   }
 
@@ -789,17 +579,9 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: pulseOpacity, ...posStyle }}>
-        <div style={{
-          fontFamily, fontSize: `${fontSize}px`, fontWeight,
-          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          color: safeColor,
-          filter: `hue-rotate(${Math.round(t * 40)}deg) brightness(${0.9 + t * 0.2})`,
-          textShadow: BASE_SHADOW,
-        }}>{rawText}</div>
-      </div>
+      
+        {rawText}
+      
     );
   }
 
@@ -812,17 +594,9 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: e3dOpacity, ...posStyle, perspective: "800px" }}>
-        <div style={{
-          fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-          fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          textShadow: BASE_SHADOW,
-          transform: `rotateX(${rotateX}deg)`,
-          transformOrigin: "center bottom",
-        }}>{rawText}</div>
-      </div>
+      
+        {rawText}
+      
     );
   }
 
@@ -836,19 +610,11 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: "8%",
-        opacity: cBarOpacity, transform: `translateY(${slideY}px)` }}>
-        <div style={{
-          background: barColor, padding: "10px 40px",
-          boxShadow: `0 0 24px ${barColor}60, 0 4px 16px rgba(0,0,0,0.8)`,
-        }}>
-          <div style={{ fontFamily, fontSize: `${Math.min(fontSize, 52)}px`,
-            color: "#000000", fontWeight: "900",
-            textAlign: "center", lineHeight: 1.1,
-            letterSpacing: "0.04em", whiteSpace: "pre-line",
-          }}>{rawText}</div>
-        </div>
-      </div>
+      
+        
+          {rawText}
+        
+      
     );
   }
 
@@ -859,11 +625,9 @@ export const TextOverlay = ({ overlay }) => {
   // ── GRADIENT-TEXT (moving gold-to-white sweep) ──
   if (overlay.animation === "gradient-text") {
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px", ...posStyle }}>
-        <GradientText text={rawText} fontSize={fontSize} fontFamily={fontFamily}
-          fontWeight={fontWeight} totalFrames={totalFrames} strokeStyle={strokeStyle} />
-      </div>
+      
+        
+      
     );
   }
 
@@ -874,18 +638,9 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: outOpacity, ...posStyle }}>
-        <div style={{
-          fontFamily, fontSize: `${fontSize}px`, fontWeight,
-          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          WebkitTextStroke: `3px ${safeColor}`,
-          WebkitTextFillColor: "transparent",
-          color: "transparent",
-          filter: `drop-shadow(0 0 12px ${safeColor}80) drop-shadow(0 2px 8px rgba(0,0,0,0.9))`,
-        }}>{rawText}</div>
-      </div>
+      
+        {rawText}
+      
     );
   }
 
@@ -896,16 +651,9 @@ export const TextOverlay = ({ overlay }) => {
     const exitOpacity = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0],
       { extrapolateLeft: "clamp" });
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: exitOpacity, ...posStyle }}>
-        <div style={{
-          fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-          fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          ...strokeStyle,
-          clipPath: `circle(${maskProgress}% at 50% 50%)`,
-        }}>{rawText}</div>
-      </div>
+      
+        {rawText}
+      
     );
   }
 
@@ -918,18 +666,11 @@ export const TextOverlay = ({ overlay }) => {
     const pixelSize = interpolate(dissolveProgress, [0, 0.5, 1], [0, 8, 32]);
     const exitOpacity = interpolate(dissolveProgress, [0.7, 1.0], [1, 0], { extrapolateLeft: "clamp" });
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: Math.min(entryOpacity, exitOpacity), ...posStyle }}>
-        <div style={{
-          fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-          fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          ...strokeStyle,
-          imageRendering: "pixelated",
-          filter: pixelSize > 0 ? `blur(${pixelSize * 0.3}px) contrast(${1 + dissolveProgress})` : "none",
+      
+         0 ? `blur(${pixelSize * 0.3}px) contrast(${1 + dissolveProgress})` : "none",
           transform: `scale(${1 + dissolveProgress * 0.08})`,
-        }}>{rawText}</div>
-      </div>
+        }}>{rawText}
+      
     );
   }
 
@@ -942,34 +683,13 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: vhsOpacity, ...posStyle, overflow: "hidden" }}>
-        <div style={{ position: "relative" }}>
-          <div style={{
-            fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-            fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-            transform: `translateX(${distort}px)`,
-            ...strokeStyle,
-          }}>{rawText}</div>
-          <div style={{
-            position: "absolute", left: 0, right: 0,
-            top: `${(trackingY / 200) * 100}%`,
-            height: "3px",
-            background: "rgba(255,255,255,0.12)",
-            pointerEvents: "none",
-          }} />
-          <div style={{
-            position: "absolute", inset: 0,
-            fontFamily, fontSize: `${fontSize}px`, fontWeight,
-            textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-            color: "rgba(255,0,60,0.3)",
-            transform: `translateX(${distort + 4}px)`,
-            mixBlendMode: "screen",
-            pointerEvents: "none",
-          }}>{rawText}</div>
-        </div>
-      </div>
+      
+        
+          {rawText}
+          
+          {rawText}
+        
+      
     );
   }
 
@@ -979,33 +699,14 @@ export const TextOverlay = ({ overlay }) => {
     const BURST_DURATION = 4;
     let strobeIntensity = 0;
     for (const sf of strobeFrames) {
-      if (frame >= sf && frame < sf + BURST_DURATION) {
-        strobeIntensity = Math.max(strobeIntensity,
-          interpolate(frame - sf, [0, 1, BURST_DURATION - 1, BURST_DURATION], [0, 0.85, 0.5, 0]));
-      }
-    }
-    const textOpacity = Math.min(
-      interpolate(frame, [0, 6], [0, 1], { extrapolateRight: "clamp" }),
-      interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
-    );
-    return (
-      <>
+      if (frame >= sf && frame 
         {strobeIntensity > 0 && (
-          <AbsoluteFill style={{
-            background: `rgba(255,255,255,${strobeIntensity})`,
-            zIndex: 25, pointerEvents: "none",
-          }} />
+          
         )}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-          display: "flex", flexDirection: "column", padding: "0 60px",
-          opacity: textOpacity, ...posStyle }}>
-          <div style={{
-            fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-            fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-            ...strokeStyle,
-          }}>{rawText}</div>
-        </div>
-      </>
+        
+          {rawText}
+        
+      
     );
   }
 
@@ -1017,19 +718,12 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: prOpacity, ...posStyle }}>
-        <div style={{ position: "relative", display: "inline-block", alignSelf: "center" }}>
-          <PulseRingBG color={ringColor} />
-          <div style={{
-            position: "relative", zIndex: 1,
-            fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-            fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-            ...strokeStyle,
-          }}>{rawText}</div>
-        </div>
-      </div>
+      
+        
+          
+          {rawText}
+        
+      
     );
   }
 
@@ -1042,31 +736,14 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: udOpacity, ...posStyle }}>
-        <div style={{ position: "relative", display: "inline-block", alignSelf: "center" }}>
-          <div style={{
-            fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-            fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-            ...strokeStyle,
-          }}>{rawText}</div>
-          <svg style={{
-            position: "absolute", bottom: "-6px", left: "0", right: "0",
-            width: "100%", height: "6px", overflow: "visible",
-          }}>
-            <line
-              x1="0" y1="3" x2="100%" y2="3"
-              stroke={safeColor}
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeDasharray="1000"
-              strokeDashoffset={`${(1 - lineProgress) * 1000}`}
-              style={{ filter: `drop-shadow(0 0 6px ${safeColor})` }}
-            />
-          </svg>
-        </div>
-      </div>
+      
+        
+          {rawText}
+          
+            
+          
+        
+      
     );
   }
 
@@ -1080,17 +757,9 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: wsOpacity, ...posStyle }}>
-        <div style={{
-          fontFamily: "'Montserrat', sans-serif",
-          fontSize: `${fontSize}px`, color: safeColor,
-          fontWeight: weight,
-          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          textShadow: BASE_SHADOW,
-        }}>{rawText}</div>
-      </div>
+      
+        {rawText}
+      
     );
   }
 
@@ -1101,16 +770,9 @@ export const TextOverlay = ({ overlay }) => {
     const exitOpacity = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0],
       { extrapolateLeft: "clamp" });
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: exitOpacity, ...posStyle }}>
-        <div style={{
-          fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-          fontWeight, textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
-          ...strokeStyle,
-          clipPath: `polygon(0 0, ${wipe}% 0, ${wipe + 20}% 100%, 0 100%)`,
-        }}>{rawText}</div>
-      </div>
+      
+        {rawText}
+      
     );
   }
 
@@ -1122,45 +784,530 @@ export const TextOverlay = ({ overlay }) => {
       interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
     );
     return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-        display: "flex", flexDirection: "column", padding: "0 60px",
-        opacity: capsOpacity, ...posStyle }}>
-        <div style={{
-          fontFamily, fontSize: `${fontSize}px`, color: safeColor,
-          fontWeight, textAlign: "center", lineHeight: 1.2,
-          textTransform: "uppercase",
-          letterSpacing: `${capsSpacing}em`,
-          ...strokeStyle,
-        }}>{rawText}</div>
-      </div>
+      
+        {rawText}
+      
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // STANDARD RENDER — all simple transform animations
   // ─────────────────────────────────────────────────────────────────────────
+// ── LIQUID-DRIP (SPLASH effect — letters melt downward with glowing trails) ──
+if (overlay.animation === "liquid-drip") {
+  const dripColor = overlay.glowColor || "#E8A920";
+  const entryOpacity = interpolate(frame, [0, 10], [0, 1], { extrapolateRight: "clamp" });
+  const exitOpacity  = interpolate(frame, [totalFrames - 10, totalFrames], [1, 0], { extrapolateLeft: "clamp" });
+  const dripProgress = interpolate(frame, [8, Math.floor(totalFrames * 0.5)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const dripLength   = interpolate(dripProgress, [0, 1], [0, 280]);
+  const glowIntensity = interpolate(Math.sin(frame * 0.15), [-1, 1], [0.7, 1.0]);
   return (
-    <div style={{
-      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-      display: "flex", flexDirection: "column",
-      padding: "0 60px",
-      opacity,
-      ...posStyle,
-      transform: `translateX(${translateX}px) translateY(${translateY}px) scale(${scale})`,
-    }}>
-      <div style={{
-        fontFamily,
-        fontSize: `${fontSize}px`,
-        color: safeColor,
-        textAlign: "center",
-        lineHeight: 1.2,
-        whiteSpace: "pre-line",
-        fontWeight,
-        letterSpacing,
-        ...strokeStyle,
-      }}>
-        {rawText}
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 60px",
+      opacity: Math.min(entryOpacity, exitOpacity), ...posStyle }}>
+      <div style={{ position: "relative", display: "inline-block" }}>
+        {/* Main text */}
+        <div style={{
+          fontFamily, fontSize: `${fontSize}px`, fontWeight,
+          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          background: `linear-gradient(180deg, #FFFFFF 0%, ${dripColor} 60%, #FF4400 100%)`,
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+          filter: `drop-shadow(0 0 ${12 * glowIntensity}px ${dripColor}) drop-shadow(0 4px 20px rgba(0,0,0,0.9))`,
+          fontStyle,
+          letterSpacing: extraSpacing !== "normal" ? extraSpacing : "0.02em",
+        }}>{rawText}</div>
+        {/* Drip shadow trails — pure CSS gradient lines */}
+        {rawText.replace(/\s/g, "").split("").map((_, i) => {
+          const colCount = Math.min(rawText.replace(/\s/g, "").length, 10);
+          if (i >= colCount) return null;
+          const leftPct = 10 + (i / colCount) * 80;
+          const delay  = i * 3;
+          const localDrip = interpolate(frame - delay, [0, 40], [0, dripLength], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+          return (
+            <div key={i} style={{
+              position: "absolute", bottom: `-${localDrip}px`,
+              left: `${leftPct}%`, transform: "translateX(-50%)",
+              width: "4px", height: `${localDrip}px`,
+              background: `linear-gradient(180deg, ${dripColor} 0%, rgba(255,68,0,0.6) 60%, transparent 100%)`,
+              borderRadius: "0 0 4px 4px",
+              boxShadow: `0 0 8px ${dripColor}80`,
+              pointerEvents: "none",
+            }} />
+          );
+        })}
       </div>
     </div>
   );
+}
+
+// ── TEXT-CLIP (video/gradient visible through letter shapes — TROPICAL/HAWAII style) ──
+if (overlay.animation === "text-clip") {
+  const clipColor1 = overlay.clipColor1 || "#E8A920";
+  const clipColor2 = overlay.clipColor2 || "#FF6B35";
+  const clipColor3 = overlay.clipColor3 || "#00D68F";
+  const tcOpacity = Math.min(
+    interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
+    interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+  );
+  // Animate the gradient sweep through the letters
+  const sweepX = interpolate(frame, [0, totalFrames], [0, 100], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 30px",
+      opacity: tcOpacity, ...posStyle }}>
+      {/* Outline layer — visible behind */}
+      <div style={{
+        position: "relative",
+        fontFamily, fontSize: `${Math.round(fontSize * 1.1)}px`, fontWeight,
+        textAlign: "center", lineHeight: 1.1, whiteSpace: "pre-line",
+        WebkitTextStroke: "2px rgba(255,255,255,0.3)",
+        WebkitTextFillColor: "transparent",
+        letterSpacing: "0.05em",
+        filter: "drop-shadow(0 4px 20px rgba(0,0,0,0.8))",
+        fontStyle,
+      }}>{rawText}</div>
+      {/* Clip fill layer — gradient animates through letters */}
+      <div style={{
+        position: "absolute", inset: 0,
+        display: "flex", alignItems: posStyle.alignItems || "center",
+        justifyContent: posStyle.justifyContent || "center",
+        padding: "0 30px",
+      }}>
+        <div style={{
+          fontFamily, fontSize: `${Math.round(fontSize * 1.1)}px`, fontWeight,
+          textAlign: "center", lineHeight: 1.1, whiteSpace: "pre-line",
+          letterSpacing: "0.05em",
+          background: `linear-gradient(${sweepX + 90}deg, ${clipColor1} 0%, ${clipColor2} 35%, ${clipColor3} 65%, ${clipColor1} 100%)`,
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+          backgroundSize: "200% 200%",
+          filter: `drop-shadow(0 0 16px ${clipColor1}80) drop-shadow(0 4px 24px rgba(0,0,0,0.95))`,
+          fontStyle,
+        }}>{rawText}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── OUTLINE-STROKE (HAWAII thick hollow text — bold & clean) ──
+if (overlay.animation === "outline-stroke") {
+  const strokeColor = overlay.strokeColor || "#FFFFFF";
+  const strokeWidth = overlay.strokeWidth || 4;
+  const fillColor   = overlay.fillColor   || "transparent";
+  const osOpacity = Math.min(
+    interpolate(frame, [0, 10], [0, 1], { extrapolateRight: "clamp" }),
+    interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+  );
+  // Slight italic slant + scale pop on entry
+  const entryScale = interpolate(frame, [0, 12], [0.85, 1.0], { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 20px",
+      opacity: osOpacity, transform: `scale(${entryScale})`, ...posStyle }}>
+      <div style={{
+        fontFamily, fontSize: `${Math.round(fontSize * 1.15)}px`,
+        fontWeight: "900",
+        textAlign: "center", lineHeight: 1.05, whiteSpace: "pre-line",
+        WebkitTextStroke: `${strokeWidth}px ${strokeColor}`,
+        WebkitTextFillColor: fillColor,
+        color: fillColor,
+        letterSpacing: "0.04em",
+        fontStyle: overlay.italic ? "italic" : "normal",
+        filter: `drop-shadow(0 6px 24px rgba(0,0,0,0.95)) drop-shadow(0 0 2px rgba(0,0,0,1))`,
+        textTransform: overlay.uppercase ? "uppercase" : "none",
+      }}>{rawText}</div>
+    </div>
+  );
+}
+
+// ── SPLIT-REVEAL (words split apart from center outward then lock in) ──
+if (overlay.animation === "split-reveal") {
+  const words = rawText.split(" ");
+  const srOpacity = Math.min(
+    interpolate(frame, [0, 6], [0, 1], { extrapolateRight: "clamp" }),
+    interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+  );
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 60px",
+      opacity: srOpacity, ...posStyle }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center",
+        alignItems: "center", gap: "0.2em" }}>
+        {words.map((word, i) => {
+          const wordDelay = i * 5;
+          const progress  = interpolate(frame - wordDelay, [0, 14], [0, 1], {
+            extrapolateLeft: "clamp", extrapolateRight: "clamp",
+            easing: Easing.out(Easing.back(1.5)),
+          });
+          // Even indexed words come from left, odd from right
+          const direction  = i % 2 === 0 ? -1 : 1;
+          const translateX = interpolate(progress, [0, 1], [direction * 120, 0]);
+          const wordOpacity = interpolate(progress, [0, 0.3], [0, 1], { extrapolateRight: "clamp" });
+          return (
+            <div key={i} style={{
+              fontFamily, fontSize: `${fontSize}px`, fontWeight, color: safeColor,
+              textShadow: useHeavyShadow ? HEAVY_SHADOW : BASE_SHADOW,
+              transform: `translateX(${translateX}px)`,
+              opacity: wordOpacity,
+              fontStyle,
+            }}>{word}</div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── BLUR-IN (text materializes from blur to sharp focus) ──
+if (overlay.animation === "blur-in") {
+  const blurAmount = interpolate(frame, [0, 18], [20, 0], {
+    extrapolateRight: "clamp", easing: Easing.out(Easing.cubic)
+  });
+  const biOpacity = Math.min(
+    interpolate(frame, [0, 6], [0, 1], { extrapolateRight: "clamp" }),
+    interpolate(frame, [totalFrames - 10, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+  );
+  const biScale = interpolate(frame, [0, 18], [1.06, 1.0], { extrapolateRight: "clamp" });
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 60px",
+      opacity: biOpacity, ...posStyle }}>
+      <div style={{
+        fontFamily, fontSize: `${fontSize}px`, fontWeight, color: safeColor,
+        textShadow: useHeavyShadow ? HEAVY_SHADOW : BASE_SHADOW,
+        textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+        filter: `blur(${blurAmount}px)`,
+        transform: `scale(${biScale})`,
+        fontStyle,
+        letterSpacing: extraSpacing !== "normal" ? extraSpacing : "normal",
+      }}>{rawText}</div>
+    </div>
+  );
+}
+
+// ── FLIP-UP (3D horizontal axis flip — each word flips in staggered) ──
+if (overlay.animation === "flip-up") {
+  const words = rawText.split(" ");
+  const fuOpacity = Math.min(
+    interpolate(frame, [0, 4], [0, 1], { extrapolateRight: "clamp" }),
+    interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+  );
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 60px",
+      opacity: fuOpacity, perspective: "800px", ...posStyle }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center",
+        alignItems: "center", gap: "0.25em", perspective: "800px" }}>
+        {words.map((word, i) => {
+          const delay = i * 6;
+          const rotateX = interpolate(frame - delay, [0, 16], [-90, 0], {
+            extrapolateLeft: "clamp", extrapolateRight: "clamp",
+            easing: Easing.out(Easing.cubic),
+          });
+          const wOpacity = interpolate(frame - delay, [0, 8], [0, 1], {
+            extrapolateLeft: "clamp", extrapolateRight: "clamp",
+          });
+          return (
+            <div key={i} style={{
+              fontFamily, fontSize: `${fontSize}px`, fontWeight, color: safeColor,
+              textShadow: useHeavyShadow ? HEAVY_SHADOW : BASE_SHADOW,
+              transform: `rotateX(${rotateX}deg)`,
+              transformOrigin: "center bottom",
+              opacity: wOpacity,
+              display: "inline-block",
+              fontStyle,
+            }}>{word}</div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── LETTER-DROP (letters fall from above one by one) ──
+if (overlay.animation === "letter-drop") {
+  const chars = rawText.split("");
+  const ldOpacity = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0],
+    { extrapolateLeft: "clamp" });
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 40px",
+      opacity: ldOpacity, ...posStyle }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center",
+        alignItems: "center", overflow: "hidden" }}>
+        {chars.map((ch, i) => {
+          const FRAMES_PER_CHAR = 3;
+          const dropFrame = frame - i * FRAMES_PER_CHAR;
+          const translateY = interpolate(dropFrame, [0, 12], [-120, 0], {
+            extrapolateLeft: "clamp", extrapolateRight: "clamp",
+            easing: Easing.out(Easing.bounce),
+          });
+          const charOpacity = interpolate(dropFrame, [0, 4], [0, 1], {
+            extrapolateLeft: "clamp", extrapolateRight: "clamp",
+          });
+          if (ch === "\n") return <div key={i} style={{ width: "100%", height: 0 }} />;
+          if (ch === " ") return <div key={i} style={{ width: "0.3em" }} />;
+          return (
+            <div key={i} style={{
+              fontFamily, fontSize: `${fontSize}px`, fontWeight, color: safeColor,
+              textShadow: useHeavyShadow ? HEAVY_SHADOW : BASE_SHADOW,
+              transform: `translateY(${translateY}px)`,
+              opacity: charOpacity,
+              display: "inline-block",
+              fontStyle,
+            }}>{ch}</div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── PANEL-SPLIT (dark panel slides in behind text then text animates over it) ──
+if (overlay.animation === "panel-split") {
+  const panelColor = overlay.boxColor || "rgba(0,0,0,0.82)";
+  const panelWidth = interpolate(frame, [0, 14], [0, 100], {
+    extrapolateRight: "clamp", easing: Easing.out(Easing.cubic)
+  });
+  const textShift  = interpolate(frame, [6, 22], [40, 0], {
+    extrapolateLeft: "clamp", extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
+  });
+  const textOpacity = interpolate(frame, [8, 20], [0, 1], { extrapolateRight: "clamp" });
+  const psExit = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" });
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 40px",
+      opacity: psExit, ...posStyle }}>
+      <div style={{ position: "relative", alignSelf: "stretch", padding: "18px 32px" }}>
+        {/* Sliding panel */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, bottom: 0,
+          width: `${panelWidth}%`,
+          background: panelColor,
+          borderRight: `3px solid ${overlay.accentColor || "#E8A920"}`,
+          boxShadow: `4px 0 20px ${overlay.accentColor || "#E8A920"}40`,
+          zIndex: 0,
+        }} />
+        {/* Text on top */}
+        <div style={{
+          position: "relative", zIndex: 1,
+          fontFamily, fontSize: `${fontSize}px`, fontWeight, color: safeColor,
+          textShadow: BASE_SHADOW,
+          textAlign: "center", lineHeight: 1.25, whiteSpace: "pre-line",
+          transform: `translateX(${textShift}px)`,
+          opacity: textOpacity,
+          fontStyle,
+        }}>{rawText}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── KINETIC (each word = different size, staggered pop — high energy) ──
+if (overlay.animation === "kinetic") {
+  const words = rawText.split(" ");
+  const sizePattern = [1.4, 0.8, 1.15, 0.75, 1.3, 0.9, 1.2];
+  const colorPattern = [safeColor, overlay.accentColor || "#E8A920", safeColor, "#FFFFFF", safeColor];
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 40px",
+      ...posStyle }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center",
+        alignItems: "baseline", gap: "0.15em", rowGap: "0.05em" }}>
+        {words.map((word, i) => {
+          const delay = i * 4;
+          const wordScale = spring({ fps, frame: frame - delay, config: { damping: 10, stiffness: 220 } });
+          const s = interpolate(wordScale, [0, 1], [0, 1]);
+          const wOpacity = interpolate(frame - delay, [0, 6], [0, 1], {
+            extrapolateLeft: "clamp", extrapolateRight: "clamp"
+          });
+          const exitOp = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" });
+          const wordSize = fontSize * (sizePattern[i % sizePattern.length] || 1);
+          const wordColor = colorPattern[i % colorPattern.length];
+          const isLarge = (sizePattern[i % sizePattern.length] || 1) >= 1.2;
+          return (
+            <div key={i} style={{
+              fontFamily,
+              fontSize: `${wordSize}px`,
+              fontWeight: isLarge ? "900" : "700",
+              color: wordColor,
+              textShadow: HEAVY_SHADOW,
+              transform: `scale(${s})`,
+              opacity: Math.min(wOpacity, exitOp),
+              display: "inline-block",
+              fontStyle,
+              lineHeight: 1.0,
+              textTransform: isLarge ? "uppercase" : "none",
+            }}>{word}</div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── WORD-BOUNCE (each word bounces in staggered with spring — viral TikTok) ──
+if (overlay.animation === "word-bounce") {
+  const words = rawText.split(" ");
+  const wbOpacity = interpolate(frame, [totalFrames - 8, totalFrames], [1, 0],
+    { extrapolateLeft: "clamp" });
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 50px",
+      opacity: wbOpacity, ...posStyle }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center",
+        alignItems: "center", gap: "0.2em" }}>
+        {words.map((word, i) => {
+          const delay = i * 3;
+          const bounceVal = spring({ fps, frame: frame - delay,
+            config: { damping: 6, stiffness: 260, mass: 0.7 }
+          });
+          const wScale = interpolate(bounceVal, [0, 1], [0, 1]);
+          const wOpacity = interpolate(frame - delay, [0, 5], [0, 1], {
+            extrapolateLeft: "clamp", extrapolateRight: "clamp"
+          });
+          return (
+            <div key={i} style={{
+              fontFamily, fontSize: `${fontSize}px`, fontWeight, color: safeColor,
+              textShadow: useHeavyShadow ? HEAVY_SHADOW : BASE_SHADOW,
+              transform: `scale(${wScale})`,
+              opacity: wOpacity,
+              display: "inline-block",
+              fontStyle,
+              transformOrigin: "center bottom",
+            }}>{word}</div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── GRADIENT-SHIFT (text color slowly shifts hue — premium shimmer) ──
+if (overlay.animation === "gradient-shift") {
+  const gsOpacity = Math.min(
+    interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
+    interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+  );
+  const hue1 = overlay.hue1 || 45;   // gold-ish
+  const hue2 = overlay.hue2 || 200;  // cyan-ish
+  const cycle = (frame / totalFrames) * 360;
+  const gradAngle = interpolate(frame, [0, totalFrames], [0, 360], { extrapolateRight: "clamp" });
+  const c1 = `hsl(${(hue1 + cycle * 0.5) % 360}, 100%, 70%)`;
+  const c2 = `hsl(${(hue2 + cycle * 0.3) % 360}, 80%, 60%)`;
+  const c3 = `hsl(${(hue1 + 180 + cycle * 0.4) % 360}, 90%, 80%)`;
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 60px",
+      opacity: gsOpacity, ...posStyle }}>
+      <div style={{
+        fontFamily, fontSize: `${fontSize}px`, fontWeight,
+        textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+        background: `linear-gradient(${gradAngle}deg, ${c1}, ${c2}, ${c3})`,
+        WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+        backgroundClip: "text",
+        filter: "drop-shadow(0 2px 12px rgba(0,0,0,0.95)) drop-shadow(0 0 24px rgba(0,0,0,0.8))",
+        fontStyle,
+        letterSpacing: extraSpacing !== "normal" ? extraSpacing : "normal",
+      }}>{rawText}</div>
+    </div>
+  );
+}
+
+// ── OUTLINE-FILL (starts hollow, color floods in left→right) ──
+if (overlay.animation === "outline-fill") {
+  const fillColor   = overlay.fillColor   || safeColor;
+  const strokeColor = overlay.strokeColor || safeColor;
+  const fillProgress = interpolate(frame, [4, Math.floor(totalFrames * 0.55)], [0, 100], {
+    extrapolateLeft: "clamp", extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.cubic),
+  });
+  const ofOpacity = Math.min(
+    interpolate(frame, [0, 6], [0, 1], { extrapolateRight: "clamp" }),
+    interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+  );
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 60px",
+      opacity: ofOpacity, ...posStyle }}>
+      <div style={{ position: "relative", textAlign: "center" }}>
+        {/* Outline base — always visible */}
+        <div style={{
+          fontFamily, fontSize: `${fontSize}px`, fontWeight,
+          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          WebkitTextStroke: `3px ${strokeColor}`,
+          WebkitTextFillColor: "transparent",
+          filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.95))",
+          fontStyle,
+        }}>{rawText}</div>
+        {/* Fill layer — clips left→right */}
+        <div style={{
+          position: "absolute", inset: 0,
+          clipPath: `inset(0 ${100 - fillProgress}% 0 0)`,
+          fontFamily, fontSize: `${fontSize}px`, fontWeight,
+          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          color: fillColor,
+          textShadow: BASE_SHADOW,
+          fontStyle,
+        }}>{rawText}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── COLOR-BURN (text burns through a color wash — cinematic reveal) ──
+if (overlay.animation === "color-burn") {
+  const burnColor  = overlay.burnColor  || "#E8A920";
+  const cbProgress = interpolate(frame, [0, Math.floor(totalFrames * 0.5)], [0, 1], {
+    extrapolateLeft: "clamp", extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
+  });
+  const cbOpacity = Math.min(
+    interpolate(frame, [0, 4], [0, 1], { extrapolateRight: "clamp" }),
+    interpolate(frame, [totalFrames - 8, totalFrames], [1, 0], { extrapolateLeft: "clamp" })
+  );
+  // Color overlay fades out while text burns through
+  const colorOverlayOpacity = interpolate(cbProgress, [0, 0.6, 1.0], [0.95, 0.4, 0.0]);
+  const textOpacity          = interpolate(cbProgress, [0, 0.3, 1.0], [0.0, 0.7, 1.0]);
+  const glowSize             = interpolate(cbProgress, [0, 1], [0, 32]);
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", padding: "0 60px",
+      opacity: cbOpacity, ...posStyle }}>
+      <div style={{ position: "relative" }}>
+        {/* Color wash layer */}
+        <div style={{
+          position: "absolute", inset: "-20px",
+          background: `radial-gradient(ellipse at center, ${burnColor} 0%, transparent 70%)`,
+          opacity: colorOverlayOpacity,
+          borderRadius: "8px",
+          filter: `blur(${interpolate(cbProgress, [0, 1], [20, 0])}px)`,
+        }} />
+        {/* Text burning through */}
+        <div style={{
+          position: "relative",
+          fontFamily, fontSize: `${fontSize}px`, fontWeight, color: safeColor,
+          textAlign: "center", lineHeight: 1.2, whiteSpace: "pre-line",
+          opacity: textOpacity,
+          filter: `drop-shadow(0 0 ${glowSize}px ${burnColor}) drop-shadow(0 4px 16px rgba(0,0,0,0.9))`,
+          fontStyle,
+        }}>{rawText}</div>
+      </div>
+    </div>
+  );
+}
+
+    return (
+    
+      
+        {rawText}
+      
+    
+  );
 };
+
+
+
+⬡ SOURCE
