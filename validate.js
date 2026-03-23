@@ -39,14 +39,20 @@ const REQUIRED_SCHEMA_FIELDS = [
   'tiktokCaption', 'youtubeTitle', 'youtubeDescription', 'pinnedComment'
 ];
 const KNOWN_ANIMATIONS = [
+  // ── Original core ──
   'fade', 'pop', 'slide-left', 'slide-right', 'slide-up', 'slide-down',
   'bounce', 'zoom-punch', 'zoom-out', 'heartbeat', 'shake', 'glitch',
   'letter-expand', 'typewriter', 'word-highlight', 'scramble', 'stagger',
   'multi-line', 'strike', 'ellipsis', 'counter', 'neon-glow', 'highlight-box',
   'shimmer', 'frosted', 'color-pulse', '3d-extrude', 'caption-bar',
-  // Phase 2 new animations:
+  // ── Phase 2 ──
   'gradient-text', 'outlined', 'mask-reveal', 'pixel-dissolve', 'vhs',
   'strobe', 'pulse-ring', 'underline-draw', 'weight-shift', 'diagonal-wipe', 'caps',
+  'outline', 'gradient-sweep',
+  // ── Phase 3 — TikTok research batch (Day 40) ──
+  'liquid-drip', 'text-clip', 'outline-stroke', 'split-reveal', 'blur-in',
+  'flip-up', 'letter-drop', 'panel-split', 'kinetic', 'word-bounce',
+  'gradient-shift', 'outline-fill', 'color-burn',
 ];
 const REQUIRED_OVERLAY_FIELDS = ['text', 'position', 'animation', 'startFrame', 'endFrame'];
 const REQUIRED_REMOTION_CONFIG = {
@@ -79,33 +85,7 @@ function hexToRgb(hex) {
 function relativeLuminance(r, g, b) {
   const c = [r, g, b].map(v => {
     v /= 255;
-    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-  });
-  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-}
-
-function contrastRatio(hex1, hex2) {
-  const [r1, g1, b1] = hexToRgb(hex1.padEnd(7, '0').replace(/^#([0-9a-fA-F]{3})$/, '#$1$1$1'.slice(0,4)));
-  const [r2, g2, b2] = hexToRgb(hex2.padEnd(7, '0'));
-  const l1 = relativeLuminance(r1, g1, b1);
-  const l2 = relativeLuminance(r2, g2, b2);
-  const lighter = Math.max(l1, l2);
-  const darker  = Math.min(l1, l2);
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-function framesToTimecode(frames) {
-  const totalSecs = Math.floor(frames / FPS);
-  const mins = String(Math.floor(totalSecs / 60)).padStart(2, '0');
-  const secs = String(totalSecs % 60).padStart(2, '0');
-  const ms   = String(Math.round((frames % FPS) / FPS * 1000)).padStart(3, '0');
-  return `${mins}:${secs}.${ms}`;
-}
-
-// ─── Load content files ───────────────────────────────────────────────────────
-function loadContentFiles() {
-  const args = process.argv.slice(2);
-  let files  = args.length > 0 ? args : [];
+    return v  0 ? args : [];
 
   if (files.length === 0) {
     // Auto-detect all weekN-content.js files
@@ -188,15 +168,10 @@ function checkMissingDays(entries) {
 function checkFrameBounds(entries) {
   for (const entry of entries) {
     if (!entry.overlays) continue;
-    for (let i = 0; i < entry.overlays.length; i++) {
-      const o = entry.overlays[i];
-      if (o.endFrame > TOTAL_FRAMES) {
+    for (let i = 0; i  TOTAL_FRAMES) {
         err(`[FrameBounds] ${entry.id} overlay[${i}] "${(o.text||'').slice(0,20)}": endFrame ${o.endFrame} > ${TOTAL_FRAMES}`);
       }
-      if (o.startFrame < 0) {
-        err(`[FrameBounds] ${entry.id} overlay[${i}]: startFrame ${o.startFrame} < 0`);
-      }
-      if (o.startFrame >= o.endFrame) {
+      if (o.startFrame = o.endFrame) {
         err(`[FrameBounds] ${entry.id} overlay[${i}]: startFrame ${o.startFrame} >= endFrame ${o.endFrame}`);
       }
     }
@@ -209,53 +184,7 @@ function checkFrameBounds(entries) {
 function checkAnimations(entries) {
   for (const entry of entries) {
     if (!entry.overlays) continue;
-    for (let i = 0; i < entry.overlays.length; i++) {
-      const o = entry.overlays[i];
-      if (o.animation && !KNOWN_ANIMATIONS.includes(o.animation)) {
-        err(`[Animation] ${entry.id} overlay[${i}]: unknown animation "${o.animation}"`);
-        warn(`[Animation]   Known animations: ${KNOWN_ANIMATIONS.slice(0, 5).join(', ')}... (${KNOWN_ANIMATIONS.length} total)`);
-      }
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CHECK 08: Overlay Overlap Detector
-// ─────────────────────────────────────────────────────────────────────────────
-function checkOverlaps(entries) {
-  for (const entry of entries) {
-    if (!entry.overlays || entry.overlays.length < 2) continue;
-    const byPosition = {};
-    for (const o of entry.overlays) {
-      const pos = o.position || 'middle';
-      if (!byPosition[pos]) byPosition[pos] = [];
-      byPosition[pos].push(o);
-    }
-    for (const [pos, overlays] of Object.entries(byPosition)) {
-      for (let i = 0; i < overlays.length; i++) {
-        for (let j = i + 1; j < overlays.length; j++) {
-          const a = overlays[i];
-          const b = overlays[j];
-          if (a.startFrame < b.endFrame && b.startFrame < a.endFrame) {
-            warn(`[Overlap] ${entry.id} pos="${pos}": overlays overlap at frames ${Math.max(a.startFrame, b.startFrame)}-${Math.min(a.endFrame, b.endFrame)}`);
-            warn(`         "${(a.text||'').slice(0,25)}" vs "${(b.text||'').slice(0,25)}"`);
-          }
-        }
-      }
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CHECK 09: Text Length Validator
-// ─────────────────────────────────────────────────────────────────────────────
-function checkTextLength(entries) {
-  for (const entry of entries) {
-    if (!entry.overlays) continue;
-    for (let i = 0; i < entry.overlays.length; i++) {
-      const o = entry.overlays[i];
-      const text = (o.text || '').replace(/\n/g, ' ');
-      if (text.length > MAX_TEXT_LEN) {
+    for (let i = 0; i  MAX_TEXT_LEN) {
         warn(`[TextLen] ${entry.id} overlay[${i}]: ${text.length} chars > ${MAX_TEXT_LEN} limit`);
         warn(`         "${text.slice(0, 50)}..."`);
       }
@@ -269,68 +198,7 @@ function checkTextLength(entries) {
 function checkRequiredOverlayFields(entries) {
   for (const entry of entries) {
     if (!entry.overlays) continue;
-    for (let i = 0; i < entry.overlays.length; i++) {
-      const o = entry.overlays[i];
-      for (const field of REQUIRED_OVERLAY_FIELDS) {
-        if (o[field] === undefined || o[field] === null || o[field] === '') {
-          err(`[PropType] ${entry.id} overlay[${i}]: missing required overlay field "${field}"`);
-        }
-      }
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CHECK 16: Color Contrast Checker
-// ─────────────────────────────────────────────────────────────────────────────
-function checkColorContrast(entries) {
-  const BG_DARK = '#000000'; // Approximate dark background
-  for (const entry of entries) {
-    if (!entry.overlays) continue;
-    for (let i = 0; i < entry.overlays.length; i++) {
-      const o = entry.overlays[i];
-      const color = o.color || '#FFFFFF';
-      if (!color.startsWith('#') || color.length !== 7) continue;
-      try {
-        const ratio = contrastRatio(color, BG_DARK);
-        if (ratio < 4.5) {
-          warn(`[Contrast] ${entry.id} overlay[${i}]: text color "${color}" has contrast ratio ${ratio.toFixed(2)} < 4.5 (WCAG AA)`);
-        }
-      } catch(e) {
-        // Skip invalid color strings
-      }
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CHECK 11: Overlay Chronological Sorter (detect + report misordering)
-// ─────────────────────────────────────────────────────────────────────────────
-function checkChronologicalOrder(entries) {
-  for (const entry of entries) {
-    if (!entry.overlays || entry.overlays.length < 2) continue;
-    for (let i = 1; i < entry.overlays.length; i++) {
-      if (entry.overlays[i].startFrame < entry.overlays[i-1].startFrame) {
-        warn(`[Order] ${entry.id}: overlay[${i}] startFrame ${entry.overlays[i].startFrame} comes before overlay[${i-1}] startFrame ${entry.overlays[i-1].startFrame} — auto-sort recommended`);
-      }
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CHECK 18: Duplicate Clip Query Detector
-// ─────────────────────────────────────────────────────────────────────────────
-function checkDuplicateQueries(entries) {
-  const allQueries = {};
-  for (const entry of entries) {
-    const terms = entry.pexelsSearchTerms || entry.pixabaySearchTerms || [];
-    for (const q of terms) {
-      if (!allQueries[q]) allQueries[q] = [];
-      allQueries[q].push(entry.id);
-    }
-  }
-  for (const [q, days] of Object.entries(allQueries)) {
-    if (days.length > 1) {
+    for (let i = 0; i  1) {
       warn(`[DupQuery] Search query "${q}" used in multiple days: ${days.join(', ')} — reduce visual repetition`);
     }
   }
@@ -353,33 +221,7 @@ function checkAudioFiles(entries) {
       continue;
     }
     const size = fs.statSync(musicPath).size;
-    if (size < MIN_AUDIO_BYTES) {
-      err(`[Audio] ${entry.id}: music file too small (${size} bytes < ${MIN_AUDIO_BYTES}) — likely corrupt or placeholder`);
-      continue;
-    }
-    // Check magic bytes: MP3 = FF FB / FF F3 / FF F2 / ID3
-    const buf = Buffer.alloc(4);
-    const fd  = fs.openSync(musicPath, 'r');
-    fs.readSync(fd, buf, 0, 4, 0);
-    fs.closeSync(fd);
-    const isMP3 = (buf[0] === 0xFF && (buf[1] === 0xFB || buf[1] === 0xF3 || buf[1] === 0xF2))
-               || (buf[0] === 0x49 && buf[1] === 0x44 && buf[2] === 0x33); // ID3
-    if (!isMP3) {
-      err(`[Audio] ${entry.id}: ${musicFile} magic bytes ${buf.slice(0,4).toString('hex')} — NOT a valid MP3`);
-    } else {
-      ok(`[Audio] ${entry.id}: ${musicFile} OK (${Math.round(size/1024)}KB)`);
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CHECK 19: Audio Volume Range Check
-// ─────────────────────────────────────────────────────────────────────────────
-function checkAudioVolume(entries) {
-  for (const entry of entries) {
-    const vol = entry.volume;
-    if (vol !== undefined) {
-      if (vol < 0 || vol > 1) {
+    if (size  1) {
         err(`[AudioVol] ${entry.id}: volume ${vol} out of range [0.0, 1.0]`);
       }
     }
@@ -511,3 +353,75 @@ function main() {
 }
 
 main();
+
+
+
+
+    
+
+  
+
+
+COPIED TO CLIPBOARD
+
+
+function showPanel(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (name==='briefing'&&i===0)||(name==='code'&&i===1)));
+  document.getElementById('briefing-panel').classList.toggle('visible', name==='briefing');
+  document.getElementById('briefing-panel').style.display = name==='briefing' ? 'block' : 'none';
+  document.getElementById('code-panel').classList.toggle('hidden', name!=='code');
+  document.getElementById('code-panel').style.display = name==='code' ? 'block' : 'none';
+}
+
+// Init
+document.getElementById('briefing-panel').style.display = 'block';
+document.getElementById('code-panel').style.display = 'none';
+
+function copyCode(slug) {
+  const el = document.getElementById('code-' + slug);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    const btn = el.closest('.file-section').querySelector('.copy-btn');
+    btn.textContent = '✓ COPIED';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '⬡ COPY'; btn.classList.remove('copied'); }, 2000);
+    showToast();
+  });
+}
+
+function copyPrompt() {
+  const el = document.getElementById('prompt-text');
+  const text = el.innerText.replace('⬡ COPY PROMPT', '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('prompt-copy-btn');
+    btn.textContent = '✓ COPIED';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '⬡ COPY PROMPT'; btn.classList.remove('copied'); }, 2000);
+    showToast();
+  });
+}
+
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function filterNav(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('.nav-file-link').forEach(a => {
+    a.style.display = a.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+  });
+}
+
+// Highlight active nav link on scroll (code panel only)
+document.getElementById('content-area').addEventListener('scroll', function() {
+  if (document.getElementById('code-panel').style.display === 'none') return;
+  const sections = document.querySelectorAll('.file-section');
+  let current = '';
+  sections.forEach(s => {
+    const rect = s.getBoundingClientRect();
+    if (rect.top  {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+});
