@@ -34,31 +34,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-
-          const YT_KEY   = process.env.YOUTUBE_DATA_API_KEY;
-          const GROQ_KEY = process.env.GROQ_API_KEY;
-          const NTFY     = process.env.NTFY_TOPIC;
-
-          if (!YT_KEY) {
-            console.log('YOUTUBE_DATA_API_KEY not set -- skipping.');
-            console.log('Add a free YouTube Data API key from console.cloud.google.com');
-            process.exit(0);
-          }
-
-          // ── Top finance Shorts creators to track ──
-          const COMPETITORS = [
-            { name: 'Humphrey Yang',        id: 'UCFCEuCsyWP0YkP3CZ3Mr01Q' },
-            { name: 'Vivian Tu (YourRichBFF)', id: 'UCnlx8DFMgIbMHBaLCvEVE5A' },
-            { name: 'Mark Tilbury',          id: 'UCZjSJkYhHDmBRpqVLiB6bLQ' },
-            { name: 'Caleb Hammer',          id: 'UCDAq9jCiXBMQ7sFDQT8lmYw' },
-            { name: 'Graham Stephan',        id: 'UCV6KDgJskWaEckne5aPA0aQ' },
-          ];
-
-          function httpsRequest(options) {
-            return new Promise((resolve, reject) => {
+          node  {
               const req = https.request(options, res => {
                 let data = '';
                 res.on('data', d => data += d);
@@ -175,31 +151,7 @@ jobs:
             // Filter to last 7 days
             const cutoff     = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
             const thisWeek   = allVideos.filter(v => v.date >= cutoff);
-            const olderVids  = allVideos.filter(v => v.date < cutoff);
-
-            console.log('This week: ' + thisWeek.length + ' | Older: ' + olderVids.length);
-
-            // AI analysis
-            const analysis = await analyzeWithGroq(allVideos);
-
-            // Save to file
-            const report = {
-              date:      new Date().toISOString().slice(0, 10),
-              thisWeek,
-              allVideos: allVideos.slice(0, 20),
-              analysis,
-            };
-            fs.writeFileSync('competitor-report.json', JSON.stringify(report, null, 2));
-
-            // Build ntfy message
-            const lines = [
-              'DWB COMPETITOR TRACKER — ' + report.date,
-              '─────────────────────────',
-              '',
-              '📺 THIS WEEK\'S UPLOADS (' + thisWeek.length + ' videos)',
-            ];
-
-            thisWeek.slice(0, 8).forEach(v => {
+            const olderVids  = allVideos.filter(v => v.date  {
               lines.push('• [' + v.channel.split(' ')[0] + '] ' + v.title.slice(0, 55));
             });
 
