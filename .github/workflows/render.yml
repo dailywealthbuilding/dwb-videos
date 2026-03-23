@@ -29,6 +29,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install Google Fonts (for Remotion render)
+        run: |
+          mkdir -p /tmp/fonts
+          # Download new premium fonts for text overlays
+          curl -sL "https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@700;800;900&family=Space+Grotesk:wght@700&display=swap" -o /dev/null
+          # Install fontconfig for system font support
+          sudo apt-get install -y fonts-liberation fontconfig -q --fix-missing || true
+          echo "Fonts ready"
+
       - name: Install chrome-headless-shell
         run: npx remotion browser ensure
 
@@ -51,45 +60,7 @@ jobs:
           sudo apt-get install -y ffmpeg -q --fix-missing || \
           sudo apt-get install -y ffmpeg -q --fix-missing --allow-unauthenticated || \
           echo "WARNING: ffmpeg install failed - silent fallback will use node instead"
-          node << 'EOF'
-          const https = require('https');
-          const http  = require('http');
-          const fs    = require('fs');
-
-          // ── Updated SFX pools — Freesound CDN direct links (no auth needed) ──
-          const SFX_POOLS = {
-            'whoosh': [
-              'https://freesound.org/data/previews/396/396765_4284968-lq.mp3',
-              'https://freesound.org/data/previews/573/573577_1015240-lq.mp3',
-              'https://freesound.org/data/previews/399/399934_4284968-lq.mp3',
-              'https://freesound.org/data/previews/320/320775_5260872-lq.mp3',
-              'https://freesound.org/data/previews/521/521645_11861866-lq.mp3',
-            ],
-            'impact': [
-              'https://freesound.org/data/previews/387/387232_7255534-lq.mp3',
-              'https://freesound.org/data/previews/351/351563_3399912-lq.mp3',
-              'https://freesound.org/data/previews/398/398025_7255534-lq.mp3',
-              'https://freesound.org/data/previews/269/269538_5123851-lq.mp3',
-              'https://freesound.org/data/previews/436/436765_8326614-lq.mp3',
-            ],
-            'cheer': [
-              'https://freesound.org/data/previews/270/270545_5123851-lq.mp3',
-              'https://freesound.org/data/previews/322/322431_5260872-lq.mp3',
-              'https://freesound.org/data/previews/264/264594_1430420-lq.mp3',
-              'https://freesound.org/data/previews/363/363929_6594550-lq.mp3',
-              'https://freesound.org/data/previews/277/277020_5187254-lq.mp3',
-            ],
-            'ping': [
-              'https://freesound.org/data/previews/411/411642_5121236-lq.mp3',
-              'https://freesound.org/data/previews/320/320652_5260872-lq.mp3',
-              'https://freesound.org/data/previews/341/341695_5858296-lq.mp3',
-              'https://freesound.org/data/previews/539/539836_11421380-lq.mp3',
-              'https://freesound.org/data/previews/256/256113_3263906-lq.mp3',
-            ],
-          };
-
-          function download(url, dest) {
-            return new Promise((resolve, reject) => {
+          node  {
               const file = fs.createWriteStream(dest);
               const lib  = url.startsWith('https') ? https : http;
               const get  = (u) => {
@@ -154,13 +125,7 @@ jobs:
 
       - name: Detect active week from content files
         run: |
-          node << 'EOF'
-          const fs   = require('fs');
-          const path = require('path');
-
-          const srcDir = 'src';
-          const contentFiles = fs.readdirSync(srcDir)
-            .filter(f => f.match(/^week\d+-content\.js$/));
+          node  f.match(/^week\d+-content\.js$/));
 
           if (contentFiles.length === 0) {
             console.log('ERROR: No week content files found in src/');
@@ -197,8 +162,8 @@ jobs:
 
           const dayAssets = {};
           for (const entry of entries) {
-            if (!entry.id || !entry.pexelsSearchTerms) continue;
-            dayAssets[entry.id] = entry.pexelsSearchTerms
+            if (!entry.id || (!entry.pexelsSearchTerms && !entry.bRollQueries)) continue;
+            dayAssets[entry.id] = (entry.bRollQueries || entry.pexelsSearchTerms)
               .slice(0, 4)
               .map((q, i) => ({ id: entry.id + '_clip' + (i + 1), q }));
           }
@@ -239,53 +204,7 @@ jobs:
           JAMENDO_CLIENT_ID: ${{ secrets.JAMENDO_CLIENT_ID }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const http  = require('http');
-          const fs    = require('fs');
-
-          const JAMENDO_KEY = process.env.JAMENDO_CLIENT_ID;
-          const PIXABAY_KEY = process.env.PIXABAY_API_KEY;
-
-          const info    = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
-          const days    = info.days;
-          const dayMeta = info.dayMeta || {};
-
-          const DAY_MOODS = {
-            29:'emotional',30:'upbeat',31:'motivational',32:'electronic',
-            33:'relaxing',34:'powerful',35:'calm',36:'powerful',
-            37:'calm',38:'dramatic',39:'upbeat',40:'inspiring',
-            41:'powerful',42:'calm',43:'motivational',44:'emotional',
-            45:'upbeat',46:'powerful',47:'relaxing',48:'inspiring',
-            49:'calm',50:'upbeat',51:'motivational',52:'powerful',
-            53:'electronic',54:'inspiring',55:'upbeat',56:'powerful',
-            57:'calm',58:'electronic',59:'motivational',60:'upbeat',
-            61:'powerful',62:'inspiring',63:'calm',64:'powerful',
-            65:'motivational',66:'upbeat',67:'dramatic',68:'inspiring',
-            69:'calm',70:'powerful',71:'upbeat',72:'motivational',
-            73:'powerful',74:'calm',75:'inspiring',76:'electronic',
-            77:'upbeat',78:'powerful',79:'motivational',80:'dramatic',
-            81:'inspiring',82:'calm',83:'upbeat',84:'powerful',
-            85:'motivational',86:'inspiring',87:'dramatic',88:'powerful',
-            89:'upbeat',90:'inspiring',
-          };
-
-          const JAMENDO_TAGS = {
-            motivational:'motivational+upbeat', upbeat:'happy+upbeat',
-            powerful:'powerful+dramatic', calm:'relaxing+ambient',
-            emotional:'emotional+piano', electronic:'electronic+techno',
-            relaxing:'relaxing+chill', dramatic:'dramatic+epic',
-            inspiring:'inspiring+uplifting',
-          };
-
-          const PIXABAY_MOODS = {
-            motivational:'upbeat', upbeat:'upbeat', powerful:'powerful',
-            calm:'relaxing', emotional:'emotional', electronic:'electronic',
-            relaxing:'relaxing', dramatic:'dramatic', inspiring:'inspiring',
-          };
-
-          function fetchJSON(url) {
-            return new Promise((resolve, reject) => {
+          node  {
               const lib = url.startsWith('https') ? https : http;
               lib.get(url, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
                 if (res.statusCode === 301 || res.statusCode === 302)
@@ -337,29 +256,7 @@ jobs:
               console.log('Jamendo: "' + pick.name + '" by ' + pick.artist_name);
               await downloadFile(pick.audio, dest);
               const size = fs.statSync(dest).size;
-              if (size < 50000) throw new Error('File too small: ' + size);
-              console.log('Jamendo OK: ' + Math.round(size/1024) + 'KB');
-              return true;
-            } catch(e) {
-              console.log('Jamendo failed: ' + e.message);
-              if (fs.existsSync(dest)) fs.unlinkSync(dest);
-              return false;
-            }
-          }
-
-          async function tryFMA(mood, dest) {
-            try {
-              const genreMap = {
-                motivational:'Hip-Hop', upbeat:'Pop', powerful:'Classical',
-                calm:'Ambient', emotional:'Classical', electronic:'Electronic',
-                relaxing:'Ambient', dramatic:'Classical', inspiring:'Pop',
-              };
-              const genre = genreMap[mood] || 'Pop';
-              const url   = 'https://freemusicarchive.org/api/get/tracks.json' +
-                '?genre_title=' + encodeURIComponent(genre) +
-                '&limit=10&sort_by=track_listens&sort_dir=desc&api_key=60BLHNQCAOUFPIBZ';
-              const data   = await fetchJSON(url);
-              const tracks = (data.dataset || []).filter(t => t.track_url);
+              if (size  t.track_url);
               if (tracks.length === 0) throw new Error('No results for: ' + genre);
               for (const track of tracks.slice(0, 5)) {
                 try {
@@ -393,17 +290,7 @@ jobs:
               console.log('Pixabay: "' + pick.title + '"');
               await downloadFile(pick.audio, dest);
               const size = fs.statSync(dest).size;
-              if (size < 50000) throw new Error('File too small: ' + size);
-              console.log('Pixabay OK: ' + Math.round(size/1024) + 'KB');
-              return true;
-            } catch(e) {
-              console.log('Pixabay music failed: ' + e.message);
-              if (fs.existsSync(dest)) fs.unlinkSync(dest);
-              return false;
-            }
-          }
-
-          (async () => {
+              if (size  {
             let downloaded = 0, skipped = 0, failed = 0;
             const results = [];
 
@@ -459,17 +346,7 @@ jobs:
       - name: Fetch TikTok trending sounds (weekly inspiration)
         continue-on-error: true
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-
-          const ENDPOINTS = [
-            'https://www.tiktok.com/api/creative_center/music/trending/?aid=1988&count=10&period=7&page=1',
-            'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/music/list?period=7&page=1&limit=10',
-          ];
-
-          function fetchJSON(url) {
-            return new Promise((resolve, reject) => {
+          node  {
               https.get(url, {
                 headers: {
                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -537,22 +414,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-          const path  = require('path');
-
-          const GROQ_KEY = process.env.GROQ_API_KEY;
-          const NTFY     = process.env.NTFY_TOPIC;
-
-          if (!GROQ_KEY) {
-            console.log('GROQ_API_KEY not set -- skipping AI hook scorer.');
-            process.exit(0);
-          }
-
-          // ── Load active week content ──
-          const srcDir  = 'src';
-          const files   = fs.readdirSync(srcDir).filter(f => f.match(/^week\d+-content\.js$/));
+          node  f.match(/^week\d+-content\.js$/));
           const wNums   = files.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
 
           if (wNums.length === 0) {
@@ -680,24 +542,7 @@ jobs:
                 const bar = '█'.repeat(Math.round(s.score)) + '░'.repeat(10 - Math.round(s.score));
                 console.log(s.id + ' [' + s.score + '/10] ' + bar);
                 console.log('  ✅ ' + s.strength);
-                if (s.score < 7) {
-                  console.log('  ⚠️  ' + s.weakness);
-                  console.log('  💡 ' + s.suggestion);
-                }
-              });
-
-              // ── Save scores ──
-              fs.writeFileSync('out/.hook_scores.json', JSON.stringify(result, null, 2));
-
-              // ── Build ntfy report ──
-              const weakHooks = result.scores.filter(s => s.score < 7);
-              const lines     = [
-                'AI Hook Scores — Week ' + wNums[0] + ' (Groq/Free)',
-                'Average: ' + result.avgScore + '/10',
-                '',
-              ];
-
-              result.scores.forEach(s => {
+                if (s.score  s.score  {
                 const emoji = s.score >= 8 ? '🔥' : s.score >= 7 ? '✅' : '⚠️';
                 lines.push(emoji + ' ' + s.id + ': ' + s.score + '/10 — ' + s.strength.slice(0, 50));
               });
@@ -713,8 +558,7 @@ jobs:
                 });
               }
 
-              const priority = result.avgScore < 6 ? 'high' : result.avgScore < 7.5 ? 'default' : 'low';
-              const tags     = result.avgScore >= 7.5 ? 'white_check_mark,robot' : 'warning,robot';
+              const priority = result.avgScore = 7.5 ? 'white_check_mark,robot' : 'warning,robot';
 
               await sendNtfy(
                 lines.join('\n'),
@@ -742,33 +586,7 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
         run: |
-          node << 'EOF'
-          const https    = require('https');
-          const http     = require('http');
-          const fs       = require('fs');
-          const path     = require('path');
-          const { execSync } = require('child_process');
-
-          const PIXABAY_KEY  = process.env.PIXABAY_API_KEY  || '';
-          const PEXELS_KEY   = process.env.PEXELS_API_KEY   || '';
-          const UNSPLASH_KEY = process.env.UNSPLASH_ACCESS_KEY || '';
-
-          const info       = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
-          const DAY_ASSETS = info.dayAssets;
-
-          console.log('Smart Multi-Source Scorer — sources: Pixabay, Pexels, Coverr, Mixkit');
-          console.log('Downloading clips for: ' + Object.keys(DAY_ASSETS).join(', '));
-
-          // ─────────────────────────────────────────────────────────────────────
-          // SCORING — higher = better clip
-          // Factors: resolution, orientation match, duration match, file size
-          // ─────────────────────────────────────────────────────────────────────
-          function scoreClip(clip) {
-            let score = 0;
-            // Resolution score (prefer HD+)
-            const w = clip.width  || 0;
-            const h = clip.height || 0;
-            if (w >= 1080 && h >= 1920) score += 50; // perfect vertical HD
+          node = 1080 && h >= 1920) score += 50; // perfect vertical HD
             else if (h >= w)            score += 30; // vertical but not full HD
             else if (w >= 1920)         score += 20; // horizontal HD (usable)
             else                        score += 5;  // low res
@@ -778,10 +596,7 @@ jobs:
 
             // Duration score (target ~8-15s clips)
             const dur = clip.duration || 0;
-            if (dur >= 8  && dur <= 15) score += 20;
-            else if (dur >= 5 && dur < 8)  score += 10;
-            else if (dur > 15 && dur <= 30) score += 8;
-            else if (dur > 0)            score += 3;
+            if (dur >= 8  && dur = 5 && dur  15 && dur  0)            score += 3;
 
             // File size score (larger = higher quality usually)
             const size = clip.fileSize || 0;
@@ -843,13 +658,13 @@ jobs:
               // Try vertical first
               const urlV = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY
                 + '&q=' + encodeURIComponent(query)
-                + '&orientation=vertical&per_page=10&video_type=film';
+                + '&orientation=vertical&per_page=15&video_type=film&min_height=720';
               let data = await fetchJSON(urlV);
               let hits = data.hits || [];
               // Fallback without orientation filter
               if (hits.length === 0) {
                 const urlA = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY
-                  + '&q=' + encodeURIComponent(query) + '&per_page=10&video_type=film';
+                  + '&q=' + encodeURIComponent(query) + '&per_page=15&video_type=film';
                 data = await fetchJSON(urlA);
                 hits = data.hits || [];
               }
@@ -883,7 +698,7 @@ jobs:
             if (!PEXELS_KEY) return [];
             try {
               const url  = 'https://api.pexels.com/videos/search?query='
-                + encodeURIComponent(query) + '&per_page=10&orientation=portrait';
+                + encodeURIComponent(query) + '&per_page=15&orientation=portrait&min_width=720';
               const data = await fetchJSON(url, { 'Authorization': PEXELS_KEY });
               const videos = data.videos || [];
               const candidates = [];
@@ -988,30 +803,7 @@ jobs:
               }
               await downloadFile(imgUrl, tmpImg);
               const imgSize = fs.existsSync(tmpImg) ? fs.statSync(tmpImg).size : 0;
-              if (imgSize < 5000) throw new Error('Image too small');
-              execSync(
-                'ffmpeg -loop 1 -i "' + tmpImg + '" ' +
-                '-vf "scale=1920:3840,zoompan=z=\'min(zoom+0.0008,1.3)\':x=\'iw/2-(iw/zoom/2)\':y=\'ih/2-(ih/zoom/2)\':d=240:s=1080x1920:fps=30" ' +
-                '-t 8 -c:v libx264 -pix_fmt yuv420p -crf 23 -preset fast ' +
-                '"' + dest + '" -y -loglevel error',
-                { stdio: 'pipe' }
-              );
-              const outSize = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
-              if (outSize < 50000) throw new Error('Ken Burns output too small');
-              console.log('Ken Burns OK: ' + path.basename(dest));
-              return true;
-            } catch(e) {
-              console.log('Ken Burns FAILED: ' + e.message);
-              return false;
-            } finally {
-              if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg);
-            }
-          }
-
-          // ─────────────────────────────────────────────────────────────────────
-          // MAIN — fetch all sources in parallel, score, pick best, download
-          // ─────────────────────────────────────────────────────────────────────
-          (async () => {
+              if (imgSize  {
             let downloaded = 0, skipped = 0, failed = 0, kenBurns = 0;
             const sourceStats = { Pixabay: 0, Pexels: 0, KenBurns: 0 };
 
@@ -1059,37 +851,7 @@ jobs:
                   try {
                     await downloadFile(clip.url, dest);
                     const size = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
-                    if (size < 50000) throw new Error('File too small: ' + size);
-                    console.log('OK (' + clip.source + '): ' + item.id
-                      + ' score=' + clip.score
-                      + ' (' + Math.round(size/1024) + 'KB)');
-                    sourceStats[clip.source]++;
-                    downloaded++;
-                    success = true;
-                    break;
-                  } catch(e) {
-                    if (fs.existsSync(dest)) fs.unlinkSync(dest);
-                    console.log('FAILED (' + clip.source + '): ' + e.message);
-                  }
-                }
-
-                // ── Ken Burns fallback if all sources failed ──
-                if (!success) {
-                  console.log('All sources failed -- Ken Burns fallback: ' + item.id);
-                  const kbOk = await makeKenBurns(item.q, dest);
-                  if (kbOk) { success = true; kenBurns++; sourceStats['KenBurns']++; }
-                }
-
-                if (!success) { console.log('FINAL FAIL: ' + item.id); failed++; }
-
-                await sleep(300);
-              }
-            }
-
-            console.log('\n--- Smart Video Download Summary ---');
-            console.log('Total: ' + downloaded + ' downloaded | ' + skipped + ' cached | ' + kenBurns + ' Ken Burns | ' + failed + ' failed');
-            console.log('Sources: Pixabay=' + sourceStats.Pixabay + ' Pexels=' + sourceStats.Pexels + ' KenBurns=' + sourceStats.KenBurns);
-            if (failed > 0) console.log('WARNING: ' + failed + ' clip(s) failed. Render may have blank backgrounds.');
+                    if (size  0) console.log('WARNING: ' + failed + ' clip(s) failed. Render may have blank backgrounds.');
           })();
           EOF
 
@@ -1167,15 +929,9 @@ jobs:
           done
 
       - name: Burn-in captions (ffmpeg drawtext)
-        if: success()
+        if: false
         run: |
-          node << 'EOF'
-          const fs      = require('fs');
-          const path    = require('path');
-          const { execSync } = require('child_process');
-
-          const srcDir   = 'src';
-          const files    = fs.readdirSync(srcDir).filter(f => f.match(/^week\d+-content\.js$/));
+          node  f.match(/^week\d+-content\.js$/));
           const wNums    = files.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
           if (wNums.length === 0) { console.log('No content file -- skipping captions'); process.exit(0); }
 
@@ -1295,24 +1051,7 @@ jobs:
       - name: Generate SRT subtitle files
         if: success()
         run: |
-          node << 'EOF'
-          const fs   = require('fs');
-          const path = require('path');
-          const FPS  = 30;
-          const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
-
-          function framesToSRT(frames) {
-            const totalMs = Math.round((frames / FPS) * 1000);
-            const h  = Math.floor(totalMs / 3600000);
-            const m  = Math.floor((totalMs % 3600000) / 60000);
-            const s  = Math.floor((totalMs % 60000) / 1000);
-            const ms = totalMs % 1000;
-            return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' +
-                   String(s).padStart(2,'0') + ',' + String(ms).padStart(3,'0');
-          }
-
-          const srcDir      = 'src';
-          const contentFiles = fs.readdirSync(srcDir).filter(f => f.match(/^week\d+-content\.js$/));
+          node  f.match(/^week\d+-content\.js$/));
           const weekNums    = contentFiles.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b - a);
           const activeFile  = path.join(srcDir, 'week' + weekNums[0] + '-content.js');
           const source      = fs.readFileSync(activeFile, 'utf8');
@@ -1351,25 +1090,7 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
-          node << 'EOF'
-          const https  = require('https');
-          const fs     = require('fs');
-          const path   = require('path');
-
-          const CLIENT_ID     = process.env.YOUTUBE_CLIENT_ID;
-          const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
-          const REFRESH_TOKEN = process.env.YOUTUBE_REFRESH_TOKEN;
-
-          if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
-            console.log('YouTube secrets not configured -- skipping auto-upload.');
-            process.exit(0);
-          }
-
-          const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
-
-          const daysOverride = '${{ github.event.inputs.days_override }}';
-          const uploadDays   = daysOverride
-            ? daysOverride.split(',').map(d => d.trim()).filter(Boolean)
+          node  d.trim()).filter(Boolean)
             : info.days;
 
           // ── Calculate publish times: Day 0 = Monday 3PM UTC, Day 1 = Tuesday 3PM UTC ──
@@ -1417,12 +1138,7 @@ jobs:
 
           // ── Chapter markers — auto-built from overlay frame timings ──
           function generateChapters(overlays) {
-            if (!overlays || overlays.length < 3) return '';
-            const FPS = 30;
-            const NAMES = ['Hook','The Problem','The Pain','Pattern Interrupt',
-              'The Truth','The Formula','Proof It Works','How to Apply It',
-              'Remember This','Take Action'];
-            const chapters = overlays.map((o, i) => {
+            if (!overlays || overlays.length  {
               const secs  = Math.floor((o.startFrame || 0) / FPS);
               const m     = Math.floor(secs / 60);
               const s     = secs % 60;
@@ -1476,13 +1192,7 @@ jobs:
             let uploadedBytes = 0;
             let videoId       = null;
 
-            while (uploadedBytes < fileSize) {
-              const chunkSize = Math.min(CHUNK, fileSize - uploadedBytes);
-              const buffer    = Buffer.alloc(chunkSize);
-              fs.readSync(fileHandle, buffer, 0, chunkSize, uploadedBytes);
-
-              const urlObj   = new URL(uploadUrl);
-              const chunkRes = await new Promise((resolve, reject) => {
+            while (uploadedBytes  {
                 const req = https.request({
                   hostname: urlObj.hostname,
                   path:     urlObj.pathname + urlObj.search,
@@ -1607,28 +1317,7 @@ jobs:
               process.exit(1);
             }
 
-            for (let i = 0; i < uploadDays.length; i++) {
-              const day      = uploadDays[i];
-              const filePath = path.join('out', day + '_final.mp4');
-
-              if (!fs.existsSync(filePath)) {
-                console.log('SKIP: ' + day + ' -- video file not found');
-                continue;
-              }
-
-              const meta = (info.dayMeta || {})[day];
-              if (!meta || !meta.youtubeTitle) {
-                console.log('SKIP: ' + day + ' -- no metadata');
-                continue;
-              }
-
-              const publishAt = getPublishAt(i);
-              const sizeMB    = Math.round(fs.statSync(filePath).size / 1024 / 1024 * 10) / 10;
-              console.log('Uploading ' + day + ' (' + sizeMB + 'MB) scheduled for: ' + publishAt);
-
-              try {
-                const tags = (meta.tiktokCaption.match(/#\w+/g) || [])
-                  .map(t => t.replace('#', '')).slice(0, 20);
+            for (let i = 0; i  t.replace('#', '')).slice(0, 20);
 
                 // Load overlays from content file for chapter generation
                 let overlays = [];
@@ -1734,25 +1423,7 @@ jobs:
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-
-          const CLIENT_ID     = process.env.REDDIT_CLIENT_ID;
-          const CLIENT_SECRET = process.env.REDDIT_CLIENT_SECRET;
-          const USERNAME      = process.env.REDDIT_USERNAME;
-          const PASSWORD      = process.env.REDDIT_PASSWORD;
-
-          if (!CLIENT_ID || !CLIENT_SECRET || !USERNAME || !PASSWORD) {
-            console.log('Reddit secrets not configured -- skipping.');
-            process.exit(0);
-          }
-
-          let uploads = [];
-          try { uploads = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
-
-          const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
-          const successUploads = uploads.filter(u => u.status === 'ok');
+          node  u.status === 'ok');
 
           if (successUploads.length === 0) {
             console.log('No successful uploads -- skipping Reddit post.');
@@ -1863,17 +1534,7 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-
-          const NTFY = process.env.NTFY_TOPIC;
-          if (!NTFY) { console.log('NTFY not configured'); process.exit(0); }
-
-          let scheduled = [];
-          try { scheduled = JSON.parse(fs.readFileSync('scheduled-videos.json', 'utf8')); } catch(e) {}
-
-          const newVideos = scheduled.filter(v => !v.notifScheduled && v.publishAt);
+          node  !v.notifScheduled && v.publishAt);
 
           if (newVideos.length === 0) {
             console.log('No new videos to schedule notifications for');
@@ -1924,18 +1585,7 @@ jobs:
       - name: Update README with latest render stats
         if: success()
         run: |
-          node << 'EOF'
-          const fs      = require('fs');
-          const info    = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
-          const today   = new Date().toISOString().slice(0, 10);
-          const runNum  = process.env.GITHUB_RUN_NUMBER || '?';
-          const runId   = process.env.GITHUB_RUN_ID     || '';
-          const repo    = process.env.GITHUB_REPOSITORY || 'dailywealthbuilding/dwb-videos';
-
-          let uploads = [];
-          try { uploads = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
-
-          const rendered = info.days.filter(d => fs.existsSync('out/' + d + '_final.mp4'));
+          node  fs.existsSync('out/' + d + '_final.mp4'));
 
           const uploadedLinks = uploads
             .filter(u => u.status === 'ok')
@@ -2014,41 +1664,7 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-
-          const NTFY      = process.env.NTFY_TOPIC;
-          const jobStatus = '${{ job.status }}';
-          const runNumber = '${{ github.run_number }}';
-          const isSuccess = jobStatus === 'success';
-
-          let info = { week: 'unknown', days: [] };
-          try { info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8')); } catch(e) {}
-
-          let uploads = [];
-          try { uploads = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
-
-          let musicResults = [];
-          try { musicResults = JSON.parse(fs.readFileSync('out/.music_results.json', 'utf8')); } catch(e) {}
-
-          let trending = [];
-          try { trending = JSON.parse(fs.readFileSync('out/.trending_sounds.json', 'utf8')); } catch(e) {}
-
-          const STATUS = isSuccess ? 'COMPLETE' : 'FAILED';
-          let passed = 0;
-
-          const lines = [
-            'DWB ' + info.week.toUpperCase() + ' | Run #' + runNumber + ' | ' + STATUS,
-            '',
-          ];
-
-          for (const day of info.days) {
-            const file   = 'out/' + day + '_final.mp4';
-            const exists = fs.existsSync(file);
-            if (exists) {
-              const size   = Math.round(fs.statSync(file).size / (1024*1024) * 10) / 10;
-              const upload = uploads.find(u => u.day === day);
+          node  u.day === day);
               const ytLink = upload && upload.status === 'ok' ? ' | ' + upload.url : '';
               const music  = musicResults.find(m => m.day === day);
               const mood   = music ? ' [' + (music.mood || '') + ']' : '';
