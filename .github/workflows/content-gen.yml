@@ -38,22 +38,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-          const path  = require('path');
-
-          const GROQ_KEY = process.env.GROQ_API_KEY;
-          const NTFY     = process.env.NTFY_TOPIC;
-
-          if (!GROQ_KEY) {
-            console.log('GROQ_API_KEY not set -- skipping.');
-            process.exit(0);
-          }
-
-          // ── Detect next week number ──
-          const srcDir   = 'src';
-          const files    = fs.readdirSync(srcDir).filter(f => f.match(/^week\d+-content\.js$/));
+          node  f.match(/^week\d+-content\.js$/));
           const wNums    = files.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
           const override = '${{ github.event.inputs.week_number }}';
           const nextWeek = override ? parseInt(override) : (wNums[0] || 6) + 1;
@@ -109,39 +94,7 @@ jobs:
           const theme = WEEK_THEMES[nextWeek] || 'Financial Freedom & Wealth Building';
 
           // ── Whether to use default or named export ──
-          const exportType = nextWeek <= 6 ? 'default' : 'named';
-          const exportName = 'week' + nextWeek + 'Videos';
-
-          const hookTypesStr = HOOK_TYPES.slice(0,4).join(' | ');
-          const exportLine   = exportType === 'default' ? 'export default [...]' : 'export const ' + exportName + ' = [...]';
-          const prompt = 'You are an expert finance content creator for the @DailyWealthBuilding YouTube/TikTok channel.\n\n'
-            + 'Generate a complete JavaScript content file for Week ' + nextWeek + ' of a 90-day challenge.\n'
-            + 'Week theme: "' + theme + '"\n'
-            + 'Days: ' + startDay + ' to ' + endDay + '\n'
-            + competitorContext + '\n'
-            + analyticsContext + '\n\n'
-            + 'REQUIREMENTS:\n'
-            + '- 7 videos (day' + startDay + ' through day' + endDay + ')\n'
-            + '- Each video has exactly 10 overlays following this structure:\n'
-            + '  [0] HOOK (frames 0-75, Anton font, zoom-punch animation)\n'
-            + '  [1] EXPAND (frames 75-165, Montserrat, fade)\n'
-            + '  [2] PAIN (frames 165-255, Montserrat, slide-left, red color)\n'
-            + '  [3] PATTERN INTERRUPT (frames 255-330, Anton, glitch)\n'
-            + '  [4] LIE/EXPOSE (frames 330-405, Montserrat, fade)\n'
-            + '  [5] FORMULA (frames 405-540, Montserrat, highlight-box, #00FF88 color)\n'
-            + '  [6] PROOF (frames 540-630, Montserrat, word-highlight)\n'
-            + '  [7] APPLY (frames 630-735, Montserrat, fade)\n'
-            + '  [8] LOOP (frames 735-810, Montserrat, slide-left)\n'
-            + '  [9] CTA (frames 810-900, Anton, bounce, bottom-center, comment-bait question)\n\n'
-            + '- Hook types to rotate: ' + hookTypesStr + '\n'
-            + '- No fabricated stats, no income promises\n'
-            + '- Max 80 chars per overlay text (including newlines as spaces)\n'
-            + '- Each video needs: id, filename, music, musicMood, title, pexelsSearchTerms (4 items), overlays (10), tiktokCaption, youtubeTitle, youtubeDescription, pinnedComment\n\n'
-            + 'Generate the JavaScript file content. Use ' + exportLine + '.\n\n'
-            + 'Respond with ONLY the JavaScript code, no explanation, no markdown fences.';
-
-          function callGroq(prompt) {
-            return new Promise((resolve, reject) => {
+          const exportType = nextWeek  {
               const body = JSON.stringify({
                 model:       'llama-3.1-70b-versatile',
                 max_tokens:  4000,
