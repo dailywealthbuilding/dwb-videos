@@ -35,35 +35,7 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs    = require('fs');
-
-          const CLIENT_ID     = process.env.YOUTUBE_CLIENT_ID;
-          const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
-          const REFRESH_TOKEN = process.env.YOUTUBE_REFRESH_TOKEN;
-          const NTFY          = process.env.NTFY_TOPIC;
-
-          if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
-            console.log('YouTube secrets not configured -- skipping.');
-            process.exit(0);
-          }
-
-          // ── Date helpers ──
-          function toYMD(date) {
-            return date.toISOString().slice(0, 10);
-          }
-
-          const today     = new Date();
-          const last7     = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-          const last14    = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
-          const startDate = toYMD(last7);
-          const endDate   = toYMD(today);
-          const prevStart = toYMD(last14);
-          const prevEnd   = toYMD(last7);
-
-          function httpsRequest(options, body) {
-            return new Promise((resolve, reject) => {
+          node  {
               const req = https.request(options, res => {
                 let data = '';
                 res.on('data', d => data += d);
@@ -172,11 +144,7 @@ jobs:
             if (!previous || previous === 0) return '';
             const pct = ((current - previous) / previous) * 100;
             if (pct > 5)  return ' ↑' + Math.round(pct) + '%';
-            if (pct < -5) return ' ↓' + Math.abs(Math.round(pct)) + '%';
-            return ' →';
-          }
-
-          (async () => {
+            if (pct  {
             let token;
             try {
               token = await getAccessToken();
@@ -238,10 +206,7 @@ jobs:
             else if (avgDuration >= 20) retentionInsight = 'Strong (66%+ retention)';
             else if (avgDuration >= 15) retentionInsight = 'Good (50%+ retention)';
             else if (avgDuration >= 10) retentionInsight = 'Fair (33%+ retention) — review hooks';
-            else retentionInsight = 'Low (<33%) — hooks need work';
-
-            // ── Top video this week ──
-            const topTitle = recentVideos.length > 0
+            else retentionInsight = 'Low ( 0
               ? recentVideos[0].snippet?.title?.slice(0, 50) || '—'
               : '—';
 
@@ -298,13 +263,7 @@ jobs:
               topTitle,
               '',
               '📋 NEXT STEPS',
-              avgDuration < 15
-                ? '⚠️  Avg duration low — strengthen hooks this week'
-                : '✅ Retention good — keep same structure',
-              netSubs < 0
-                ? '⚠️  Lost more subs than gained — review content quality'
-                : '✅ Growing — maintain posting consistency',
-              comments > 20
+              avgDuration  20
                 ? '✅ Good engagement — reply to top 5 comments'
                 : '💬 Reply to ALL comments this week to boost algorithm',
             ];
