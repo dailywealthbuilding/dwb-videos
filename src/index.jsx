@@ -88,7 +88,7 @@ const ALL_CONTENT = [
 // Validate required fields — warns in console, skips broken entries
 // ─────────────────────────────────────────────────────────────────────────────
 function validateEntry(entry) {
-  const required = ['id', 'filename', 'music', 'overlays', 'pexelsSearchTerms'];
+  const required = ['id', 'filename', 'overlays'];
   const missing = required.filter(f => !entry[f]);
   if (missing.length > 0) {
     console.warn('[DWB] ' + (entry.id || 'UNKNOWN') + ' missing: ' + missing.join(', '));
@@ -107,22 +107,9 @@ export const RemotionRoot = () => {
   return (
     <>
       {valid.map(({ id, music, overlays }) => (
-        <Composition
-          key={id}
-          id={id}
-          component={VideoComposition}
-          durationInFrames={900}
-          fps={30}
-          width={1080}
-          height={1920}
-          defaultProps={{
-            videoId: id,
-            music,
-            overlays,
-          }}
-        />
+        
       ))}
-    </>
+    
   );
 };
 
