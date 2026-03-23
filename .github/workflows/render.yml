@@ -132,7 +132,11 @@ jobs:
       - name: Detect active week from content files
         run: |
           node << 'EOF'
-          f.match(/^week\d+-content\.js$/));
+          const fs   = require('fs');
+          const path = require('path');
+          const srcDir      = path.join(process.cwd(), 'src');
+          const allFiles    = fs.existsSync(srcDir) ? fs.readdirSync(srcDir) : [];
+          const contentFiles = allFiles.filter(f => f.match(/^week\d+-content\.js$/));
 
           if (contentFiles.length === 0) {
             console.log('ERROR: No week content files found in src/');
@@ -212,6 +216,16 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
           node << 'EOF'
+          const https  = require('https');
+          const http   = require('http');
+          const fs     = require('fs');
+          const path   = require('path');
+          const crypto = require('crypto');
+          const fetchJSON = (url) => new Promise((resolve, reject) => {
+          const https = require('https');
+          const http  = require('http');
+          const fs    = require('fs');
+          const fetchTikTok = (url) => new Promise((resolve, reject) => {
           {
               const lib = url.startsWith('https') ? https : http;
               lib.get(url, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
@@ -355,8 +369,15 @@ jobs:
         continue-on-error: true
         run: |
           node << 'EOF'
-          {
-              https.get(url, {
+          const https = require('https');
+          const http  = require('http');
+          const fs    = require('fs');
+          const ENDPOINTS = [
+            'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/music/list?period=7&page=1&limit=10',
+            'https://www.tiktok.com/api/music/list/?count=10&cursor=0',
+          ];
+          const fetchJSON = (url) => new Promise((resolve, reject) => {
+            https.get(url, {
                 headers: {
                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                   'Accept': 'application/json',
@@ -424,7 +445,14 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           node << 'EOF'
-          f.match(/^week\d+-content\.js$/));
+          const fs   = require('fs');
+          const path = require('path');
+          const https = require('https');
+          const GROQ_KEY  = process.env.GROQ_API_KEY  || '';
+          const NTFY      = process.env.NTFY_TOPIC    || '';
+          const srcDir    = path.join(process.cwd(), 'src');
+          const allFiles  = fs.existsSync(srcDir) ? fs.readdirSync(srcDir) : [];
+          const files     = allFiles.filter(f.match(/^week\d+-content\.js$/));
           const wNums   = files.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
 
           if (wNums.length === 0) {
@@ -942,7 +970,10 @@ jobs:
         if: false
         run: |
           node << 'EOF'
-          f.match(/^week\d+-content\.js$/));
+          const fs   = require('fs');
+          const path = require('path');
+          const srcDir = path.join(process.cwd(), 'src');
+          const files  = fs.existsSync(srcDir) ? fs.readdirSync(srcDir).filter(f.match(/^week\d+-content\.js$/));
           const wNums    = files.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
           if (wNums.length === 0) { console.log('No content file -- skipping captions'); process.exit(0); }
 
@@ -1063,7 +1094,11 @@ jobs:
         if: success()
         run: |
           node << 'EOF'
-          f.match(/^week\d+-content\.js$/));
+          const fs   = require('fs');
+          const path = require('path');
+          const srcDir       = path.join(process.cwd(), 'src');
+          const allFiles     = fs.existsSync(srcDir) ? fs.readdirSync(srcDir) : [];
+          const contentFiles = allFiles.filter(f.match(/^week\d+-content\.js$/));
           const weekNums    = contentFiles.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b - a);
           const activeFile  = path.join(srcDir, 'week' + weekNums[0] + '-content.js');
           const source      = fs.readFileSync(activeFile, 'utf8');
@@ -1103,7 +1138,15 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
           node << 'EOF'
-          d.trim()).filter(Boolean)
+          const fs    = require('fs');
+          const https = require('https');
+          const path  = require('path');
+          const CLIENT_ID     = process.env.YOUTUBE_CLIENT_ID     || '';
+          const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || '';
+          const REFRESH_TOKEN = process.env.YOUTUBE_REFRESH_TOKEN || '';
+          let info = { week: 'unknown', days: [], dayMeta: {} };
+          try { info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8')); } catch(e) {}
+          const overrideDays = (process.env.DAYS_OVERRIDE || '').split(',').map(d.trim()).filter(Boolean)
             : info.days;
 
           // ── Calculate publish times: Day 0 = Monday 3PM UTC, Day 1 = Tuesday 3PM UTC ──
@@ -1437,7 +1480,12 @@ jobs:
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
         run: |
           node << 'EOF'
-          u.status === 'ok');
+          const fs      = require('fs');
+          const path    = require('path');
+          const https   = require('https');
+          let uploads = [];
+          try { uploads = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
+          const successUploads = uploads.filter(u.status === 'ok');
 
           if (successUploads.length === 0) {
             console.log('No successful uploads -- skipping Reddit post.');
@@ -1549,7 +1597,12 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           node << 'EOF'
-          !v.notifScheduled && v.publishAt);
+          const fs    = require('fs');
+          const https = require('https');
+          const NTFY  = process.env.NTFY_TOPIC || '';
+          let scheduledVideos = [];
+          try { scheduledVideos = JSON.parse(fs.readFileSync('scheduled-videos.json', 'utf8')); } catch(e) {}
+          const newVideos = scheduledVideos.filter(v => !v.notifScheduled && v.publishAt);
 
           if (newVideos.length === 0) {
             console.log('No new videos to schedule notifications for');
@@ -1601,7 +1654,14 @@ jobs:
         if: success()
         run: |
           node << 'EOF'
-          fs.existsSync('out/' + d + '_final.mp4'));
+          const fs   = require('fs');
+          const path = require('path');
+          const https = require('https');
+          let info = { week: 'unknown', days: [] };
+          try { info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8')); } catch(e) {}
+          let uploads = [];
+          try { uploads = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
+          const renderedDays = (info.days || []).filter(d => fs.existsSync('out/' + d + '_final.mp4'));
 
           const uploadedLinks = uploads
             .filter(u => u.status === 'ok')
