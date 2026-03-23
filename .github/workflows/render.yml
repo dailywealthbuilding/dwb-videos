@@ -55,77 +55,84 @@ jobs:
 
       - name: Download SFX (Freesound CDN + ffmpeg silent fallback)
         run: |
-          # Install ffmpeg with retry and fix-missing fallback
-          sudo apt-get update -q || true
-          sudo apt-get install -y ffmpeg -q --fix-missing || \
-          sudo apt-get install -y ffmpeg -q --fix-missing --allow-unauthenticated || \
-          echo "WARNING: ffmpeg install failed - silent fallback will use node instead"
-          node  {
-              const file = fs.createWriteStream(dest);
-              const lib  = url.startsWith('https') ? https : http;
-              const get  = (u) => {
-                const l = u.startsWith('https') ? https : http;
-                l.get(u, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
-                  if (res.statusCode === 301 || res.statusCode === 302) {
-                    file.close(); return get(res.headers.location);
-                  }
-                  if (res.statusCode !== 200) { file.close(); reject(new Error('HTTP ' + res.statusCode)); return; }
-                  res.pipe(file);
-                  file.on('finish', () => { file.close(); resolve(); });
-                }).on('error', e => { file.close(); reject(e); });
-              };
-              get(url);
-            });
-          }
-
+          sudo apt-get install -y ffmpeg -q --fix-missing 2>/dev/null || true
+          mkdir -p public/sfx
+          node << 'EOF'
+          const https = require('https');
+          const http  = require('http');
+          const fs    = require('fs');
+          const SFX_POOLS = {
+            whoosh: [
+              'https://cdn.freesound.org/previews/416/416474_5121236-lq.mp3',
+              'https://cdn.freesound.org/previews/537/537744_11861866-lq.mp3',
+            ],
+            impact: [
+              'https://cdn.freesound.org/previews/321/321485_5260872-lq.mp3',
+              'https://cdn.freesound.org/previews/369/369515_6895985-lq.mp3',
+            ],
+            ping: [
+              'https://cdn.freesound.org/previews/411/411090_5121236-lq.mp3',
+              'https://cdn.freesound.org/previews/336/336899_971382-lq.mp3',
+            ],
+            cheer: [
+              'https://cdn.freesound.org/previews/397/397353_4284968-lq.mp3',
+              'https://cdn.freesound.org/previews/170/170380_1517528-lq.mp3',
+            ],
+          };
+          const download = (url, dest) => new Promise((resolve, reject) => {
+            const file = fs.createWriteStream(dest);
+            const get  = (u) => {
+              const lib = u.startsWith('https') ? https : http;
+              lib.get(u, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
+                if (res.statusCode === 301 || res.statusCode === 302) {
+                  file.close(); return get(res.headers.location);
+                }
+                if (res.statusCode !== 200) { file.close(); reject(new Error('HTTP ' + res.statusCode)); return; }
+                res.pipe(file);
+                file.on('finish', () => { file.close(); resolve(); });
+              }).on('error', e => { file.close(); reject(e); });
+            };
+            get(url);
+          });
           (async () => {
             for (const [slot, pool] of Object.entries(SFX_POOLS)) {
               const dest = 'public/sfx/' + slot + '.mp3';
               if (fs.existsSync(dest)) fs.unlinkSync(dest);
               const shuffled = [...pool].sort(() => Math.random() - 0.5);
-              let success = false;
+              let ok = false;
               for (const url of shuffled) {
                 try {
                   await download(url, dest);
                   const size = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
                   if (size > 5000) {
-                    console.log('SFX OK: ' + slot + '.mp3 (' + Math.round(size/1024) + 'KB)');
-                    success = true; break;
+                    console.log('SFX OK: ' + slot + ' (' + Math.round(size/1024) + 'KB)');
+                    ok = true; break;
                   }
                   if (fs.existsSync(dest)) fs.unlinkSync(dest);
-                } catch(e) {
-                  if (fs.existsSync(dest)) fs.unlinkSync(dest);
-                }
+                } catch(e) { if (fs.existsSync(dest)) fs.unlinkSync(dest); }
               }
-              if (!success) console.log('WARNING: Could not download ' + slot + '.mp3 -- ffmpeg will create silent fallback');
+              if (!ok) console.log('WARNING: Could not download ' + slot + ' -- silent fallback will be used');
             }
             console.log('SFX download complete');
           })();
           EOF
-
-          # ── ffmpeg silent fallback — if any SFX still missing, create 1s silent MP3 ──
           for SFX in whoosh impact ping cheer; do
             FILE="public/sfx/${SFX}.mp3"
             if [ ! -f "$FILE" ] || [ ! -s "$FILE" ]; then
               echo "Creating silent fallback for ${SFX}.mp3"
               if command -v ffmpeg &> /dev/null; then
-                ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono -t 1 -q:a 9 -acodec libmp3lame "$FILE" -y -loglevel error
+                ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono -t 1 -q:a 9 -acodec libmp3lame "$FILE" -y -loglevel error 2>/dev/null || true
               else
-                node -e "
-                  const fs = require('fs');
-                  const buf = Buffer.alloc(1024, 0);
-                  fs.writeFileSync('${FILE}', buf);
-                  console.log('Node silent fallback created: ${SFX}.mp3');
-                "
+                node -e "const fs=require('fs');fs.writeFileSync('${FILE}',Buffer.alloc(1024,0));console.log('silent fallback: ${SFX}.mp3');"
               fi
-              echo "Fallback created: ${SFX}.mp3"
             fi
           done
           echo "SFX check complete"
 
       - name: Detect active week from content files
         run: |
-          node  f.match(/^week\d+-content\.js$/));
+          node << 'EOF'
+          f.match(/^week\d+-content\.js$/));
 
           if (contentFiles.length === 0) {
             console.log('ERROR: No week content files found in src/');
@@ -204,7 +211,8 @@ jobs:
           JAMENDO_CLIENT_ID: ${{ secrets.JAMENDO_CLIENT_ID }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
-          node  {
+          node << 'EOF'
+          {
               const lib = url.startsWith('https') ? https : http;
               lib.get(url, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
                 if (res.statusCode === 301 || res.statusCode === 302)
@@ -346,7 +354,8 @@ jobs:
       - name: Fetch TikTok trending sounds (weekly inspiration)
         continue-on-error: true
         run: |
-          node  {
+          node << 'EOF'
+          {
               https.get(url, {
                 headers: {
                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -414,7 +423,8 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node  f.match(/^week\d+-content\.js$/));
+          node << 'EOF'
+          f.match(/^week\d+-content\.js$/));
           const wNums   = files.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
 
           if (wNums.length === 0) {
@@ -931,7 +941,8 @@ jobs:
       - name: Burn-in captions (ffmpeg drawtext)
         if: false
         run: |
-          node  f.match(/^week\d+-content\.js$/));
+          node << 'EOF'
+          f.match(/^week\d+-content\.js$/));
           const wNums    = files.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
           if (wNums.length === 0) { console.log('No content file -- skipping captions'); process.exit(0); }
 
@@ -1051,7 +1062,8 @@ jobs:
       - name: Generate SRT subtitle files
         if: success()
         run: |
-          node  f.match(/^week\d+-content\.js$/));
+          node << 'EOF'
+          f.match(/^week\d+-content\.js$/));
           const weekNums    = contentFiles.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b - a);
           const activeFile  = path.join(srcDir, 'week' + weekNums[0] + '-content.js');
           const source      = fs.readFileSync(activeFile, 'utf8');
@@ -1090,7 +1102,8 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
-          node  d.trim()).filter(Boolean)
+          node << 'EOF'
+          d.trim()).filter(Boolean)
             : info.days;
 
           // ── Calculate publish times: Day 0 = Monday 3PM UTC, Day 1 = Tuesday 3PM UTC ──
@@ -1423,7 +1436,8 @@ jobs:
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
         run: |
-          node  u.status === 'ok');
+          node << 'EOF'
+          u.status === 'ok');
 
           if (successUploads.length === 0) {
             console.log('No successful uploads -- skipping Reddit post.');
@@ -1534,7 +1548,8 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node  !v.notifScheduled && v.publishAt);
+          node << 'EOF'
+          !v.notifScheduled && v.publishAt);
 
           if (newVideos.length === 0) {
             console.log('No new videos to schedule notifications for');
@@ -1585,7 +1600,8 @@ jobs:
       - name: Update README with latest render stats
         if: success()
         run: |
-          node  fs.existsSync('out/' + d + '_final.mp4'));
+          node << 'EOF'
+          fs.existsSync('out/' + d + '_final.mp4'));
 
           const uploadedLinks = uploads
             .filter(u => u.status === 'ok')
@@ -1664,7 +1680,27 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node  u.day === day);
+          node << 'EOF'
+          const https   = require('https');
+          const fs      = require('fs');
+          const NTFY    = process.env.NTFY_TOPIC || '';
+          const isSuccess = process.env.GITHUB_JOB_STATUS !== 'failure';
+          let info = { week: 'unknown', days: [] };
+          let uploads = [], musicResults = [], trending = [];
+          try { info         = JSON.parse(fs.readFileSync('out/.week_info.json',      'utf8')); } catch(e) {}
+          try { uploads      = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
+          try { musicResults = JSON.parse(fs.readFileSync('out/.music_results.json',  'utf8')); } catch(e) {}
+          try { trending     = JSON.parse(fs.readFileSync('out/.trending_sounds.json','utf8')); } catch(e) {}
+          const lines = [];
+          lines.push('DWB Pipeline ' + (isSuccess ? 'COMPLETE' : 'FAILED'));
+          lines.push(info.week + ' | ' + new Date().toISOString().slice(0,10));
+          lines.push('');
+          let passed = 0;
+          for (const day of (info.days || [])) {
+            const mp4  = 'out/' + day + '_final.mp4';
+            const size = fs.existsSync(mp4) ? Math.round(fs.statSync(mp4).size / 1024 / 1024) : 0;
+            if (size > 0) {
+              const upload = uploads.find(u => u.day === day);
               const ytLink = upload && upload.status === 'ok' ? ' | ' + upload.url : '';
               const music  = musicResults.find(m => m.day === day);
               const mood   = music ? ' [' + (music.mood || '') + ']' : '';
@@ -1674,46 +1710,29 @@ jobs:
               lines.push(day + ' FAILED');
             }
           }
-
           lines.push('');
-          lines.push('Result: ' + passed + '/' + info.days.length + ' rendered');
-
+          lines.push('Result: ' + passed + '/' + (info.days || []).length + ' rendered');
           const ytCount = uploads.filter(u => u.status === 'ok').length;
           if (ytCount > 0) lines.push('YouTube: ' + ytCount + ' uploaded');
-
           if (trending.length > 0) {
             lines.push('');
-            lines.push('Top TikTok Sounds This Week:');
-            trending.slice(0, 3).forEach(s =>
-              lines.push('  ' + s.rank + '. ' + s.title + ' - ' + s.artist)
-            );
+            lines.push('Top TikTok Sounds:');
+            trending.slice(0,3).forEach(s => lines.push('  ' + s.rank + '. ' + s.title + ' - ' + s.artist));
           }
-
-          if (isSuccess && passed === info.days.length) {
-            lines.push('');
-            lines.push('All done. Check YouTube.');
-          }
-
+          if (!NTFY) { console.log('NTFY_TOPIC not set -- skipping'); process.exit(0); }
           const message = lines.join('\n');
-
-          if (!NTFY) { console.log('NTFY_TOPIC not set -- skipping notification'); process.exit(0); }
-
-          const data = Buffer.from(message);
-          const req  = https.request({
-            hostname: 'ntfy.sh',
-            port:     443,
-            path:     '/' + NTFY,
-            method:   'POST',
-            headers:  {
+          const data    = Buffer.from(message);
+          const req = https.request({
+            hostname: 'ntfy.sh', port: 443,
+            path:     '/' + NTFY, method: 'POST',
+            headers: {
               'Content-Type':   'text/plain',
               'Content-Length': data.length,
-              'Title':          'DWB ' + (isSuccess ? 'DONE' : 'FAILED') + ' - ' + info.week + ' - ' + passed + '/' + info.days.length,
+              'Title':          'DWB ' + (isSuccess ? 'DONE' : 'FAILED') + ' - ' + info.week + ' - ' + passed + '/' + (info.days || []).length,
               'Priority':       isSuccess ? 'default' : 'high',
               'Tags':           isSuccess ? 'white_check_mark,clapper' : 'x,warning',
             },
-          }, res => {
-            console.log('ntfy sent: HTTP ' + res.statusCode);
-          });
+          }, res => { console.log('ntfy sent: HTTP ' + res.statusCode); });
           req.on('error', e => console.log('ntfy error: ' + e.message));
           req.write(data);
           req.end();
