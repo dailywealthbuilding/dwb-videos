@@ -215,81 +215,88 @@ jobs:
           JAMENDO_CLIENT_ID: ${{ secrets.JAMENDO_CLIENT_ID }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
+          mkdir -p public/music
           node << 'EOF'
-          const https  = require('https');
-          const http   = require('http');
-          const fs     = require('fs');
-          const path   = require('path');
-          const crypto = require('crypto');
-          const fetchJSON = (url) => new Promise((resolve, reject) => {
           const https = require('https');
           const http  = require('http');
           const fs    = require('fs');
-          const fetchTikTok = (url) => new Promise((resolve, reject) => {
-          {
-              const lib = url.startsWith('https') ? https : http;
-              lib.get(url, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
-                if (res.statusCode === 301 || res.statusCode === 302)
-                  return fetchJSON(res.headers.location).then(resolve).catch(reject);
-                let data = '';
-                res.on('data', d => data += d);
-                res.on('end', () => {
-                  try { resolve(JSON.parse(data)); }
-                  catch(e) { reject(new Error('JSON parse failed')); }
-                });
-              }).on('error', reject);
-            });
-          }
+          const path  = require('path');
 
-          function downloadFile(url, dest) {
-            return new Promise((resolve, reject) => {
-              const file = fs.createWriteStream(dest);
-              const get = (u) => {
-                const lib = u.startsWith('https') ? https : http;
-                lib.get(u, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
-                  if (res.statusCode === 301 || res.statusCode === 302) {
-                    file.close(); return get(res.headers.location);
-                  }
-                  if (res.statusCode !== 200) {
-                    file.close(); reject(new Error('HTTP ' + res.statusCode)); return;
-                  }
-                  res.pipe(file);
-                  file.on('finish', () => { file.close(); resolve(); });
-                }).on('error', e => { file.close(); reject(e); });
-              };
-              get(url);
-            });
-          }
+          const JAMENDO_KEY  = process.env.JAMENDO_CLIENT_ID || '';
+          const PIXABAY_KEY  = process.env.PIXABAY_API_KEY   || '';
 
-          function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+          const JAMENDO_TAGS  = { punchy:'energetic+upbeat', motivational:'motivational+positive', confident:'jazz+cool', dramatic:'epic+dramatic', focused:'ambient+focus', rebellious:'rock+energetic', uplifting:'uplifting+happy', melancholic:'sad+melancholic' };
+          const PIXABAY_MOODS = { punchy:'energetic', motivational:'uplifting', confident:'corporate', dramatic:'dramatic', focused:'calm', rebellious:'upbeat', uplifting:'happy', melancholic:'melancholic' };
+          const FMA_GENRES    = { punchy:'Electronic', motivational:'Hip-Hop', confident:'Jazz', dramatic:'Classical', focused:'Ambient', rebellious:'Rock', uplifting:'Pop', melancholic:'Ambient' };
+          const DAY_MOODS     = {};
+          for (let i=1;i<=90;i++) DAY_MOODS[i] = ['punchy','motivational','confident','dramatic','focused','rebellious','uplifting','melancholic'][i%8];
+
+          const fetchJSON = (url) => new Promise((resolve, reject) => {
+            const lib = url.startsWith('https') ? https : http;
+            lib.get(url, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
+              if (res.statusCode === 301 || res.statusCode === 302)
+                return fetchJSON(res.headers.location).then(resolve).catch(reject);
+              let data = '';
+              res.on('data', d => data += d);
+              res.on('end', () => {
+                try { resolve(JSON.parse(data)); }
+                catch(e) { reject(new Error('JSON parse failed: ' + url)); }
+              });
+            }).on('error', reject);
+          });
+
+          const downloadFile = (url, dest) => new Promise((resolve, reject) => {
+            const file = fs.createWriteStream(dest);
+            const get  = (u) => {
+              const lib = u.startsWith('https') ? https : http;
+              lib.get(u, { headers: { 'User-Agent': 'DWB-Pipeline/1.0' } }, res => {
+                if (res.statusCode === 301 || res.statusCode === 302) { file.close(); return get(res.headers.location); }
+                if (res.statusCode !== 200) { file.close(); reject(new Error('HTTP ' + res.statusCode)); return; }
+                res.pipe(file);
+                file.on('finish', () => { file.close(); resolve(); });
+              }).on('error', e => { file.close(); reject(e); });
+            };
+            get(url);
+          });
+
+          const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
           async function tryJamendo(mood, dest) {
             if (!JAMENDO_KEY) return false;
             try {
               const tag  = JAMENDO_TAGS[mood] || 'motivational+upbeat';
-              const url  = 'https://api.jamendo.com/v3.0/tracks/' +
-                '?client_id=' + JAMENDO_KEY +
-                '&format=json&limit=10&tags=' + tag +
-                '&order=popularity_week&audioformat=mp32&license_cc=1';
-              const data   = await fetchJSON(url);
+              const url  = 'https://api.jamendo.com/v3.0/tracks/?client_id=' + JAMENDO_KEY + '&format=json&limit=10&tags=' + tag + '&order=popularity_week&audioformat=mp32&license_cc=1';
+              const data = await fetchJSON(url);
               const tracks = (data.results || []).filter(t => t.audio);
-              if (tracks.length === 0) throw new Error('No results for: ' + tag);
+              if (tracks.length === 0) throw new Error('No results');
               const pick = tracks[Math.floor(Math.random() * Math.min(5, tracks.length))];
               console.log('Jamendo: "' + pick.name + '" by ' + pick.artist_name);
               await downloadFile(pick.audio, dest);
-              const size = fs.statSync(dest).size;
-              if (size  t.track_url);
-              if (tracks.length === 0) throw new Error('No results for: ' + genre);
+              const size = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
+              if (size > 50000) return true;
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+              throw new Error('File too small: ' + size);
+            } catch(e) {
+              console.log('Jamendo failed: ' + e.message);
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+              return false;
+            }
+          }
+
+          async function tryFMA(mood, dest) {
+            try {
+              const genre = FMA_GENRES[mood] || 'Electronic';
+              const url   = 'https://freemusicarchive.org/api/get/tracks.json?genre_title=' + encodeURIComponent(genre) + '&limit=10&sort=track_date_recorded&d=1';
+              const data  = await fetchJSON(url);
+              const tracks = (data.dataset || []).filter(t => t.track_url);
+              if (tracks.length === 0) throw new Error('No results');
               for (const track of tracks.slice(0, 5)) {
                 try {
                   await downloadFile(track.track_url, dest);
                   const size = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
-                  if (size > 50000) {
-                    console.log('FMA OK: "' + track.track_title + '" — ' + Math.round(size/1024) + 'KB');
-                    return true;
-                  }
+                  if (size > 50000) { console.log('FMA OK: "' + track.track_title + '"'); return true; }
                   if (fs.existsSync(dest)) fs.unlinkSync(dest);
-                } catch(e) { /* try next */ }
+                } catch(e) {}
               }
               throw new Error('All FMA tracks failed');
             } catch(e) {
@@ -303,65 +310,71 @@ jobs:
             if (!PIXABAY_KEY) return false;
             try {
               const pmood = PIXABAY_MOODS[mood] || 'upbeat';
-              const url   = 'https://pixabay.com/api/videos/music/?key=' + PIXABAY_KEY +
-                '&mood=' + pmood + '&per_page=10';
-              const data = await fetchJSON(url);
-              const hits = (data.hits || []).filter(h => h.audio);
-              if (hits.length === 0) throw new Error('No results for mood: ' + pmood);
-              const pick = hits[Math.floor(Math.random() * Math.min(5, hits.length))];
+              const url   = 'https://pixabay.com/api/videos/music/?key=' + PIXABAY_KEY + '&mood=' + pmood + '&per_page=10';
+              const data  = await fetchJSON(url);
+              const hits  = (data.hits || []).filter(h => h.audio);
+              if (hits.length === 0) throw new Error('No results');
+              const pick  = hits[Math.floor(Math.random() * Math.min(5, hits.length))];
               console.log('Pixabay: "' + pick.title + '"');
               await downloadFile(pick.audio, dest);
-              const size = fs.statSync(dest).size;
-              if (size  {
+              const size = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
+              if (size > 50000) return true;
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+              throw new Error('File too small');
+            } catch(e) {
+              console.log('Pixabay failed: ' + e.message);
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+              return false;
+            }
+          }
+
+          (async () => {
+            let info = { days: [], dayMeta: {} };
+            try { info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8')); } catch(e) {}
+            const days    = info.days    || [];
+            const dayMeta = info.dayMeta || {};
+
+            if (days.length === 0) { console.log('No days found -- skipping music'); process.exit(0); }
+
             let downloaded = 0, skipped = 0, failed = 0;
             const results = [];
 
             for (const day of days) {
               const dest = 'public/music/' + day + '.mp3';
-
               if (fs.existsSync(dest) && fs.statSync(dest).size > 50000) {
-                console.log('SKIP (cached): ' + day + '.mp3');
+                console.log('SKIP (cached): ' + day);
                 skipped++;
                 results.push({ day, status: 'cached' });
                 continue;
               }
               if (fs.existsSync(dest)) fs.unlinkSync(dest);
-
               const dayNum = parseInt(day.replace('day', ''));
               const mood   = (dayMeta[day] && dayMeta[day].musicMood) || DAY_MOODS[dayNum] || 'motivational';
               console.log('\n--- ' + day + ' | mood: ' + mood + ' ---');
-
               let ok = await tryJamendo(mood, dest);
               if (!ok) { await sleep(1000); ok = await tryFMA(mood, dest); }
               if (!ok) { await sleep(1000); ok = await tryPixabay(mood, dest); }
-
               if (!ok) {
                 let prev = dayNum - 1;
                 while (prev >= 1) {
                   const pf = 'public/music/day' + prev + '.mp3';
                   if (fs.existsSync(pf) && fs.statSync(pf).size > 50000) {
                     fs.copyFileSync(pf, dest);
-                    console.log(day + ': copied day' + prev + '.mp3 as last resort');
+                    console.log(day + ': using day' + prev + ' as fallback');
                     ok = true; break;
                   }
                   prev--;
                 }
               }
-
               if (ok) { downloaded++; results.push({ day, status: 'downloaded', mood }); }
-              else    { failed++;    results.push({ day, status: 'failed', mood });
-                        console.log('FINAL FAIL: ' + day); }
-
+              else    { failed++;     results.push({ day, status: 'failed',     mood }); console.log('FINAL FAIL: ' + day); }
               await sleep(500);
             }
 
             fs.writeFileSync('out/.music_results.json', JSON.stringify(results, null, 2));
             console.log('\n--- Music Summary ---');
             console.log('Downloaded: ' + downloaded + ' | Cached: ' + skipped + ' | Failed: ' + failed);
-
-            if (failed > 0 && failed === days.length) {
-              console.log('CRITICAL: All music failed'); process.exit(1);
-            }
+            if (failed > 0 && failed === days.length) { console.log('CRITICAL: All music failed'); process.exit(1); }
           })();
           EOF
 
@@ -577,12 +590,15 @@ jobs:
               console.log('\nPer-hook scores:');
 
               result.scores.forEach(s => {
-                const bar = '█'.repeat(Math.round(s.score)) + '░'.repeat(10 - Math.round(s.score));
+                const bar = '|'.repeat(Math.round(s.score)) + '.'.repeat(10 - Math.round(s.score));
                 console.log(s.id + ' [' + s.score + '/10] ' + bar);
-                console.log('  ✅ ' + s.strength);
-                if (s.score  s.score  {
-                const emoji = s.score >= 8 ? '🔥' : s.score >= 7 ? '✅' : '⚠️';
-                lines.push(emoji + ' ' + s.id + ': ' + s.score + '/10 — ' + s.strength.slice(0, 50));
+                console.log('  Strength: ' + s.strength);
+                if (s.score < 7) { weakHooks.push(s); }
+              });
+
+              result.scores.forEach(s => {
+                const emoji = s.score >= 8 ? 'GREAT' : s.score >= 7 ? 'GOOD' : 'WEAK';
+                lines.push(emoji + ' ' + s.id + ': ' + s.score + '/10 - ' + s.strength.slice(0, 50));
               });
 
               lines.push('');
@@ -596,7 +612,7 @@ jobs:
                 });
               }
 
-              const priority = result.avgScore = 7.5 ? 'white_check_mark,robot' : 'warning,robot';
+              const priority = result.avgScore >= 7.5 ? 'white_check_mark,robot' : 'warning,robot';
 
               await sendNtfy(
                 lines.join('\n'),
