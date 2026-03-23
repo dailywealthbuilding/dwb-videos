@@ -65,23 +65,7 @@ function computeDuckedVolume(frame, fps, baseVolume, overlays) {
   const UNDUCK_FRAMES = Math.round(fps * 0.18); // 0.18s fade back up
 
   // Is the current frame inside any overlay?
-  const inOverlay = overlays.some(o => frame >= o.startFrame && frame < o.endFrame);
-
-  // Find nearest transition points
-  let duckStart = -1;
-  let unduckStart = -1;
-
-  for (const o of overlays) {
-    if (frame >= o.startFrame - DUCK_FRAMES && frame < o.startFrame + DUCK_FRAMES) {
-      duckStart = o.startFrame;
-    }
-    if (frame >= o.endFrame - UNDUCK_FRAMES && frame < o.endFrame + UNDUCK_FRAMES) {
-      unduckStart = o.endFrame;
-    }
-  }
-
-  // Smooth transition to duck
-  if (duckStart >= 0) {
+  const inOverlay = overlays.some(o => frame >= o.startFrame && frame = o.startFrame - DUCK_FRAMES && frame = o.endFrame - UNDUCK_FRAMES && frame = 0) {
     return interpolate(frame,
       [duckStart - DUCK_FRAMES, duckStart],
       [baseVolume, DUCK_VOLUME],
@@ -113,7 +97,7 @@ const SfxClip = ({ file, startFrame, durationFrames, baseVolume = 0.6 }) => {
   const FADE_OUT = 4;
   const endFrame = startFrame + durationFrames;
 
-  if (frame < startFrame || frame > endFrame + FADE_OUT) return null;
+  if (frame  endFrame + FADE_OUT) return null;
 
   const volume = Math.min(
     interpolate(frame, [startFrame, startFrame + FADE_IN], [0, baseVolume],
@@ -123,12 +107,7 @@ const SfxClip = ({ file, startFrame, durationFrames, baseVolume = 0.6 }) => {
   );
 
   return (
-    <Audio
-      src={staticFile('sfx/' + file)}
-      startFrom={0}
-      endAt={durationFrames + FADE_OUT}
-      volume={volume}
-    />
+    
   );
 };
 
@@ -184,33 +163,18 @@ export const AudioTrack = ({
     <>
       {/* Main music track */}
       {music && (
-        <Audio
-          src={staticFile('music/' + music)}
-          volume={musicVolume}
-          loop
-        />
+        
       )}
 
       {/* SFX layer — one clip per animation trigger */}
       {sfxTriggers.map((sfx, i) => (
-        <SfxClip
-          key={`sfx-${i}-${sfx.startFrame}`}
-          file={sfx.file}
-          startFrame={sfx.startFrame}
-          durationFrames={sfx.durationFrames}
-          baseVolume={0.55}
-        />
+        
       ))}
 
       {/* Milestone cheer — fires at frame 90 on day30/60/90 */}
       {isMilestone && (
-        <SfxClip
-          file="cheer.mp3"
-          startFrame={90}
-          durationFrames={45}
-          baseVolume={0.4}
-        />
+        
       )}
-    </>
+    
   );
 };
