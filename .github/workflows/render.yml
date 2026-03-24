@@ -390,24 +390,24 @@ jobs:
             'https://www.tiktok.com/api/music/list/?count=10&cursor=0',
           ];
           const fetchJSON = (url) => new Promise((resolve, reject) => {
-            https.get(url, {
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                  'Accept': 'application/json',
-                  'Referer': 'https://ads.tiktok.com/',
-                }
-              }, res => {
-                if (res.statusCode === 301 || res.statusCode === 302)
-                  return fetchJSON(res.headers.location).then(resolve).catch(reject);
-                let data = '';
-                res.on('data', d => data += d);
-                res.on('end', () => {
-                  try { resolve(JSON.parse(data)); }
-                  catch(e) { reject(new Error('Not JSON')); }
-                });
-              }).on('error', reject);
-            });
-          }
+            const lib = url.startsWith('https') ? https : http;
+            lib.get(url, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json',
+                'Referer': 'https://ads.tiktok.com/',
+              }
+            }, res => {
+              if (res.statusCode === 301 || res.statusCode === 302)
+                return fetchJSON(res.headers.location).then(resolve).catch(reject);
+              let data = '';
+              res.on('data', d => data += d);
+              res.on('end', () => {
+                try { resolve(JSON.parse(data)); }
+                catch(e) { reject(new Error('Not JSON')); }
+              });
+            }).on('error', reject);
+          });
 
           (async () => {
             let sounds = [];
@@ -1147,35 +1147,36 @@ jobs:
           EOF
 
       - name: Upload to YouTube (scheduled — 1 video per day at 9AM UTC)
-        if: success()
         env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_ID:     ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          DAYS_OVERRIDE:         ${{ github.event.inputs.days_override }}
         run: |
           node << 'EOF'
           const fs    = require('fs');
           const https = require('https');
           const path  = require('path');
+
           const CLIENT_ID     = process.env.YOUTUBE_CLIENT_ID     || '';
           const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || '';
           const REFRESH_TOKEN = process.env.YOUTUBE_REFRESH_TOKEN || '';
+
+          if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
+            console.log('YouTube secrets not configured -- skipping upload');
+            fs.writeFileSync('out/.upload_results.json', '[]');
+            process.exit(0);
+          }
+
           let info = { week: 'unknown', days: [], dayMeta: {} };
           try { info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8')); } catch(e) {}
-          const overrideDays = (process.env.DAYS_OVERRIDE || '').split(',').map(d.trim()).filter(Boolean)
+
+          const overrideDays = process.env.DAYS_OVERRIDE
+            ? process.env.DAYS_OVERRIDE.split(',').map(d => d.trim()).filter(Boolean)
             : info.days;
 
-          // ── Calculate publish times: Day 0 = Monday 3PM UTC, Day 1 = Tuesday 3PM UTC ──
-          function getPublishAt(dayIndex) {
-            const now    = new Date();
-            const day    = now.getUTCDay();
-            const diff   = (day === 0 ? -6 : 1 - day);
-            const monday = new Date(Date.UTC(
-              now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff,
-              15, 0, 0, 0  // 3PM UTC = 6PM EAT
-            ));
-            return new Date(monday.getTime() + dayIndex * 24 * 60 * 60 * 1000).toISOString();
-          }
+          const days    = overrideDays.length > 0 ? overrideDays : info.days;
+          const dayMeta = info.dayMeta || {};
 
           function httpsRequest(options, body) {
             return new Promise((resolve, reject) => {
@@ -1191,47 +1192,26 @@ jobs:
           }
 
           async function getAccessToken() {
-            const body = new URLSearchParams({
-              client_id:     CLIENT_ID,
-              client_secret: CLIENT_SECRET,
-              refresh_token: REFRESH_TOKEN,
-              grant_type:    'refresh_token',
-            }).toString();
+            const body = 'client_id=' + encodeURIComponent(CLIENT_ID) +
+              '&client_secret=' + encodeURIComponent(CLIENT_SECRET) +
+              '&refresh_token=' + encodeURIComponent(REFRESH_TOKEN) +
+              '&grant_type=refresh_token';
             const res = await httpsRequest({
-              hostname: 'oauth2.googleapis.com',
-              path:     '/token',
-              method:   'POST',
-              headers:  { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
+              hostname: 'oauth2.googleapis.com', path: '/token', method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) },
             }, body);
-            const data = JSON.parse(res.body);
-            if (!data.access_token) throw new Error('Failed to get access token: ' + res.body);
-            return data.access_token;
+            if (res.status !== 200) throw new Error('Token refresh failed: ' + res.body);
+            return JSON.parse(res.body).access_token;
           }
 
-          // ── Chapter markers — auto-built from overlay frame timings ──
-          function generateChapters(overlays) {
-            if (!overlays || overlays.length  {
-              const secs  = Math.floor((o.startFrame || 0) / FPS);
-              const m     = Math.floor(secs / 60);
-              const s     = secs % 60;
-              const ts    = m + ':' + String(s).padStart(2, '0');
-              return ts + ' ' + (NAMES[i] || 'Part ' + (i + 1));
-            });
-            if (!chapters[0].startsWith('0:00')) chapters.unshift('0:00 Intro');
-            return chapters.length >= 3 ? '\n\n' + chapters.join('\n') : '';
-          }
-
-          async function uploadVideo(accessToken, filePath, meta, publishAt) {
+          async function uploadVideo(token, filePath, meta, publishAt) {
             const fileSize = fs.statSync(filePath).size;
-            const chapters = generateChapters(meta.overlays || []);
-            const fullDesc = ((meta.description || '') + chapters).slice(0, 5000);
-
-            const metadata = JSON.stringify({
+            const initBody = JSON.stringify({
               snippet: {
-                title:       meta.title.slice(0, 100),
-                description: fullDesc,
-                tags:        meta.tags,
-                categoryId:  '22',
+                title:       meta.title       || 'Daily Wealth Building',
+                description: meta.description || '',
+                tags:        meta.tags        || ['personalfinance', 'wealthbuilding'],
+                categoryId:  '27',
               },
               status: {
                 privacyStatus:           'private',
@@ -1239,217 +1219,95 @@ jobs:
                 selfDeclaredMadeForKids: false,
               },
             });
-
             const initRes = await httpsRequest({
               hostname: 'www.googleapis.com',
-              path:     '/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',
-              method:   'POST',
-              headers:  {
-                'Authorization':           'Bearer ' + accessToken,
-                'Content-Type':            'application/json',
-                'X-Upload-Content-Type':   'video/mp4',
+              path: '/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',
+              method: 'POST',
+              headers: {
+                'Authorization':   'Bearer ' + token,
+                'Content-Type':    'application/json',
+                'Content-Length':  Buffer.byteLength(initBody),
+                'X-Upload-Content-Type': 'video/mp4',
                 'X-Upload-Content-Length': fileSize,
-                'Content-Length':          Buffer.byteLength(metadata),
               },
-            }, metadata);
-
-            if (initRes.status !== 200)
-              throw new Error('Upload init failed: HTTP ' + initRes.status + ' ' + initRes.body);
-
+            }, initBody);
+            if (initRes.status !== 200) throw new Error('Init failed: HTTP ' + initRes.status);
             const uploadUrl = initRes.headers.location;
-            if (!uploadUrl) throw new Error('No upload URL in response');
+            if (!uploadUrl) throw new Error('No upload URL');
 
-            const CHUNK       = 8 * 1024 * 1024;
-            const fileHandle  = fs.openSync(filePath, 'r');
-            let uploadedBytes = 0;
-            let videoId       = null;
+            const CHUNK = 8 * 1024 * 1024;
+            const fd    = fs.openSync(filePath, 'r');
+            let uploaded = 0, videoId = null;
 
-            while (uploadedBytes  {
-                const req = https.request({
-                  hostname: urlObj.hostname,
-                  path:     urlObj.pathname + urlObj.search,
-                  method:   'PUT',
-                  headers:  {
-                    'Content-Length': chunkSize,
-                    'Content-Range':  'bytes ' + uploadedBytes + '-' + (uploadedBytes + chunkSize - 1) + '/' + fileSize,
-                    'Content-Type':   'video/mp4',
-                  },
-                }, res => {
-                  let data = '';
-                  res.on('data', d => data += d);
-                  res.on('end', () => resolve({ status: res.statusCode, body: data }));
-                });
-                req.on('error', reject);
-                req.write(buffer);
-                req.end();
-              });
-
-              uploadedBytes += chunkSize;
-
+            while (uploaded < fileSize) {
+              const chunkSize = Math.min(CHUNK, fileSize - uploaded);
+              const buf = Buffer.alloc(chunkSize);
+              fs.readSync(fd, buf, 0, chunkSize, uploaded);
+              const urlObj = new URL(uploadUrl);
+              const chunkRes = await httpsRequest({
+                hostname: urlObj.hostname, path: urlObj.pathname + urlObj.search, method: 'PUT',
+                headers: {
+                  'Authorization':  'Bearer ' + token,
+                  'Content-Length': chunkSize,
+                  'Content-Range':  'bytes ' + uploaded + '-' + (uploaded + chunkSize - 1) + '/' + fileSize,
+                },
+              }, buf);
+              uploaded += chunkSize;
               if (chunkRes.status === 200 || chunkRes.status === 201) {
                 videoId = JSON.parse(chunkRes.body).id;
                 break;
-              } else if (chunkRes.status === 308) {
-                console.log('Uploading... ' + Math.round((uploadedBytes / fileSize) * 100) + '%');
-              } else {
-                throw new Error('Chunk upload failed: HTTP ' + chunkRes.status + ' ' + chunkRes.body);
               }
+              if (chunkRes.status !== 308) throw new Error('Chunk failed: HTTP ' + chunkRes.status);
+              console.log('Uploading... ' + Math.round((uploaded / fileSize) * 100) + '%');
             }
-
-            fs.closeSync(fileHandle);
+            fs.closeSync(fd);
             return videoId;
           }
 
-          // ── Playlist cache — stores weekN -> playlistId mapping ──
-          let playlistCache = {};
-          try { playlistCache = JSON.parse(fs.readFileSync('playlist-cache.json', 'utf8')); } catch(e) {}
-
-          async function getOrCreatePlaylist(token, weekLabel) {
-            if (playlistCache[weekLabel]) {
-              console.log('Playlist cached: ' + weekLabel + ' -> ' + playlistCache[weekLabel]);
-              return playlistCache[weekLabel];
-            }
-            // Search existing playlists
-            const listRes  = await httpsRequest({
-              hostname: 'www.googleapis.com',
-              path:     '/youtube/v3/playlists?part=snippet&mine=true&maxResults=50',
-              method:   'GET',
-              headers:  { 'Authorization': 'Bearer ' + token },
-            });
-            const listData = JSON.parse(listRes.body);
-            const existing = (listData.items || []).find(p =>
-              p.snippet?.title?.toLowerCase().includes(weekLabel.toLowerCase())
-            );
-            if (existing) {
-              playlistCache[weekLabel] = existing.id;
-              fs.writeFileSync('playlist-cache.json', JSON.stringify(playlistCache, null, 2));
-              console.log('Playlist found: ' + weekLabel + ' -> ' + existing.id);
-              return existing.id;
-            }
-            // Create new playlist
-            const dayNums = info.days.map(d => parseInt(d.replace('day','')));
-            const minDay  = Math.min(...dayNums);
-            const maxDay  = Math.max(...dayNums);
-            const title   = 'Daily Wealth Building — ' + weekLabel.toUpperCase() + ' (Days ' + minDay + '-' + maxDay + ')';
-            const desc    = 'Week ' + weekLabel.replace('week','') + ' of the 90-Day Daily Wealth Building challenge. '
-              + 'Finance education Shorts — Days ' + minDay + ' to ' + maxDay + '.\n\n'
-              + '@DailyWealthBuilding | #DailyWealthBuilding #wealthbuilding #financialliteracy';
-            const pbody = JSON.stringify({
-              snippet: { title, description: desc, defaultLanguage: 'en' },
-              status:  { privacyStatus: 'public' },
-            });
-            const createRes = await httpsRequest({
-              hostname: 'www.googleapis.com',
-              path:     '/youtube/v3/playlists?part=snippet,status',
-              method:   'POST',
-              headers:  {
-                'Authorization':  'Bearer ' + token,
-                'Content-Type':   'application/json',
-                'Content-Length': Buffer.byteLength(pbody),
-              },
-            }, pbody);
-            const created = JSON.parse(createRes.body);
-            if (!created.id) throw new Error('Playlist create failed: ' + createRes.body.slice(0, 200));
-            playlistCache[weekLabel] = created.id;
-            fs.writeFileSync('playlist-cache.json', JSON.stringify(playlistCache, null, 2));
-            console.log('Playlist created: ' + title + ' -> ' + created.id);
-            return created.id;
-          }
-
-          async function addToPlaylist(token, videoId, weekLabel) {
-            const playlistId = await getOrCreatePlaylist(token, weekLabel);
-            const ibody = JSON.stringify({
-              snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId } },
-            });
-            const res = await httpsRequest({
-              hostname: 'www.googleapis.com',
-              path:     '/youtube/v3/playlistItems?part=snippet',
-              method:   'POST',
-              headers:  {
-                'Authorization':  'Bearer ' + token,
-                'Content-Type':   'application/json',
-                'Content-Length': Buffer.byteLength(ibody),
-              },
-            }, ibody);
-            if (res.status !== 200) throw new Error('HTTP ' + res.status + ': ' + res.body.slice(0,100));
-            console.log('Added to playlist: ' + videoId);
+          function getPublishAt(dayIndex) {
+            const now    = new Date();
+            const dow    = now.getUTCDay();
+            const diff   = (dow === 0 ? -6 : 1 - dow);
+            const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff, 15, 0, 0));
+            return new Date(monday.getTime() + dayIndex * 86400000).toISOString();
           }
 
           (async () => {
             let uploaded = 0, failed = 0;
-            const results    = [];
-            const scheduled  = [];
+            const results   = [];
+            const scheduled = [];
 
             let accessToken;
             try {
               accessToken = await getAccessToken();
-              console.log('YouTube access token obtained');
+              console.log('Access token OK');
             } catch(e) {
-              console.log('ERROR: Could not get YouTube access token: ' + e.message);
+              console.log('ERROR: Cannot get access token: ' + e.message);
+              fs.writeFileSync('out/.upload_results.json', '[]');
               process.exit(1);
             }
 
-            for (let i = 0; i  t.replace('#', '')).slice(0, 20);
-
-                // Load overlays from content file for chapter generation
-                let overlays = [];
-                try {
-                  const srcDir  = 'src';
-                  const files   = require('fs').readdirSync(srcDir).filter(f => f.match(/^week\d+-content\.js$/));
-                  const wNums   = files.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
-                  const src     = require('fs').readFileSync(require('path').join(srcDir, 'week' + wNums[0] + '-content.js'), 'utf8');
-                  const dm      = src.match(/export\s+default\s+(\[[\s\S]*\]);?\s*$/m);
-                  const nm      = src.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/m);
-                  const arr     = dm ? dm[1] : (nm ? nm[1] : null);
-                  if (arr) {
-                    const entries = eval(arr);
-                    const entry   = entries.find(e => e.id === day);
-                    if (entry) overlays = entry.overlays || [];
-                  }
-                } catch(e) { /* non-fatal */ }
-
+            for (let i = 0; i < days.length; i++) {
+              const day      = days[i];
+              const filePath = 'out/' + day + '_final.mp4';
+              if (!fs.existsSync(filePath)) {
+                console.log('SKIP: ' + day + ' -- file not found');
+                results.push({ day, status: 'failed', error: 'file not found' });
+                failed++;
+                continue;
+              }
+              const meta      = dayMeta[day] || {};
+              const publishAt = getPublishAt(i);
+              console.log('\nUploading: ' + day + ' -> publishes: ' + publishAt);
+              try {
                 const videoId = await uploadVideo(accessToken, filePath, {
-                  title:       meta.youtubeTitle,
-                  description: meta.youtubeDescription,
-                  tags,
-                  overlays,
+                  title:       meta.youtubeTitle       || day + ' | Daily Wealth Building',
+                  description: meta.youtubeDescription || 'Daily wealth building tips. Follow for more.',
+                  tags:        ['personalfinance', 'wealthbuilding', 'financialfreedom', 'moneyhabits'],
                 }, publishAt);
-
-                if (!videoId) throw new Error('No video ID returned');
-                console.log('Scheduled: ' + day + ' -> https://youtu.be/' + videoId + ' | publishes: ' + publishAt);
-
-                // ── Auto-add to weekly playlist ──
-                try {
-                  await addToPlaylist(accessToken, videoId, info.week);
-                } catch(e) {
-                  console.log('Playlist add FAILED (non-fatal): ' + e.message);
-                }
-
-                // ── Auto-add YouTube card (subscribe card) ──
-                try {
-                  const cardBody = JSON.stringify({
-                    videoId,
-                    cardTeaser: { text: 'Subscribe for daily wealth tips' },
-                    channelId:  'mine',
-                  });
-                  // Note: YouTube Cards API is via videoId update with localizations
-                  // Subscribe card added via branding watermark instead (supported)
-                  console.log('Cards: subscribe watermark active via channel branding settings');
-                } catch(e) {
-                  console.log('Cards FAILED (non-fatal): ' + e.message);
-                }
-
-                // Save for pin-comments.yml to pick up later
-                scheduled.push({
-                  day,
-                  videoId,
-                  url:          'https://youtu.be/' + videoId,
-                  publishAt,
-                  pinnedComment: meta.pinnedComment || '',
-                  commentPosted: false,
-                });
-
+                console.log('UPLOADED: ' + day + ' -> https://youtu.be/' + videoId);
                 results.push({ day, videoId, url: 'https://youtu.be/' + videoId, status: 'ok', publishAt });
+                scheduled.push({ day, videoId, url: 'https://youtu.be/' + videoId, publishAt, notifScheduled: false });
                 uploaded++;
               } catch(e) {
                 console.log('UPLOAD FAILED: ' + day + ': ' + e.message);
@@ -1460,19 +1318,17 @@ jobs:
 
             fs.writeFileSync('out/.upload_results.json', JSON.stringify(results, null, 2));
 
-            // ── Merge with any existing scheduled videos (from previous weeks) ──
             let existing = [];
             try { existing = JSON.parse(fs.readFileSync('scheduled-videos.json', 'utf8')); } catch(e) {}
-            const merged = [...existing.filter(v => !v.commentPosted), ...scheduled];
+            const merged = [...existing.filter(v => !days.includes(v.day)), ...scheduled];
             fs.writeFileSync('scheduled-videos.json', JSON.stringify(merged, null, 2));
-            console.log('Saved ' + scheduled.length + ' scheduled videos to scheduled-videos.json');
 
             console.log('\n--- YouTube Upload Summary ---');
             console.log('Uploaded: ' + uploaded + ' | Failed: ' + failed);
-            for (const r of results) {
-              if (r.status === 'ok') console.log('  ' + r.day + ' -> ' + r.url + ' | publishes: ' + r.publishAt);
+            results.forEach(r => {
+              if (r.status === 'ok') console.log('  ' + r.day + ' -> ' + r.url);
               else console.log('  ' + r.day + ' -> FAILED: ' + r.error);
-            }
+            });
           })();
           EOF
 
