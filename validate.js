@@ -85,14 +85,7 @@ function hexToRgb(hex) {
 function relativeLuminance(r, g, b) {
   const c = [r, g, b].map(v => {
     v /= 255;
-    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-  });
-  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-}
-
-function getFiles() {
-  let args = process.argv.slice(2);
-  return args.length > 0 ? args : [];
+    return v0 ? args : [];
 
   if (files.length === 0) {
     // Auto-detect all weekN-content.js files
@@ -175,9 +168,7 @@ function checkMissingDays(entries) {
 function checkFrameBounds(entries) {
   for (const entry of entries) {
     if (!entry.overlays) continue;
-    for (let i = 0; i < entry.overlays.length; i++) {
-      const o = entry.overlays[i];
-      if (o.endFrame > TOTAL_FRAMES) {
+    for (let i = 0; iTOTAL_FRAMES) {
         err(`[FrameBounds] ${entry.id} overlay[${i}] "${(o.text||'').slice(0,20)}": endFrame ${o.endFrame} > ${TOTAL_FRAMES}`);
       }
       if (o.startFrame >= o.endFrame) {
@@ -193,25 +184,7 @@ function checkFrameBounds(entries) {
 function checkAnimations(entries) {
   for (const entry of entries) {
     if (!entry.overlays) continue;
-    for (let i = 0; i < entry.overlays.length; i++) {
-      const ov   = entry.overlays[i];
-      const anim = ov.animation || '';
-      if (!KNOWN_ANIMATIONS.includes(anim)) {
-        warn(`[Animation] ${entry.id} overlay[${i}]: unknown animation "${anim}"`);
-      }
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CHECK 09: Text Length Validator
-// ─────────────────────────────────────────────────────────────────────────────
-function checkTextLength(entries) {
-  for (const entry of entries) {
-    if (!entry.overlays) continue;
-    for (let i = 0; i < entry.overlays.length; i++) {
-      const text = (entry.overlays[i].text || '').replace(/\n/g, '');
-      if (text.length > MAX_TEXT_LEN) {
+    for (let i = 0; iMAX_TEXT_LEN) {
         warn(`[TextLen] ${entry.id} overlay[${i}]: ${text.length} chars > ${MAX_TEXT_LEN} limit`);
         warn(`         "${text.slice(0, 50)}..."`);
       }
@@ -225,23 +198,7 @@ function checkTextLength(entries) {
 function checkRequiredOverlayFields(entries) {
   for (const entry of entries) {
     if (!entry.overlays) continue;
-    for (let i = 0; i < entry.overlays.length; i++) {
-      const ov = entry.overlays[i];
-      // check required fields
-    }
-  }
-}
-
-function checkDuplicateQueries(entries) {
-  const queryMap = {};
-  for (const entry of entries) {
-    for (const q of (entry.pexelsSearchTerms || entry.bRollQueries || [])) {
-      queryMap[q] = queryMap[q] || [];
-      queryMap[q].push(entry.id);
-    }
-  }
-  for (const [q, days] of Object.entries(queryMap)) {
-    if (days.length > 1) {
+    for (let i = 0; i1) {
       warn(`[DupQuery] Search query "${q}" used in multiple days: ${days.join(', ')} — reduce visual repetition`);
     }
   }
@@ -264,12 +221,7 @@ function checkAudioFiles(entries) {
       continue;
     }
     const size = fs.statSync(musicPath).size;
-    if (size < 50000) {
-      warn(`[Audio] ${entry.id}: music file suspiciously small: ${size} bytes`);
-    }
-    for (const ov of (entry.overlays || [])) {
-      const vol = ov.volume;
-      if (vol !== undefined && (vol < 0 || vol > 1)) {
+    if (size1)) {
         err(`[AudioVol] ${entry.id}: volume ${vol} out of range [0.0, 1.0]`);
       }
     }
@@ -401,75 +353,3 @@ function main() {
 }
 
 main();
-
-
-
-
-    
-
-  
-
-
-COPIED TO CLIPBOARD
-
-
-function showPanel(name) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (name==='briefing'&&i===0)||(name==='code'&&i===1)));
-  document.getElementById('briefing-panel').classList.toggle('visible', name==='briefing');
-  document.getElementById('briefing-panel').style.display = name==='briefing' ? 'block' : 'none';
-  document.getElementById('code-panel').classList.toggle('hidden', name!=='code');
-  document.getElementById('code-panel').style.display = name==='code' ? 'block' : 'none';
-}
-
-// Init
-document.getElementById('briefing-panel').style.display = 'block';
-document.getElementById('code-panel').style.display = 'none';
-
-function copyCode(slug) {
-  const el = document.getElementById('code-' + slug);
-  if (!el) return;
-  navigator.clipboard.writeText(el.innerText).then(() => {
-    const btn = el.closest('.file-section').querySelector('.copy-btn');
-    btn.textContent = '✓ COPIED';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = '⬡ COPY'; btn.classList.remove('copied'); }, 2000);
-    showToast();
-  });
-}
-
-function copyPrompt() {
-  const el = document.getElementById('prompt-text');
-  const text = el.innerText.replace('⬡ COPY PROMPT', '').trim();
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById('prompt-copy-btn');
-    btn.textContent = '✓ COPIED';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = '⬡ COPY PROMPT'; btn.classList.remove('copied'); }, 2000);
-    showToast();
-  });
-}
-
-function showToast() {
-  const t = document.getElementById('toast');
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
-}
-
-function filterNav(q) {
-  q = q.toLowerCase();
-  document.querySelectorAll('.nav-file-link').forEach(a => {
-    a.style.display = a.textContent.toLowerCase().includes(q) ? 'block' : 'none';
-  });
-}
-
-// Highlight active nav link on scroll (code panel only)
-document.getElementById('content-area').addEventListener('scroll', function() {
-  if (document.getElementById('code-panel').style.display === 'none') return;
-  const sections = document.querySelectorAll('.file-section');
-  let current = '';
-  sections.forEach(s => {
-    const rect = s.getBoundingClientRect();
-    if (rect.top  {
-    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
-  });
-});
