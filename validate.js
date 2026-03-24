@@ -175,10 +175,12 @@ function checkMissingDays(entries) {
 function checkFrameBounds(entries) {
   for (const entry of entries) {
     if (!entry.overlays) continue;
-    for (let i = 0; i  TOTAL_FRAMES) {
+    for (let i = 0; i < entry.overlays.length; i++) {
+      const o = entry.overlays[i];
+      if (o.endFrame > TOTAL_FRAMES) {
         err(`[FrameBounds] ${entry.id} overlay[${i}] "${(o.text||'').slice(0,20)}": endFrame ${o.endFrame} > ${TOTAL_FRAMES}`);
       }
-      if (o.startFrame = o.endFrame) {
+      if (o.startFrame >= o.endFrame) {
         err(`[FrameBounds] ${entry.id} overlay[${i}]: startFrame ${o.startFrame} >= endFrame ${o.endFrame}`);
       }
     }
@@ -191,7 +193,25 @@ function checkFrameBounds(entries) {
 function checkAnimations(entries) {
   for (const entry of entries) {
     if (!entry.overlays) continue;
-    for (let i = 0; i  MAX_TEXT_LEN) {
+    for (let i = 0; i < entry.overlays.length; i++) {
+      const ov   = entry.overlays[i];
+      const anim = ov.animation || '';
+      if (!KNOWN_ANIMATIONS.includes(anim)) {
+        warn(`[Animation] ${entry.id} overlay[${i}]: unknown animation "${anim}"`);
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK 09: Text Length Validator
+// ─────────────────────────────────────────────────────────────────────────────
+function checkTextLength(entries) {
+  for (const entry of entries) {
+    if (!entry.overlays) continue;
+    for (let i = 0; i < entry.overlays.length; i++) {
+      const text = (entry.overlays[i].text || '').replace(/\n/g, '');
+      if (text.length > MAX_TEXT_LEN) {
         warn(`[TextLen] ${entry.id} overlay[${i}]: ${text.length} chars > ${MAX_TEXT_LEN} limit`);
         warn(`         "${text.slice(0, 50)}..."`);
       }
