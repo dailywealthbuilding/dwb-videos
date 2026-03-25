@@ -107,9 +107,18 @@ export const RemotionRoot = () => {
   return (
     <>
       {valid.map(({ id, music, overlays }) => (
-        
+        <Composition
+          key={id}
+          id={id}
+          component={VideoComposition}
+          durationInFrames={900}
+          fps={30}
+          width={1080}
+          height={1920}
+          defaultProps={{ videoId: id, music: music || '', overlays: overlays || [] }}
+        />
       ))}
-    
+    </>
   );
 };
 
