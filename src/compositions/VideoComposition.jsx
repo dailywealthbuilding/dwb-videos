@@ -279,25 +279,47 @@ const CLIP_BOUNDARY_FRAMES = [0, 225, 450, 675];
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Layer: Film Grain ──
-const FilmGrain = () => (
-  
-);
+const FilmGrain = () => {
+  const frame = useCurrentFrame();
+  const grain = (frame * 17 + 43) % 100 / 100;
+  return (
+    <AbsoluteFill style={{
+      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+      opacity: 0.035 + grain * 0.015,
+      mixBlendMode: 'overlay',
+      pointerEvents: 'none',
+    }} />
+  );
+};
 
 // ── Layer: Scanlines ──
 const Scanlines = () => (
-  
+  <AbsoluteFill style={{
+    backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px)',
+    pointerEvents: 'none',
+    opacity: 0.03,
+  }} />
 );
 
 // ── Layer: Vignette ──
 const Vignette = () => (
-  
+  <AbsoluteFill style={{
+    background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.65) 100%)',
+    pointerEvents: 'none',
+  }} />
 );
 
 // ── Layer: Cinematic Color Grade ──
 const ColorGrade = ({ videoId }) => {
   const grade = COLOR_GRADES[videoId] || COLOR_GRADES.day29;
+  if (!grade) return null;
   return (
-    
+    <AbsoluteFill style={{
+      background: grade.overlay || 'transparent',
+      mixBlendMode: grade.blendMode || 'color',
+      opacity: grade.opacity || 0.15,
+      pointerEvents: 'none',
+    }} />
   );
 };
 
@@ -504,6 +526,34 @@ const MatrixRain = ({ opacity = 0.15 }) => {
   );
 };
 
+// ── Layer: Lower Third ──
+const LowerThird = () => {
+  const frame = useCurrentFrame();
+  const opacity = interpolate(frame, [0, 8, 90, 120], [0, 1, 1, 0], { extrapolateRight: 'clamp' });
+  if (opacity <= 0) return null;
+  return (
+    <AbsoluteFill style={{ pointerEvents: 'none' }}>
+      <div style={{
+        position: 'absolute',
+        bottom: '8%',
+        left: 0,
+        right: 0,
+        display: 'flex',
+        justifyContent: 'center',
+        opacity,
+      }}>
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '22px',
+          letterSpacing: '0.2em',
+          color: 'rgba(255,255,255,0.7)',
+          textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+        }}>@DailyWealthBuilding</div>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPOSITION
 // ─────────────────────────────────────────────────────────────────────────────
@@ -515,91 +565,59 @@ export const VideoComposition = ({ videoId, overlays: propOverlays, music: propM
   const accentColor = (COLOR_GRADES[videoId] || COLOR_GRADES.day29).accent;
 
   return (
-    
+    <AbsoluteFill style={{ background: '#000' }}>
 
-      {/* Layer 1: Background video clips (Ken Burns + flash transitions) */}
-      
+      {/* Layer 1: Background video clips */}
+      <BackgroundVideo videoId={videoId} />
 
-      {/* Layer 2: Chromatic aberration — subtle RGB edge split */}
-      
+      {/* Layer 2: Base dark overlay */}
+      <AbsoluteFill style={{ background: 'rgba(0,0,0,0.18)', pointerEvents: 'none' }} />
 
-      {/* Layer 3: Depth of field — video blurs when text is on screen */}
-      
+      {/* Layer 3: Cinematic color grade */}
+      <ColorGrade videoId={videoId} />
 
-      {/* Layer 4: TV Static burst — 3-frame white noise at clip boundaries */}
-      
+      {/* Layer 4: Vignette */}
+      <Vignette />
 
-      {/* Layer 5: Matrix rain — techy days only (day32, day38, day41) */}
+      {/* Layer 5: Film grain */}
+      <FilmGrain />
+
+      {/* Layer 6: Scanlines */}
+      <Scanlines />
+
+      {/* Layer 7: Matrix rain — techy days */}
       {special.matrixRain && (
-        
+        <MatrixRain opacity={0.15} />
       )}
 
-      {/* Layer 6: Base dark overlay */}
-      
-
-      {/* Layer 7: Cinematic color grade */}
-      
-
-      {/* Layer 8: Vignette */}
-      
-
-      {/* Layer 9: Old film flicker */}
-      
-
-      {/* Layer 10: Film grain */}
-      
-
-      {/* Layer 11: Scanlines */}
-      
-
-      {/* Layer 12: Corner brackets */}
-      
-
-      {/* Layer 13: Glow border */}
-      
-
-      {/* Layer 14: Particle system — day-specific (fire, rain, snow, confetti, float) */}
+      {/* Layer 8: Particle system */}
       {DAY_PARTICLES[videoId] && (
-        
+        <Particles type={DAY_PARTICLES[videoId]} accentColor={accentColor} />
       )}
 
-      {/* Layer 15: Audio — ducking + SFX enabled */}
-      
+      {/* Layer 9: Audio */}
+      <AudioTrack videoId={videoId} music={music} overlays={overlays} />
 
-      {/* Layer 16: Letterbox bars */}
-      
+      {/* Layer 10: Corner brackets */}
+      <CornerBrackets accentColor={accentColor} />
 
-      {/* Layer 17: Shockwave ring */}
-      
+      {/* Layer 11: Day badge */}
+      <DayBadge videoId={videoId} accentColor={accentColor} />
 
-      {/* Layer 18: Day counter badge */}
-      
-
-      {/* Layer 19: Text overlays — all animations */}
+      {/* Layer 12: Text overlays */}
       {overlays.map((overlay, index) => (
-        
-          
-        
+        <TextOverlay key={index} overlay={overlay} />
       ))}
 
-      {/* Layer 20: Animated watermark */}
-      
+      {/* Layer 13: Watermark */}
+      <Watermark />
 
-      {/* Layer 21: Lower third — channel handle (first 4 seconds) */}
-      
+      {/* Layer 14: Lower third */}
+      <LowerThird />
 
-      {/* Layer 22: Scene number — 01/07 top-right */}
-      
+      {/* Layer 15: Progress bar */}
+      <ProgressBar accentColor={accentColor} />
 
-      {/* Layer 23: Corner timestamp — DISABLED (DayBadge already shows DAY XX/90) */}
-      {/*  */}
-
-      {/* Layer 24: Outro CTA end card */}
-      
-
-      {/* Layer 25: Progress bar — always on top */}
-      
-
-    
+    </AbsoluteFill>
   );
 };
