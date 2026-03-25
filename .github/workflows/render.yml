@@ -636,34 +636,62 @@ jobs:
 
       - name: Download background videos (Smart Multi-Source Scorer)
         env:
-          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY:    ${{ secrets.PIXABAY_API_KEY }}
+          PEXELS_API_KEY:     ${{ secrets.PEXELS_API_KEY }}
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
         run: |
-          node = 1080 && h >= 1920) score += 50; // perfect vertical HD
-            else if (h >= w)            score += 30; // vertical but not full HD
-            else if (w >= 1920)         score += 20; // horizontal HD (usable)
-            else                        score += 5;  // low res
+          mkdir -p public/videos
+          node << 'EOF'
+          const https = require('https');
+          const http  = require('http');
+          const fs    = require('fs');
+          const path  = require('path');
+
+          const PIXABAY_KEY  = process.env.PIXABAY_API_KEY     || '';
+          const PEXELS_KEY   = process.env.PEXELS_API_KEY      || '';
+          const UNSPLASH_KEY = process.env.UNSPLASH_ACCESS_KEY || '';
+
+          let info = { dayAssets: {} };
+          try { info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8')); } catch(e) {}
+          const DAY_ASSETS = info.dayAssets || {};
+
+          if (Object.keys(DAY_ASSETS).length === 0) {
+            console.log('No day assets defined -- skipping video download');
+            process.exit(0);
+          }
+
+          // ── Clip scorer ──
+          function scoreClip(clip) {
+            let score = 0;
+            const w = clip.width  || 0;
+            const h = clip.height || 0;
+
+            // Resolution score
+            if (w >= 1080 && h >= 1920)  score += 50; // perfect vertical HD
+            else if (h >= w)             score += 30; // vertical not full HD
+            else if (w >= 1920)          score += 20; // horizontal HD
+            else                         score += 5;  // low res
 
             // Vertical orientation bonus
             if (h > w) score += 20;
 
-            // Duration score (target ~8-15s clips)
+            // Duration score (target 8-15s)
             const dur = clip.duration || 0;
-            if (dur >= 8  && dur = 5 && dur  15 && dur  0)            score += 3;
+            if      (dur >= 8  && dur <= 15) score += 15;
+            else if (dur >= 5  && dur < 8)   score += 8;
+            else if (dur > 15  && dur < 30)  score += 5;
+            else if (dur > 0)                score += 3;
 
-            // File size score (larger = higher quality usually)
+            // File size score
             const size = clip.fileSize || 0;
-            if (size > 5000000)       score += 15; // >5MB
-            else if (size > 1000000)  score += 8;  // >1MB
-            else if (size > 0)        score += 2;
+            if      (size > 5000000) score += 15;
+            else if (size > 1000000) score += 8;
+            else if (size > 0)       score += 2;
 
             return score;
           }
 
-          // ─────────────────────────────────────────────────────────────────────
-          // HTTP HELPERS
-          // ─────────────────────────────────────────────────────────────────────
+          // ── HTTP helpers ──
           function fetchJSON(url, headers) {
             return new Promise((resolve, reject) => {
               const lib = url.startsWith('https') ? https : http;
@@ -674,7 +702,7 @@ jobs:
                 res.on('data', d => data += d);
                 res.on('end', () => {
                   try { resolve(JSON.parse(data)); }
-                  catch(e) { reject(new Error('JSON parse failed: ' + data.slice(0, 100))); }
+                  catch(e) { reject(new Error('JSON parse failed')); }
                 });
               }).on('error', reject);
             });
@@ -694,218 +722,148 @@ jobs:
                   }
                   res.pipe(file);
                   file.on('finish', () => { file.close(); resolve(); });
-                }).on('error', err => { file.close(); reject(err); });
+                }).on('error', e => { file.close(); reject(e); });
               };
               get(url);
             });
           }
 
-          function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+          const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-          // ─────────────────────────────────────────────────────────────────────
-          // SOURCE 1: PIXABAY
-          // ─────────────────────────────────────────────────────────────────────
+          // ── Source: Pixabay ──
           async function fetchPixabay(query) {
             if (!PIXABAY_KEY) return [];
             try {
-              const candidates = [];
-              // Try vertical first
               const urlV = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY
                 + '&q=' + encodeURIComponent(query)
                 + '&orientation=vertical&per_page=15&video_type=film&min_height=720';
               let data = await fetchJSON(urlV);
               let hits = data.hits || [];
-              // Fallback without orientation filter
               if (hits.length === 0) {
                 const urlA = 'https://pixabay.com/api/videos/?key=' + PIXABAY_KEY
                   + '&q=' + encodeURIComponent(query) + '&per_page=15&video_type=film';
                 data = await fetchJSON(urlA);
                 hits = data.hits || [];
               }
-              for (const hit of hits) {
-                const v = hit.videos;
+              return hits.map(hit => {
+                const v    = hit.videos || {};
                 const best = v.large || v.medium || v.small || {};
-                if (!best.url) continue;
-                const w = best.width || 0;
-                const h = best.height || 0;
-                candidates.push({
-                  source:   'Pixabay',
-                  url:      best.url,
-                  width:    w,
-                  height:   h,
-                  duration: hit.duration || 0,
-                  fileSize: best.size || 0,
-                  score:    0,
-                });
-              }
-              return candidates;
-            } catch(e) {
-              console.log('Pixabay fetch FAILED: ' + e.message);
-              return [];
-            }
+                if (!best.url) return null;
+                return { source: 'Pixabay', url: best.url, width: best.width||0, height: best.height||0, duration: hit.duration||0, fileSize: best.size||0, score: 0 };
+              }).filter(Boolean);
+            } catch(e) { console.log('Pixabay FAILED: ' + e.message); return []; }
           }
 
-          // ─────────────────────────────────────────────────────────────────────
-          // SOURCE 2: PEXELS
-          // ─────────────────────────────────────────────────────────────────────
+          // ── Source: Pexels ──
           async function fetchPexels(query) {
             if (!PEXELS_KEY) return [];
             try {
-              const url  = 'https://api.pexels.com/videos/search?query='
-                + encodeURIComponent(query) + '&per_page=15&orientation=portrait&min_width=720';
+              const url  = 'https://api.pexels.com/videos/search?query=' + encodeURIComponent(query) + '&per_page=15&orientation=portrait&min_width=720';
               const data = await fetchJSON(url, { 'Authorization': PEXELS_KEY });
-              const videos = data.videos || [];
               const candidates = [];
-              for (const vid of videos) {
-                const files = (vid.video_files || [])
-                  .filter(f => f.file_type === 'video/mp4')
-                  .sort((a, b) => (b.width * b.height) - (a.width * a.height));
+              for (const vid of (data.videos || [])) {
+                const files = (vid.video_files || []).filter(f => f.file_type === 'video/mp4').sort((a, b) => (b.width * b.height) - (a.width * a.height));
                 if (files.length === 0) continue;
                 const best = files[0];
-                candidates.push({
-                  source:   'Pexels',
-                  url:      best.link,
-                  width:    best.width  || vid.width  || 0,
-                  height:   best.height || vid.height || 0,
-                  duration: vid.duration || 0,
-                  fileSize: 0,
-                  score:    0,
-                });
+                candidates.push({ source: 'Pexels', url: best.link, width: best.width||vid.width||0, height: best.height||vid.height||0, duration: vid.duration||0, fileSize: 0, score: 0 });
               }
               return candidates;
-            } catch(e) {
-              console.log('Pexels fetch FAILED: ' + e.message);
-              return [];
-            }
+            } catch(e) { console.log('Pexels FAILED: ' + e.message); return []; }
           }
 
-          // ─────────────────────────────────────────────────────────────────────
-          // SOURCE 3: COVERR (direct CDN scrape)
-          // ─────────────────────────────────────────────────────────────────────
-          async function fetchCoverr(query) {
-            try {
-              const cleanQ = encodeURIComponent(query.replace(/vertical/gi, '').trim());
-              const url    = 'https://coverr.co/api/videos/search?query=' + cleanQ + '&page=1';
-              const data   = await fetchJSON(url);
-              const hits   = data.hits || data.videos || data.data || [];
-              const candidates = [];
-              for (const hit of hits.slice(0, 5)) {
-                const videoUrl = hit.urls && (hit.urls.mp4_1080p || hit.urls.mp4_720p || hit.urls.mp4);
-                if (!videoUrl) continue;
-                candidates.push({
-                  source:   'Coverr',
-                  url:      videoUrl,
-                  width:    hit.width  || 1080,
-                  height:   hit.height || 1920,
-                  duration: hit.duration || 0,
-                  fileSize: 0,
-                  score:    0,
-                });
-              }
-              return candidates;
-            } catch(e) {
-              console.log('Coverr fetch FAILED: ' + e.message);
-              return [];
-            }
-          }
-
-          // ─────────────────────────────────────────────────────────────────────
-          // SOURCE 4: MIXKIT (direct CDN)
-          // ─────────────────────────────────────────────────────────────────────
-          async function fetchMixkit(query) {
-            try {
-              const cleanQ = encodeURIComponent(query.replace(/vertical/gi, '').trim());
-              const url    = 'https://mixkit.co/api/items/search?q=' + cleanQ
-                + '&format=json&type=video&per_page=10';
-              const data   = await fetchJSON(url);
-              const items  = data.data || data.items || data.results || [];
-              const candidates = [];
-              for (const item of items.slice(0, 5)) {
-                const videoUrl = item.source_url || item.preview_url || item.download_url;
-                if (!videoUrl) continue;
-                candidates.push({
-                  source:   'Mixkit',
-                  url:      videoUrl,
-                  width:    item.width  || 1920,
-                  height:   item.height || 1080,
-                  duration: item.duration || 0,
-                  fileSize: 0,
-                  score:    0,
-                });
-              }
-              return candidates;
-            } catch(e) {
-              console.log('Mixkit fetch FAILED: ' + e.message);
-              return [];
-            }
-          }
-
-          // ─────────────────────────────────────────────────────────────────────
-          // KEN BURNS FALLBACK (Unsplash image → animated video)
-          // ─────────────────────────────────────────────────────────────────────
+          // ── Ken Burns fallback ──
           async function makeKenBurns(query, dest) {
             const tmpImg = dest + '_tmp.jpg';
             try {
-              const cleanQ  = encodeURIComponent(query.replace(/vertical/gi, '').trim());
-              let   imgUrl  = 'https://source.unsplash.com/1080x1920/?' + cleanQ;
+              const cleanQ = encodeURIComponent(query.replace(/vertical/gi, '').trim());
+              let imgUrl = 'https://source.unsplash.com/1080x1920/?' + cleanQ;
               if (UNSPLASH_KEY) {
-                const url  = 'https://api.unsplash.com/search/photos?query=' + cleanQ
-                  + '&per_page=3&orientation=portrait&client_id=' + UNSPLASH_KEY;
-                const data = await fetchJSON(url);
-                const res  = (data.results || [])[0];
+                const uUrl = 'https://api.unsplash.com/search/photos?query=' + cleanQ + '&per_page=3&orientation=portrait&client_id=' + UNSPLASH_KEY;
+                const uData = await fetchJSON(uUrl);
+                const res = (uData.results || [])[0];
                 if (res) imgUrl = res.urls.regular || res.urls.small;
               }
               await downloadFile(imgUrl, tmpImg);
               const imgSize = fs.existsSync(tmpImg) ? fs.statSync(tmpImg).size : 0;
-              if (imgSize  {
+              if (imgSize < 10000) throw new Error('Image too small: ' + imgSize);
+              // Create Ken Burns video with ffmpeg
+              const { execSync } = require('child_process');
+              execSync('ffmpeg -loop 1 -i "' + tmpImg + '" -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z=\'min(zoom+0.0015,1.5)\':d=300:x=\'iw/2-(iw/zoom/2)\':y=\'ih/2-(ih/zoom/2)\'" -t 10 -c:v libx264 -pix_fmt yuv420p -y "' + dest + '" 2>/dev/null', { stdio: 'pipe' });
+              if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg);
+              const vidSize = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
+              if (vidSize < 10000) throw new Error('Ken Burns output too small');
+              console.log('Ken Burns OK: ' + path.basename(dest) + ' (' + Math.round(vidSize/1024) + 'KB)');
+              return true;
+            } catch(e) {
+              console.log('Ken Burns FAILED: ' + e.message);
+              if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg);
+              return false;
+            }
+          }
+
+          // ── Main download loop ──
+          (async () => {
             let downloaded = 0, skipped = 0, failed = 0, kenBurns = 0;
-            const sourceStats = { Pixabay: 0, Pexels: 0, KenBurns: 0 };
 
             for (const [day, assets] of Object.entries(DAY_ASSETS)) {
               for (const item of assets) {
                 const dest = 'public/videos/' + item.id + '.mp4';
 
-                // Skip if already cached and valid
-                if (fs.existsSync(dest)) {
-                  const size = fs.statSync(dest).size;
-                  if (size > 50000) {
-                    console.log('SKIP (cached): ' + item.id);
-                    skipped++;
-                    continue;
-                  }
-                  fs.unlinkSync(dest);
-                  console.log('RE-DL (corrupt): ' + item.id);
+                if (fs.existsSync(dest) && fs.statSync(dest).size > 50000) {
+                  console.log('SKIP (cached): ' + item.id);
+                  skipped++;
+                  continue;
                 }
+                if (fs.existsSync(dest)) fs.unlinkSync(dest);
 
-                console.log('\n[' + item.id + '] Querying sources for: "' + item.q + '"');
+                console.log('\nFetching: ' + item.id + ' | query: "' + item.q + '"');
 
-                // ── Fetch Pixabay + Pexels in parallel (Coverr/Mixkit APIs are dead) ──
                 const [pixabayClips, pexelsClips] = await Promise.all([
                   fetchPixabay(item.q),
                   fetchPexels(item.q),
                 ]);
 
-                // ── Score all candidates ──
                 const allClips = [...pixabayClips, ...pexelsClips];
                 allClips.forEach(c => { c.score = scoreClip(c); });
                 allClips.sort((a, b) => b.score - a.score);
 
-                console.log('Candidates: ' + allClips.length + ' total — '
-                  + 'Pixabay:' + pixabayClips.length + ' Pexels:' + pexelsClips.length);
+                console.log('Candidates: ' + allClips.length + ' (Pixabay:' + pixabayClips.length + ' Pexels:' + pexelsClips.length + ')');
 
-                if (allClips.length > 0) {
-                  console.log('Top scorer: ' + allClips[0].source
-                    + ' score=' + allClips[0].score
-                    + ' (' + allClips[0].width + 'x' + allClips[0].height + ')');
-                }
-
-                // ── Try candidates in score order ──
                 let success = false;
                 for (const clip of allClips) {
                   try {
                     await downloadFile(clip.url, dest);
                     const size = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
-                    if (size  0) console.log('WARNING: ' + failed + ' clip(s) failed. Render may have blank backgrounds.');
+                    if (size > 50000) {
+                      console.log('OK: ' + item.id + ' from ' + clip.source + ' score=' + clip.score + ' (' + clip.width + 'x' + clip.height + ')');
+                      success = true;
+                      downloaded++;
+                      break;
+                    }
+                    if (fs.existsSync(dest)) fs.unlinkSync(dest);
+                  } catch(e) {
+                    if (fs.existsSync(dest)) fs.unlinkSync(dest);
+                  }
+                }
+
+                if (!success) {
+                  console.log('All video sources failed -- trying Ken Burns: ' + item.id);
+                  const kb = await makeKenBurns(item.q, dest);
+                  if (kb) { kenBurns++; success = true; }
+                }
+
+                if (!success) {
+                  console.log('FINAL FAIL: ' + item.id);
+                  failed++;
+                }
+
+                await sleep(300);
+              }
+            }
+
+            console.log('\n--- Video Download Summary ---');
+            console.log('Downloaded: ' + downloaded + ' | Cached: ' + skipped + ' | KenBurns: ' + kenBurns + ' | Failed: ' + failed);
+            if (failed > 0) console.log('WARNING: ' + failed + ' clip(s) failed -- render may have blank backgrounds');
           })();
           EOF
 
