@@ -938,6 +938,3 @@ export default [
   },
 
 ];
-
-
-⬡ COMPONENTS
