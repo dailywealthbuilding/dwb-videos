@@ -1,4 +1,11 @@
-name: Weekly TikTok Trending Sounds
+name: TikTok Trending Sounds (Weekly)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Runs Monday 5AM UTC = 8AM EAT (BEFORE render workflow)
+# Scrapes TikTok trending sounds
+# Saves to trending-sounds.json and sends top 5 via ntfy
+# Rule 8: ntfy ONLY — UltraMsg permanently removed
+# ─────────────────────────────────────────────────────────────────────────────
 
 on:
   schedule:
@@ -20,33 +27,41 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
 
       - name: Install dependencies
         run: npm install
 
       - name: Scrape TikTok trending sounds
         run: |
-          node  {
-              https.get(url, {
-                headers: {
-                  'User-Agent':  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-                  'Accept':      'application/json, text/plain, */*',
-                  'Referer':     'https://ads.tiktok.com/',
-                  'Accept-Language': 'en-US,en;q=0.9',
-                }
-              }, res => {
-                if (res.statusCode === 301 || res.statusCode === 302)
-                  return fetchJSON(res.headers.location).then(resolve).catch(reject);
-                let data = '';
-                res.on('data', d => data += d);
-                res.on('end', () => {
-                  try { resolve(JSON.parse(data)); }
-                  catch(e) { reject(new Error('Not JSON: ' + data.slice(0, 100))); }
-                });
-              }).on('error', reject);
-            });
-          }
+          node << 'EOF'
+          const https = require('https');
+          const fs    = require('fs');
+          const today = new Date().toISOString().slice(0, 10);
+
+          const ENDPOINTS = [
+            'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/music/list?period=7&page=1&limit=10',
+            'https://www.tiktok.com/api/music/list/?count=10&cursor=0',
+          ];
+
+          const fetchJSON = (url) => new Promise((resolve, reject) => {
+            https.get(url, {
+              headers: {
+                'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+                'Accept':          'application/json, text/plain, */*',
+                'Referer':         'https://ads.tiktok.com/',
+                'Accept-Language': 'en-US,en;q=0.9',
+              }
+            }, res => {
+              if (res.statusCode === 301 || res.statusCode === 302)
+                return fetchJSON(res.headers.location).then(resolve).catch(reject);
+              let data = '';
+              res.on('data', d => data += d);
+              res.on('end', () => {
+                try { resolve(JSON.parse(data)); }
+                catch(e) { reject(new Error('Not JSON: ' + data.slice(0, 100))); }
+              });
+            }).on('error', reject);
+          });
 
           (async () => {
             let sounds = [];
@@ -64,7 +79,7 @@ jobs:
                     soundId:    item.music_id || item.id || null,
                     duration:   item.music_info?.duration || null,
                     scrapedAt:  new Date().toISOString(),
-                    week:       new Date().toISOString().slice(0, 10),
+                    week:       today,
                   }));
                   console.log('Fetched ' + sounds.length + ' trending sounds from: ' + url.split('?')[0]);
                   break;
@@ -99,14 +114,28 @@ jobs:
           git diff --staged --quiet || git commit -m "chore: update trending TikTok sounds [skip ci]"
           git push
 
-      - name: Send top 5 to WhatsApp via UltraMsg
+      - name: Send top 5 to ntfy
         env:
-          ULTRAMSG_INSTANCE: ${{ secrets.ULTRAMSG_INSTANCE }}
-          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
-          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node  0) {
+          node << 'EOF'
+          const https = require('https');
+          const fs    = require('fs');
+          const NTFY  = process.env.NTFY_TOPIC || '';
+          const today = new Date().toISOString().slice(0, 10);
+
+          let sounds = [];
+          try {
+            const data = JSON.parse(fs.readFileSync('trending-sounds.json', 'utf8'));
+            sounds = data.sounds || [];
+          } catch(e) {
+            console.log('Could not read trending-sounds.json: ' + e.message);
+            process.exit(0);
+          }
+
+          const lines = ['DWB TikTok Trending Sounds - ' + today, ''];
+
+          if (sounds.length > 0) {
             sounds.slice(0, 5).forEach(s =>
               lines.push(s.rank + '. ' + s.title + ' - ' + s.artist + ' (' + s.usageCount + ' videos)')
             );
@@ -118,32 +147,13 @@ jobs:
 
           const message = lines.join('\n');
 
-          function sendWhatsApp() {
-            return new Promise((resolve) => {
-              if (!INSTANCE || !TOKEN || !PHONE) { resolve(false); return; }
-              const body = new URLSearchParams({ token: TOKEN, to: PHONE, body: message }).toString();
-              const req = https.request({
-                hostname: 'api.ultramsg.com',
-                path:     '/' + INSTANCE + '/messages/chat',
-                method:   'POST',
-                headers:  { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
-              }, res => {
-                let d = '';
-                res.on('data', c => d += c);
-                res.on('end', () => {
-                  if (res.statusCode === 200) { console.log('WhatsApp sent'); resolve(true); }
-                  else { console.log('UltraMsg error: ' + res.statusCode); resolve(false); }
-                });
-              });
-              req.on('error', () => resolve(false));
-              req.write(body);
-              req.end();
-            });
+          if (!NTFY) {
+            console.log('NTFY_TOPIC not set -- skipping notification');
+            process.exit(0);
           }
 
           function sendNtfy() {
             return new Promise((resolve) => {
-              if (!NTFY) { resolve(false); return; }
               const d = Buffer.from(message);
               const req = https.request({
                 hostname: 'ntfy.sh', port: 443, path: '/' + NTFY, method: 'POST',
@@ -160,9 +170,6 @@ jobs:
           }
 
           (async () => {
-            const waOk = await sendWhatsApp();
-            if (!waOk) await sendNtfy();
+            await sendNtfy();
           })();
           EOF
-
-⬡ SOURCE
