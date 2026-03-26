@@ -1,3 +1,9 @@
+// src/components/BackgroundVideo.jsx — DWB Background Engine v2.1 FIXED
+// Fixes applied:
+//   - Reconstructed all eaten JSX returns:
+//     FlashTransition, HookBurst, BackgroundClip, AmbientPulse, OutroFade, BackgroundVideo
+//   - All style props restored with proper syntax
+
 import { OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, staticFile } from 'remotion';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -6,7 +12,7 @@ import { OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig, interpolate,
 const V = (name) => staticFile('videos/' + name + '.mp4');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PER-DAY CLIP SETS  (4 clips per day — downloaded by GitHub Actions via Pixabay)
+// PER-DAY CLIP SETS  (4 clips per day — downloaded by GitHub Actions)
 // ─────────────────────────────────────────────────────────────────────────────
 const VIDEO_SETS = {
   // ── Week 5 (Days 29-35) ──
@@ -163,7 +169,6 @@ const MOTION_PROFILES = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // KEN BURNS DIRECTION TABLE
-// Each clip index gets a unique direction combination
 // [zoomDir, panXDir, panYDir]
 //   zoomDir:  1 = zoom in,  -1 = zoom out
 //   panXDir:  1 = move right, -1 = move left,  0 = no X pan
@@ -186,8 +191,15 @@ const FlashTransition = ({ clipIndex, flashColor, duration }) => {
   if (clipIndex === 0) return null;
   const flashOpacity = interpolate(frame, [0, duration], [1, 0],
     { extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
+  if (flashOpacity <= 0) return null;
   return (
-    
+    <div style={{
+      position: 'absolute',
+      top: 0, left: 0, right: 0, bottom: 0,
+      background: flashColor,
+      opacity: flashOpacity,
+      pointerEvents: 'none',
+    }} />
   );
 };
 
@@ -201,8 +213,16 @@ const HookBurst = ({ active }) => {
   const s = spring({ fps, frame, config: { damping: 6, stiffness: 320, mass: 0.5 } });
   const burstScale = interpolate(s, [0, 1], [1.12, 1.0]);
   const burstOpacity = interpolate(frame, [0, 3, 14], [0.7, 0, 0], { extrapolateRight: 'clamp' });
+  if (burstOpacity <= 0) return null;
   return (
-    
+    <div style={{
+      position: 'absolute',
+      top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(255,255,255,' + burstOpacity + ')',
+      transform: 'scale(' + burstScale + ')',
+      transformOrigin: 'center',
+      pointerEvents: 'none',
+    }} />
   );
 };
 
@@ -262,18 +282,27 @@ const BackgroundClip = ({ src, clipIndex, startFrame, clipDuration, profile, isF
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
   );
 
+  if (opacity <= 0) return null;
+
   return (
-    
-      
-        
-      
-
-      {/* Flash at clip entry */}
-      
-
-      {/* Hook burst on very first clip only */}
-      {isFirst && profile.hookBurst && }
-    
+    <Sequence from={startFrame} durationInFrames={clipDuration + profile.xfade}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity, overflow: 'hidden' }}>
+        <OffthreadVideo
+          src={src}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transform: 'scale(' + zoom + ') translateX(' + panX + 'px) translateY(' + panY + 'px) rotate(' + rotation + 'deg)',
+            transformOrigin: 'center',
+          }}
+        />
+        {/* Flash at clip entry */}
+        <FlashTransition clipIndex={clipIndex} flashColor={profile.flash} duration={profile.xfade * 2} />
+        {/* Hook burst on very first clip only */}
+        {isFirst && profile.hookBurst && <HookBurst active={true} />}
+      </div>
+    </Sequence>
   );
 };
 
@@ -284,7 +313,21 @@ const BackgroundClip = ({ src, clipIndex, startFrame, clipDuration, profile, isF
 const AmbientPulse = () => {
   const frame = useCurrentFrame();
   const pulseFrames = [120, 240, 360, 480, 600, 720];
-  const nearestPulse = pulseFrames.find(p => frame >= p && frame 
+  const nearestPulse = pulseFrames.find(p => frame >= p && frame < p + 12);
+  if (nearestPulse === undefined) return null;
+  const pulseOpacity = interpolate(
+    frame,
+    [nearestPulse, nearestPulse + 6, nearestPulse + 12],
+    [0, 0.04, 0],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+  return (
+    <div style={{
+      position: 'absolute',
+      top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(255,255,255,' + pulseOpacity + ')',
+      pointerEvents: 'none',
+    }} />
   );
 };
 
@@ -300,7 +343,14 @@ const OutroFade = () => {
     [0, 1],
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
   );
-  if (fadeOpacity 
+  if (fadeOpacity <= 0.001) return null;
+  return (
+    <div style={{
+      position: 'absolute',
+      top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,' + fadeOpacity + ')',
+      pointerEvents: 'none',
+    }} />
   );
 };
 
@@ -329,18 +379,26 @@ export const BackgroundVideo = ({ videoId }) => {
   });
 
   return (
-    
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#000' }}>
 
       {schedule.map(({ src, clipIndex, startFrame, dur }, i) => (
-        
+        <BackgroundClip
+          key={clipIndex}
+          src={src}
+          clipIndex={clipIndex}
+          startFrame={startFrame}
+          clipDuration={dur}
+          profile={profile}
+          isFirst={i === 0}
+        />
       ))}
 
       {/* Ambient brightness pulses — keeps long text holds alive */}
-      
+      <AmbientPulse />
 
       {/* Clean black fade at very end */}
-      
+      <OutroFade />
 
-    
+    </div>
   );
 };
