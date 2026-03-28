@@ -1,8 +1,22 @@
-// src/components/Particles.jsx — DWB Particle Systems v1.1 FIXED
-// Fixes applied:
-//   - Reconstructed all eaten for loop bodies in FireParticles, RainParticles, SnowParticles, FloatParticles
-//   - Fixed loop conditions (< COUNT eaten by HTML parser)
-//   - ConfettiParticles was intact (already used proper JSX encoding)
+// ─────────────────────────────────────────────────────────────────────────────
+// src/components/Particles.jsx — DWB Particle Systems v1.0
+//
+// Particle types available:
+//   fire        — rising orange/yellow particles, hype days (day31, day34, day39, day40)
+//   rain        — falling white dots, emotional/comeback days (day29, day35)
+//   snow        — slow drifting white flakes, reflective/recap days (day35, day42)
+//   confetti    — multi-color explosion, milestone days (day30, day60, day90)
+//   float       — soft glowing dots drift upward, dreamy closing days
+//
+// Usage in VideoComposition.jsx:
+//   import { Particles } from '../components/Particles.jsx';
+//   
+//   = 90 && frame 
+//
+// Per-day particle map (add to VIDEO_DATA or call automatically):
+//   day29: rain  | day30: confetti | day31: fire | day33: float
+//   day34: fire  | day35: snow     | day40: fire | day42: snow
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
 
@@ -20,120 +34,73 @@ function seededRandom(seed) {
 // ─────────────────────────────────────────────────────────────────────────────
 const FireParticles = ({ opacity = 1 }) => {
   const frame = useCurrentFrame();
-  const COUNT = 18;
+  const COUNT = 22;
   const particles = [];
 
   for (let i = 0; i < COUNT; i++) {
-    const xStart  = 15 + seededRandom(i * 3.1)      * 70;   // % from left
-    const speed   = 0.6 + seededRandom(i * 1.7)      * 0.8;
-    const size    = 4   + seededRandom(i * 2.3)      * 6;
-    const drift   = Math.sin(frame * 0.08 + i * 0.9) * 4;
-    const yPos    = 100 - ((frame * speed * 0.4 + seededRandom(i * 4.7) * 100) % 110);
-    const pOpacity = interpolate(yPos, [0, 20, 80, 100], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-    const hue = 25 + Math.round(seededRandom(i * 5.3) * 25); // orange-yellow range
+    const seed    = i * 137.5;
+    const angle   = (seed % 360) * Math.PI / 180;
+    const speed   = 0.8 + (i % 5) * 0.15;
+    const size    = 6 + (i % 4) * 3;
+    const delay   = (i % 8) * 4;
+    const localF  = Math.max(0, frame - delay);
+    const x       = 50 + Math.cos(angle) * speed * localF * 0.5;
+    const y       = 50 + Math.sin(angle) * speed * localF * 0.5 - localF * localF * 0.008;
+    const opacity = interpolate(localF, [0, 8, 60, 80], [0, 1, 1, 0], { extrapolateRight: 'clamp' });
+    const color   = Math.random() > 0.5 ? '#FF6600' : '#FFD700';
+
     particles.push(
-      <div key={i} style={{
-        position: 'absolute',
-        left: (xStart + drift) + '%',
-        top: yPos + '%',
-        width: size + 'px',
-        height: size + 'px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, hsl(' + hue + ',100%,80%), hsl(' + hue + ',100%,40%))',
-        opacity: pOpacity * opacity,
-        filter: 'blur(1px)',
+       ${size > 7 ? 1.5 : 0.5}px)`,
+        transform: `rotate(${Math.sin((frame + seed) * 0.08) * 12}deg)`,
         pointerEvents: 'none',
       }} />
     );
   }
 
   return (
-    <AbsoluteFill style={{ pointerEvents: 'none', overflow: 'hidden' }}>
+    
       {particles}
-    </AbsoluteFill>
+    
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RAIN PARTICLES
-// Falling white dots — emotional/comeback days
+// Falling white dots with angle and varying speed
 // ─────────────────────────────────────────────────────────────────────────────
 const RainParticles = ({ opacity = 1 }) => {
   const frame = useCurrentFrame();
-  const COUNT = 25;
+  const COUNT = 18;
   const particles = [];
 
-  for (let i = 0; i < COUNT; i++) {
-    const xPos    = seededRandom(i * 2.7) * 100;
-    const speed   = 1.2 + seededRandom(i * 1.3) * 1.8;
-    const size    = 2   + seededRandom(i * 3.1) * 3;
-    const height  = 8   + seededRandom(i * 4.9) * 12;
-    const yPos    = (frame * speed * 0.35 + seededRandom(i * 5.5) * 100) % 110 - 5;
-    const pOpacity = Math.min(
-      interpolate(yPos, [0, 10], [0, 1], { extrapolateRight: 'clamp' }),
-      interpolate(yPos, [90, 105], [1, 0], { extrapolateLeft: 'clamp' })
-    );
-    particles.push(
-      <div key={i} style={{
-        position: 'absolute',
-        left: xPos + '%',
-        top: yPos + '%',
-        width: size + 'px',
-        height: height + 'px',
-        borderRadius: '50%',
-        background: 'rgba(200,230,255,0.85)',
-        opacity: pOpacity * opacity,
-        pointerEvents: 'none',
-      }} />
+  for (let i = 0; i 
     );
   }
 
   return (
-    <AbsoluteFill style={{ pointerEvents: 'none', overflow: 'hidden' }}>
+    
       {particles}
-    </AbsoluteFill>
+    
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SNOW PARTICLES
-// Slow drifting white flakes — reflective/recap days
+// Slow drifting, rotating flakes
 // ─────────────────────────────────────────────────────────────────────────────
 const SnowParticles = ({ opacity = 1 }) => {
   const frame = useCurrentFrame();
   const COUNT = 20;
   const particles = [];
 
-  for (let i = 0; i < COUNT; i++) {
-    const xStart  = seededRandom(i * 2.1) * 100;
-    const drift   = Math.sin(frame * 0.04 + i * 0.7) * 6;
-    const speed   = 0.15 + seededRandom(i * 3.3) * 0.25;
-    const size    = 3    + seededRandom(i * 1.9)  * 5;
-    const yPos    = (frame * speed + seededRandom(i * 4.1) * 100) % 105 - 2;
-    const pOpacity = Math.min(
-      interpolate(yPos, [0, 8],   [0, 1], { extrapolateRight: 'clamp' }),
-      interpolate(yPos, [92, 105],[1, 0], { extrapolateLeft:  'clamp' })
-    );
-    particles.push(
-      <div key={i} style={{
-        position: 'absolute',
-        left: (xStart + drift) + '%',
-        top: yPos + '%',
-        width: size + 'px',
-        height: size + 'px',
-        borderRadius: '50%',
-        background: 'rgba(255,255,255,0.9)',
-        opacity: pOpacity * opacity,
-        filter: 'blur(0.5px)',
-        pointerEvents: 'none',
-      }} />
+  for (let i = 0; i 
     );
   }
 
   return (
-    <AbsoluteFill style={{ pointerEvents: 'none', overflow: 'hidden' }}>
+    
       {particles}
-    </AbsoluteFill>
+    
   );
 };
 
@@ -156,34 +123,30 @@ const ConfettiParticles = ({ opacity = 1, burstFrame = 0 }) => {
   for (let i = 0; i < COUNT; i++) {
     const angle  = (i / COUNT) * Math.PI * 2;
     const speed  = 0.5 + (i % 3) * 0.3;
-    const size   = 6 + (i % 4) * 3;
-    const color  = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    const flip   = Math.random() > 0.5;
 
     const progress = Math.min(localFrame / DURATION, 1);
-    const gravity  = progress * progress * 80;
+    const gravity = progress * progress * 80;
     const x = 50 + Math.cos(angle) * speed * progress * 35;
     const y = 40 + Math.sin(angle) * speed * progress * 35 + gravity;
     const pOpacity = interpolate(localFrame, [0, 6, DURATION - 10, DURATION], [0, 1, 1, 0], { extrapolateRight: 'clamp' });
     particles.push(
       <div key={i} style={{
         position: 'absolute',
-        left: x + '%',
-        top: y + '%',
-        width: size + 'px',
-        height: size + 'px',
-        background: color,
-        borderRadius: '2px',
-        opacity: pOpacity * opacity,
-        transform: 'rotate(' + (localFrame * (i % 7) * 4) + 'deg)',
+        left: x + '%', top: y + '%',
+        width: size + 'px', height: size + 'px',
+        background: flip ? '#E8A920' : '#FFFFFF',
+        borderRadius: '50%',
+        opacity: pOpacity,
         pointerEvents: 'none',
       }} />
     );
   }
 
   return (
-    <AbsoluteFill style={{ pointerEvents: 'none', overflow: 'hidden' }}>
+    
       {particles}
-    </AbsoluteFill>
+    
   );
 };
 
@@ -196,38 +159,14 @@ const FloatParticles = ({ opacity = 1 }) => {
   const COUNT = 15;
   const particles = [];
 
-  for (let i = 0; i < COUNT; i++) {
-    const xBase   = 10 + seededRandom(i * 2.9) * 80;
-    const drift   = Math.sin(frame * 0.03 + i * 1.1) * 8;
-    const speed   = 0.1 + seededRandom(i * 1.7) * 0.15;
-    const size    = 4   + seededRandom(i * 3.5) * 8;
-    const yPos    = 95  - ((frame * speed + seededRandom(i * 5.1) * 100) % 105);
-    const pOpacity = Math.min(
-      interpolate(yPos, [10,  25], [0, 1], { extrapolateRight: 'clamp' }),
-      interpolate(yPos, [70, 95],  [1, 0], { extrapolateLeft:  'clamp' })
-    );
-    const hue = 40 + Math.round(seededRandom(i * 4.3) * 30);
-    particles.push(
-      <div key={i} style={{
-        position: 'absolute',
-        left: (xBase + drift) + '%',
-        top: yPos + '%',
-        width: size + 'px',
-        height: size + 'px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(255,220,100,0.9), rgba(255,180,50,0.3))',
-        boxShadow: '0 0 ' + (size * 1.5) + 'px rgba(255,215,0,0.4)',
-        opacity: pOpacity * opacity,
-        filter: 'blur(0.5px)',
-        pointerEvents: 'none',
-      }} />
+  for (let i = 0; i 
     );
   }
 
   return (
-    <AbsoluteFill style={{ pointerEvents: 'none', overflow: 'hidden' }}>
+    
       {particles}
-    </AbsoluteFill>
+    
   );
 };
 
@@ -244,17 +183,20 @@ export const Particles = ({ type, opacity = 1, active = true, burstFrame = 0 }) 
   if (!active) return null;
 
   switch (type) {
-    case 'fire':     return <FireParticles opacity={opacity} />;
-    case 'rain':     return <RainParticles opacity={opacity} />;
-    case 'snow':     return <SnowParticles opacity={opacity} />;
-    case 'confetti': return <ConfettiParticles opacity={opacity} burstFrame={burstFrame} />;
-    case 'float':    return <FloatParticles opacity={opacity} />;
+    case 'fire':     return ;
+    case 'rain':     return ;
+    case 'snow':     return ;
+    case 'confetti': return ;
+    case 'float':    return ;
     default:         return null;
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PARTICLE MAP — which days get which particles automatically
+// Import this in VideoComposition.jsx and call:
+//   const particleType = DAY_PARTICLES[videoId];
+//   {particleType && }
 // ─────────────────────────────────────────────────────────────────────────────
 export const DAY_PARTICLES = {
   day29: 'rain',      // Comeback/emotional
