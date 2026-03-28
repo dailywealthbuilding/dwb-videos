@@ -1,84 +1,65 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // AudioTrack.jsx — DWB Audio Engine v2.0
-// Upgrades vs v1:
-//   • Audio ducking: music dips when text overlays are active
-//   • SFX layer: whoosh on slide anims, impact on pop/glitch, ping on CTA
-//   • SFX volume envelope: per-clip fade in/out (no harsh cuts)
-//   • Multi-track: music + up to 3 simultaneous SFX
-//   • Per-day BPM awareness (optional — used for beat-sync hints)
-//   • Graceful fallback if SFX files are missing
-//
 // SFX FILES REQUIRED in public/sfx/:
-//   whoosh.mp3    — short ~0.3s swoosh (for slide-left / slide-right)
-//   impact.mp3    — short ~0.2s hit/boom (for pop / glitch / zoom-punch)
-//   ping.mp3      — short ~0.3s ding/notification (for CTA bounce)
-//   cheer.mp3     — ~1.5s crowd cheer (milestone days only: day30, day60, day90)
-//
-// Source: mixkit.co — 100% free, no attribution required
+//   whoosh.mp3  impact.mp3  ping.mp3  cheer.mp3
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Audio, staticFile, useVideoConfig, interpolate, useCurrentFrame } from 'remotion';
-
-// ── Per-day BPM map (optional — fill in after downloading tracks) ──
-// Used for beat-sync hints in content files. 0 = unknown / not set.
-const DAY_BPM = {
-  day29: 0,  // Emotional/comeback — fill after download
-  day30: 0,  // Milestone/hype — fill after download
-  day31: 0,  // Punchy/assertive — fill after download
-  day32: 0,  // Techy/minimal — fill after download
-  day33: 0,  // Chill/productive — fill after download
-  day34: 0,  // Bold/controversial — fill after download
-  day35: 0,  // Reflective/closing — fill after download
-  day36: 0,
-  day37: 0,
-  day38: 0,
-  day39: 0,
-  day40: 0,
-  day41: 0,
-  day42: 0,
-};
 
 // ── Milestone days that get crowd cheer SFX ──
 const MILESTONE_DAYS = new Set(['day30', 'day60', 'day90']);
 
 // ── SFX trigger map: animation type → SFX file + frame offset ──
-// frame offset = how many frames into the overlay the SFX should fire
 const SFX_MAP = {
-  'slide-left':  { file: 'whoosh.mp3',  offset: 0,  duration: 15 },
-  'slide-right': { file: 'whoosh.mp3',  offset: 0,  duration: 15 },
-  'pop':         { file: 'impact.mp3',  offset: 0,  duration: 10 },
-  'glitch':      { file: 'impact.mp3',  offset: 0,  duration: 10 },
-  'zoom-punch':  { file: 'impact.mp3',  offset: 0,  duration: 10 },
-  'bounce':      { file: 'ping.mp3',    offset: 0,  duration: 18 },
+  'slide-left':  { file: 'whoosh.mp3',  offset: 0, duration: 15 },
+  'slide-right': { file: 'whoosh.mp3',  offset: 0, duration: 15 },
+  'pop':         { file: 'impact.mp3',  offset: 0, duration: 10 },
+  'glitch':      { file: 'impact.mp3',  offset: 0, duration: 10 },
+  'zoom-punch':  { file: 'impact.mp3',  offset: 0, duration: 10 },
+  'bounce':      { file: 'ping.mp3',    offset: 0, duration: 18 },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: compute audio ducking volume
-// Music dips to duckVolume when any text overlay is active,
-// returns to baseVolume when screen is between overlays.
+// Music dips to 45% when any text overlay is active
 // ─────────────────────────────────────────────────────────────────────────────
 function computeDuckedVolume(frame, fps, baseVolume, overlays) {
   if (!overlays || overlays.length === 0) return baseVolume;
 
-  const DUCK_VOLUME   = baseVolume * 0.45;  // music at 45% when text is showing
-  const DUCK_FRAMES   = Math.round(fps * 0.12); // 0.12s fade to duck
-  const UNDUCK_FRAMES = Math.round(fps * 0.18); // 0.18s fade back up
+  const DUCK_VOLUME   = baseVolume * 0.45;
+  const DUCK_FRAMES   = Math.round(fps * 0.12);
+  const UNDUCK_FRAMES = Math.round(fps * 0.18);
 
-  // Is the current frame inside any overlay?
-  const inOverlay = overlays.some(o => frame >= o.startFrame && frame = o.startFrame - DUCK_FRAMES && frame = o.endFrame - UNDUCK_FRAMES && frame = 0) {
+  // Is current frame inside any overlay?
+  const inOverlay = overlays.some(function(o) {
+    return frame >= o.startFrame && frame <= o.endFrame;
+  });
+
+  // Find nearest upcoming duck point
+  const duckStart = overlays.reduce(function(nearest, o) {
+    const d = o.startFrame - DUCK_FRAMES;
+    if (frame >= d && frame <= o.startFrame && (nearest === -1 || d > nearest)) return d;
+    return nearest;
+  }, -1);
+
+  // Find nearest unduck point
+  const unduckStart = overlays.reduce(function(nearest, o) {
+    const u = o.endFrame - UNDUCK_FRAMES;
+    if (frame >= u && frame <= o.endFrame && (nearest === -1 || u > nearest)) return u;
+    return nearest;
+  }, -1);
+
+  if (duckStart >= 0) {
     return interpolate(frame,
-      [duckStart - DUCK_FRAMES, duckStart],
+      [duckStart, duckStart + DUCK_FRAMES],
       [baseVolume, DUCK_VOLUME],
       { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
     );
   }
 
-  // Smooth transition back up
   if (unduckStart >= 0) {
-    const nextOverlay = overlays.find(o => o.startFrame > unduckStart);
-    const unduckEnd = nextOverlay ? nextOverlay.startFrame - DUCK_FRAMES : unduckStart + UNDUCK_FRAMES;
     return interpolate(frame,
-      [unduckStart, Math.min(unduckStart + UNDUCK_FRAMES, unduckEnd)],
+      [unduckStart, unduckStart + UNDUCK_FRAMES],
       [DUCK_VOLUME, baseVolume],
       { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
     );
@@ -89,7 +70,6 @@ function computeDuckedVolume(frame, fps, baseVolume, overlays) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SFX Clip — renders a single sound effect at a specific absolute frame
-// with fade-in/out envelope to prevent harsh cuts
 // ─────────────────────────────────────────────────────────────────────────────
 const SfxClip = ({ file, startFrame, durationFrames, baseVolume = 0.6 }) => {
   const frame = useCurrentFrame();
@@ -97,7 +77,7 @@ const SfxClip = ({ file, startFrame, durationFrames, baseVolume = 0.6 }) => {
   const FADE_OUT = 4;
   const endFrame = startFrame + durationFrames;
 
-  if (frame  endFrame + FADE_OUT) return null;
+  if (frame < startFrame || frame > endFrame + FADE_OUT) return null;
 
   const volume = Math.min(
     interpolate(frame, [startFrame, startFrame + FADE_IN], [0, baseVolume],
@@ -107,18 +87,21 @@ const SfxClip = ({ file, startFrame, durationFrames, baseVolume = 0.6 }) => {
   );
 
   return (
-    
+    <Audio
+      src={staticFile('sfx/' + file)}
+      startFrom={0}
+      volume={volume}
+    />
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AudioTrack — main export
-//
 // Props:
-//   music     {string}  — filename e.g. "day30.mp3" from public/music/
+//   music     {string}  — filename e.g. "day37.mp3" from public/music/
 //   volume    {number}  — base music volume (default 0.25)
-//   overlays  {Array}   — overlay objects from VIDEO_DATA (for ducking + SFX)
-//   videoId   {string}  — e.g. "day30" (for milestone detection)
+//   overlays  {Array}   — overlay objects (for ducking + SFX)
+//   videoId   {string}  — e.g. "day37" (for milestone detection)
 // ─────────────────────────────────────────────────────────────────────────────
 export const AudioTrack = ({
   music,
@@ -155,26 +138,42 @@ export const AudioTrack = ({
     }
   }
 
-  // ── 4. Milestone cheer (Day 30, 60, 90) ──
-  // Fires at frame 90 (when stats counter starts showing)
+  // ── 4. Milestone check ──
   const isMilestone = MILESTONE_DAYS.has(videoId);
 
   return (
     <>
       {/* Main music track */}
       {music && (
-        
+        <Audio
+          src={staticFile('music/' + music)}
+          startFrom={0}
+          volume={musicVolume}
+        />
       )}
 
       {/* SFX layer — one clip per animation trigger */}
-      {sfxTriggers.map((sfx, i) => (
-        
-      ))}
+      {sfxTriggers.map(function(sfx, i) {
+        return (
+          <SfxClip
+            key={i}
+            file={sfx.file}
+            startFrame={sfx.startFrame}
+            durationFrames={sfx.durationFrames}
+            baseVolume={0.5}
+          />
+        );
+      })}
 
       {/* Milestone cheer — fires at frame 90 on day30/60/90 */}
       {isMilestone && (
-        
+        <SfxClip
+          file="cheer.mp3"
+          startFrame={90}
+          durationFrames={45}
+          baseVolume={0.4}
+        />
       )}
-    
+    </>
   );
 };
