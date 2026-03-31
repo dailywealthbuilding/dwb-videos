@@ -1,0 +1,293 @@
+name: Weekly YouTube Analytics Report
+
+# -----------------------------------------------------------------------------
+# Runs every Sunday at 8PM EAT (5PM UTC)
+# Pulls last 7 days of YouTube analytics
+# Sends full performance report via ntfy
+# Includes: views, watch time, subscribers, CTR, top video, retention insight
+# -----------------------------------------------------------------------------
+
+on:
+  schedule:
+    - cron: '0 17 * * 0'  # Sunday 5PM UTC = 8PM EAT
+  workflow_dispatch: {}    # Manual trigger anytime
+
+jobs:
+  analytics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch YouTube Analytics + Send Report
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          node  {
+              const req = https.request(options, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => resolve({ status: res.statusCode, body: data }));
+              });
+              req.on('error', reject);
+              if (body) req.write(body);
+              req.end();
+            });
+          }
+
+          // -- Get OAuth token --
+          async function getAccessToken() {
+            const body = new URLSearchParams({
+              client_id:     CLIENT_ID,
+              client_secret: CLIENT_SECRET,
+              refresh_token: REFRESH_TOKEN,
+              grant_type:    'refresh_token',
+            }).toString();
+            const res  = await httpsRequest({
+              hostname: 'oauth2.googleapis.com',
+              path:     '/token',
+              method:   'POST',
+              headers:  { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
+            }, body);
+            const data = JSON.parse(res.body);
+            if (!data.access_token) throw new Error('Token failed: ' + res.body);
+            return data.access_token;
+          }
+
+          // -- YouTube Analytics API --
+          async function fetchAnalytics(token, metrics, startDate, endDate, dimensions) {
+            let path = '/youtube/analytics/v2/reports?ids=channel%3D%3DMINE'
+              + '&startDate=' + startDate
+              + '&endDate='   + endDate
+              + '&metrics='   + metrics;
+            if (dimensions) path += '&dimensions=' + dimensions;
+            path += '&sort=-views&maxResults=10';
+
+            const res = await httpsRequest({
+              hostname: 'youtubeanalytics.googleapis.com',
+              path,
+              method:  'GET',
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+            return JSON.parse(res.body);
+          }
+
+          // -- YouTube Data API -- channel stats --
+          async function fetchChannelStats(token) {
+            const res = await httpsRequest({
+              hostname: 'www.googleapis.com',
+              path:     '/youtube/v3/channels?part=statistics&mine=true',
+              method:   'GET',
+              headers:  { 'Authorization': 'Bearer ' + token }
+            });
+            const data = JSON.parse(res.body);
+            return (data.items || [])[0]?.statistics || {};
+          }
+
+          // -- YouTube Data API -- video list (recent uploads) --
+          async function fetchRecentVideos(token) {
+            const res = await httpsRequest({
+              hostname: 'www.googleapis.com',
+              path:     '/youtube/v3/search?part=snippet&forMine=true&type=video&order=date&maxResults=7',
+              method:   'GET',
+              headers:  { 'Authorization': 'Bearer ' + token }
+            });
+            const data = JSON.parse(res.body);
+            return (data.items || []);
+          }
+
+          // -- ntfy sender --
+          async function sendNtfy(message, title, priority, tags) {
+            if (!NTFY) return;
+            const data = Buffer.from(message);
+            return new Promise((resolve) => {
+              const req = https.request({
+                hostname: 'ntfy.sh', port: 443, path: '/' + NTFY, method: 'POST',
+                headers:  {
+                  'Content-Type':   'text/plain',
+                  'Content-Length': data.length,
+                  'Title':          title,
+                  'Tags':           tags || 'bar_chart',
+                  'Priority':       priority || 'default',
+                },
+              }, res => { console.log('ntfy sent: HTTP ' + res.statusCode); resolve(); });
+              req.on('error', () => resolve());
+              req.write(data);
+              req.end();
+            });
+          }
+
+          // -- Format number with commas --
+          function fmt(n) {
+            if (n === undefined || n === null) return '--';
+            const num = typeof n === 'string' ? parseFloat(n) : n;
+            if (isNaN(num)) return '--';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000)    return (num / 1000).toFixed(1) + 'K';
+            return Math.round(num).toString();
+          }
+
+          // -- Trend arrow --
+          function trend(current, previous) {
+            if (!previous || previous === 0) return '';
+            const pct = ((current - previous) / previous) * 100;
+            if (pct > 5)  return ' ' + Math.round(pct) + '%';
+            if (pct  {
+            let token;
+            try {
+              token = await getAccessToken();
+              console.log('YouTube token obtained');
+            } catch(e) {
+              console.log('ERROR: ' + e.message);
+              if (NTFY) await sendNtfy('Could not fetch analytics: ' + e.message, 'DWB Analytics ERROR', 'high', 'x');
+              process.exit(0);
+            }
+
+            // -- Fetch all data in parallel --
+            const [
+              weekData,
+              prevWeekData,
+              channelStats,
+              recentVideos,
+            ] = await Promise.all([
+              fetchAnalytics(token, 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost,likes,comments,shares,annotationClickThroughRate', startDate, endDate).catch(() => null),
+              fetchAnalytics(token, 'views,estimatedMinutesWatched,subscribersGained', prevStart, prevEnd).catch(() => null),
+              fetchChannelStats(token).catch(() => ({})),
+              fetchRecentVideos(token).catch(() => []),
+            ]);
+
+            // -- Extract this week's metrics --
+            const row     = weekData?.rows?.[0]  || [];
+            const prevRow = prevWeekData?.rows?.[0] || [];
+
+            const cols     = (weekData?.columnHeaders     || []).map(c => c.name);
+            const prevCols = (prevWeekData?.columnHeaders || []).map(c => c.name);
+
+            function get(data, cols, metric) {
+              const i = cols.indexOf(metric);
+              return i >= 0 ? (data[i] || 0) : 0;
+            }
+
+            const views         = get(row,     cols,     'views');
+            const prevViews     = get(prevRow, prevCols, 'views');
+            const watchMins     = get(row,     cols,     'estimatedMinutesWatched');
+            const prevWatchMins = get(prevRow, prevCols, 'estimatedMinutesWatched');
+            const avgDuration   = get(row,     cols,     'averageViewDuration');
+            const subsGained    = get(row,     cols,     'subscribersGained');
+            const prevSubsGained= get(prevRow, prevCols, 'subscribersGained');
+            const subsLost      = get(row,     cols,     'subscribersLost');
+            const likes         = get(row,     cols,     'likes');
+            const comments      = get(row,     cols,     'comments');
+            const shares        = get(row,     cols,     'shares');
+            const ctr           = get(row,     cols,     'annotationClickThroughRate');
+
+            const netSubs       = subsGained - subsLost;
+            const totalSubs     = parseInt(channelStats.subscriberCount || 0);
+            const totalViews    = parseInt(channelStats.viewCount       || 0);
+            const totalVideos   = parseInt(channelStats.videoCount      || 0);
+            const watchHrs      = Math.round(watchMins / 60);
+            const avgDurFmt     = Math.floor(avgDuration / 60) + ':' + String(Math.round(avgDuration % 60)).padStart(2,'0');
+
+            // -- Retention insight --
+            let retentionInsight = '';
+            if (avgDuration >= 25) retentionInsight = 'Excellent (83%+ retention)';
+            else if (avgDuration >= 20) retentionInsight = 'Strong (66%+ retention)';
+            else if (avgDuration >= 15) retentionInsight = 'Good (50%+ retention)';
+            else if (avgDuration >= 10) retentionInsight = 'Fair (33%+ retention) -- review hooks';
+            else retentionInsight = 'Low ( 0
+              ? recentVideos[0].snippet?.title?.slice(0, 50) || '--'
+              : '--';
+
+            // -- Save analytics to JSON for dashboard --
+            const analyticsLog = {
+              date:      endDate,
+              week:      startDate + ' to ' + endDate,
+              views,
+              watchMins,
+              watchHrs,
+              avgDuration,
+              subsGained,
+              subsLost,
+              netSubs,
+              totalSubs,
+              totalViews,
+              likes,
+              comments,
+              shares,
+            };
+
+            try {
+              let history = [];
+              try { history = JSON.parse(fs.readFileSync('analytics-history.json', 'utf8')); } catch(e) {}
+              history.push(analyticsLog);
+              // Keep last 13 weeks
+              if (history.length > 13) history = history.slice(-13);
+              fs.writeFileSync('analytics-history.json', JSON.stringify(history, null, 2));
+              console.log('Analytics saved to analytics-history.json');
+            } catch(e) {
+              console.log('Could not save analytics: ' + e.message);
+            }
+
+            // -- Build ntfy report --
+            const lines = [
+              'DWB WEEKLY ANALYTICS -- ' + startDate + ' to ' + endDate,
+              '-----------------------------',
+              '',
+              ' THIS WEEK',
+              'Views:        ' + fmt(views)     + trend(views, prevViews),
+              'Watch Time:   ' + watchHrs + 'hrs (' + fmt(watchMins) + ' mins)' + trend(watchMins, prevWatchMins),
+              'Avg Duration: ' + avgDurFmt + ' -- ' + retentionInsight,
+              'New Subs:     +' + fmt(subsGained) + ' / -' + fmt(subsLost) + ' = NET ' + (netSubs >= 0 ? '+' : '') + fmt(netSubs) + trend(subsGained, prevSubsGained),
+              'Likes:        ' + fmt(likes),
+              'Comments:     ' + fmt(comments),
+              'Shares:       ' + fmt(shares),
+              '',
+              ' CHANNEL TOTALS',
+              'Subscribers:  ' + fmt(totalSubs),
+              'Total Views:  ' + fmt(totalViews),
+              'Total Videos: ' + totalVideos,
+              '',
+              ' LATEST VIDEO',
+              topTitle,
+              '',
+              ' NEXT STEPS',
+              avgDuration  20
+                ? ' Good engagement -- reply to top 5 comments'
+                : ' Reply to ALL comments this week to boost algorithm',
+            ];
+
+            const message = lines.join('\n');
+            console.log('\n' + message);
+
+            const priority = views > 1000 ? 'default' : 'low';
+            await sendNtfy(
+              message,
+              'DWB Weekly Analytics -- ' + fmt(views) + ' views this week',
+              priority,
+              'bar_chart,trophy'
+            );
+
+            console.log('\nAnalytics report sent successfully');
+          })();
+          EOF
+
+      - name: Commit analytics history to repo
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || true
+          git add -f analytics-history.json || true
+          git diff --staged --quiet || git commit -m "chore: update analytics history [skip ci]"
+          git push || true
