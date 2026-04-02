@@ -1,4 +1,4 @@
-  import { AbsoluteFill, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring } from 'remotion';
+import { AbsoluteFill, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring } from 'remotion';
 import { BackgroundVideo } from '../components/BackgroundVideo.jsx';
 import { TextOverlay } from '../components/TextOverlay.jsx';
 import { AudioTrack } from '../components/AudioTrack.jsx';
@@ -478,13 +478,34 @@ const OutroCard = ({ videoId }) => {
   const opacity    = frame >= outroStart ? interpolate(s, [0, 1], [0, 1]) : 0;
   const glowPulse  = interpolate(Math.sin(outroFrame * 0.15), [-1, 1], [0.3, 0.8]);
   return (
-
-
-        Follow For Daily Videos
-        @DailyWealthBuilding
-        90-Day Public Challenge · Day {dayNum} of 90
-
-
+    <AbsoluteFill style={{ pointerEvents: 'none' }}>
+      <AbsoluteFill style={{
+        transform: 'translateY(' + translateY + 'px)',
+        opacity,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        paddingBottom: '12%',
+      }}>
+        <div style={{
+          background: 'rgba(0,0,0,0.82)',
+          border: '1px solid ' + grade.accent,
+          padding: '18px 28px',
+          textAlign: 'center',
+          boxShadow: '0 0 ' + (24 * glowPulse) + 'px ' + grade.accent + '40',
+        }}>
+          <div style={{ fontFamily: "'Anton', sans-serif", fontSize: '13px', color: grade.accent, letterSpacing: '0.3em', marginBottom: '6px' }}>
+            FOLLOW FOR DAILY VIDEOS
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '18px', color: '#fff', fontWeight: 700, marginBottom: '4px' }}>
+            @DailyWealthBuilding
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.15em' }}>
+            90-Day Public Challenge - Day {dayNum} of 90
+          </div>
+        </div>
+      </AbsoluteFill>
+    </AbsoluteFill>
   );
 };
 
@@ -493,10 +514,12 @@ const ChromaticAberration = ({ intensity = 0.6 }) => {
   const frame = useCurrentFrame();
   const pulse  = 0.8 + Math.sin(frame * 0.05) * 0.2;
   const offset = Math.round(intensity * pulse);
-  if (offset
-
-
-
+  if (offset <= 0) return null;
+  return (
+    <AbsoluteFill style={{ pointerEvents: 'none', mixBlendMode: 'screen', opacity: 0.4 }}>
+      <AbsoluteFill style={{ transform: 'translateX(' + offset + 'px)', background: 'rgba(255,0,0,0.08)' }} />
+      <AbsoluteFill style={{ transform: 'translateX(-' + offset + 'px)', background: 'rgba(0,0,255,0.08)' }} />
+    </AbsoluteFill>
   );
 };
 
@@ -505,7 +528,17 @@ const DepthOfField = ({ overlays = [] }) => {
   const frame = useCurrentFrame();
   const nearestBlur = (() => {
     for (const o of overlays) {
-      if (frame >= o.startFrame - 8 && frame = o.startFrame && frame = o.endFrame && frame
+      if (frame >= o.startFrame - 8 && frame <= o.endFrame + 8) return 2.5;
+    }
+    return 0;
+  })();
+  if (nearestBlur <= 0) return null;
+  return (
+    <AbsoluteFill style={{
+      backdropFilter: 'blur(' + nearestBlur + 'px)',
+      pointerEvents: 'none',
+      opacity: 0.4,
+    }} />
   );
 };
 
@@ -513,7 +546,15 @@ const DepthOfField = ({ overlays = [] }) => {
 const TVStaticBurst = ({ clipBoundaryFrames = [] }) => {
   const frame = useCurrentFrame();
   const BURST_FRAMES = 3;
-  const boundary = clipBoundaryFrames.find(bf => frame >= bf && frame
+  const boundary = clipBoundaryFrames.find(bf => frame >= bf && frame < bf + BURST_FRAMES);
+  if (!boundary && boundary !== 0) return null;
+  const noise = (frame * 2654435761) % 256 / 255;
+  return (
+    <AbsoluteFill style={{
+      background: 'rgba(255,255,255,' + (noise * 0.15) + ')',
+      pointerEvents: 'none',
+      mixBlendMode: 'overlay',
+    }} />
   );
 };
 
@@ -523,17 +564,28 @@ const MatrixRain = ({ opacity = 0.15 }) => {
   const COLS  = 14;
   const CHARS = '01アイウエオカキクケコ0110';
   const columns = [];
-  for (let i = 0; i
-        {char}
-        {trail1}
-        {trail2}
-
+  for (let i = 0; i < COLS; i++) {
+    const seed = i * 137 + frame;
+    const charIdx = seed % CHARS.length;
+    const char = CHARS[charIdx];
+    const trail1 = CHARS[(seed + 1) % CHARS.length];
+    const trail2 = CHARS[(seed + 2) % CHARS.length];
+    const x = (i / COLS) * 100;
+    const speed = 0.8 + (i % 4) * 0.3;
+    const y = ((frame * speed * 0.5) + (i * 23)) % 120 - 10;
+    const col = 'rgba(0,255,70,' + opacity + ')';
+    columns.push(
+      <div key={i} style={{ position: 'absolute', left: x + '%', top: y + '%', fontFamily: 'monospace', fontSize: '12px', color: col, userSelect: 'none', pointerEvents: 'none' }}>
+        <div>{char}</div>
+        <div style={{ opacity: 0.5 }}>{trail1}</div>
+        <div style={{ opacity: 0.2 }}>{trail2}</div>
+      </div>
     );
   }
   return (
-
+    <AbsoluteFill style={{ pointerEvents: 'none', overflow: 'hidden' }}>
       {columns}
-
+    </AbsoluteFill>
   );
 };
 
