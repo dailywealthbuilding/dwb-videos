@@ -1,4 +1,4 @@
-  // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // src/week6-content.js -- DWB Week 6 -- Days 36-42
 // Theme: Money Myths & The Wealth Gap
 // Export: default (weeks 5-6 use default export)
@@ -938,6 +938,3 @@ export default [
   },
 
 ];
-
-
-⬡ COMPONENTS
