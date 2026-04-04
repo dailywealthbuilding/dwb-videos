@@ -886,6 +886,43 @@ jobs:
           })();
           EOF
 
+      - name: Verify clips and create placeholders for missing files
+        run: |
+          echo "=== Checking public/videos ==="
+          ls -la public/videos/ 2>/dev/null | wc -l || echo "Directory empty or missing"
+          find public/videos -name "*.mp4" -size +5k 2>/dev/null | wc -l | xargs echo "Valid clips found:"
+
+          # Generate placeholders for any missing clips
+          node << 'JSEOF'
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+          let info = {};
+          try { info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8')); } catch(e) {
+            console.log('No week_info.json - skipping'); process.exit(0);
+          }
+          const allAssets = Object.values(info.dayAssets || {}).flat();
+          let created = 0, ok = 0;
+          for (const item of allAssets) {
+            const dest = 'public/videos/' + item.id + '.mp4';
+            const exists = fs.existsSync(dest) && fs.statSync(dest).size > 5000;
+            if (!exists) {
+              console.log('Creating placeholder: ' + dest);
+              try {
+                execSync(
+                  'ffmpeg -f lavfi -i color=c=0x080c14:size=1080x1920:rate=30' +
+                  ' -t 5 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -an' +
+                  ' "' + dest + '" -y -loglevel error'
+                );
+                created++;
+              } catch(e) { console.log('FAILED: ' + dest + ' - ' + e.message); }
+            } else { ok++; }
+          }
+          console.log('Clips OK: ' + ok + ' | Placeholders created: ' + created);
+          JSEOF
+
+          echo "=== Final clip count ==="
+          find public/videos -name "*.mp4" -size +1k 2>/dev/null | wc -l | xargs echo "Total valid clips:"
+
       - name: Render all videos
         run: |
           BROWSER="./node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell"
@@ -910,7 +947,9 @@ jobs:
             npx remotion render src/index.jsx ${DAY} out/${DAY}_final.mp4 \
               --browser-executable="$BROWSER" \
               --codec=h264 \
-              --concurrency=2
+              --concurrency=2 \
+              --public-dir "$(pwd)/public" \
+              --log=verbose
 
             EXIT_CODE=$?
             DAY_END=$(date +%s)
