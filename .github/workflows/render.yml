@@ -589,6 +589,9 @@ jobs:
               console.log('Ready to render: ' + result.readyToRender);
               console.log('\nPer-hook scores:');
 
+              const weakHooks = [];
+              const lines = [];
+
               result.scores.forEach(s => {
                 const bar = '|'.repeat(Math.round(s.score)) + '.'.repeat(10 - Math.round(s.score));
                 console.log(s.id + ' [' + s.score + '/10] ' + bar);
@@ -1140,6 +1143,20 @@ jobs:
           const arrayStr     = defaultMatch ? defaultMatch[1] : (namedMatch ? namedMatch[1] : null);
           let entries = [];
           try { if (arrayStr) entries = eval(arrayStr); } catch(e) {}
+
+          // Convert frame number to SRT timestamp (HH:MM:SS,mmm)
+          function framesToSRT(frame, fps) {
+            fps = fps || 30;
+            const totalMs  = Math.round((frame / fps) * 1000);
+            const hours    = Math.floor(totalMs / 3600000);
+            const minutes  = Math.floor((totalMs % 3600000) / 60000);
+            const seconds  = Math.floor((totalMs % 60000) / 1000);
+            const ms       = totalMs % 1000;
+            return String(hours).padStart(2,'0') + ':'
+              + String(minutes).padStart(2,'0') + ':'
+              + String(seconds).padStart(2,'0') + ','
+              + String(ms).padStart(3,'0');
+          }
 
           let generated = 0;
           for (const entry of entries) {
