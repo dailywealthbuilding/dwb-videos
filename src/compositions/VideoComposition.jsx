@@ -707,12 +707,21 @@ export const VideoComposition = ({ videoId, overlays: propOverlays, music: propM
       {/* Layer 10: Corner brackets */}
       <CornerBrackets accentColor={accentColor} />
 
+      {/* Layer 10b: Glow border */}
+      <GlowBorder videoId={videoId} />
+
       {/* Layer 11: Day badge */}
       <DayBadge videoId={videoId} accentColor={accentColor} />
 
-      {/* Layer 12: Text overlays */}
+      {/* Layer 12: Text overlays -- each wrapped in Sequence for correct timing */}
       {overlays.map((overlay, index) => (
-        <TextOverlay key={index} overlay={overlay} />
+        <Sequence
+          key={index}
+          from={overlay.startFrame}
+          durationInFrames={overlay.endFrame - overlay.startFrame}
+        >
+          <TextOverlay overlay={overlay} />
+        </Sequence>
       ))}
 
       {/* Layer 13: Watermark */}
