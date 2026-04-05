@@ -615,7 +615,8 @@ jobs:
                 });
               }
 
-              const priority = result.avgScore >= 7.5 ? 'white_check_mark,robot' : 'warning,robot';
+              const priority = result.avgScore >= 7.5 ? 'high' : 'default';
+              const tags     = result.avgScore >= 7.5 ? 'white_check_mark,robot' : 'warning,robot';
 
               await sendNtfy(
                 lines.join('\n'),
@@ -951,8 +952,7 @@ jobs:
               --browser-executable="$BROWSER" \
               --codec=h264 \
               --concurrency=2 \
-              --public-dir "$(pwd)/public" \
-              --log=verbose
+              --public-dir "$(pwd)/public" 
 
             EXIT_CODE=$?
             DAY_END=$(date +%s)
@@ -1371,9 +1371,12 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin main || true
-          git add scheduled-videos.json playlist-cache.json
+          # Add files that exist -- skip missing ones safely
+          git add scheduled-videos.json 2>/dev/null || true
+          git add playlist-cache.json 2>/dev/null || true
+          git add out/.week_info.json 2>/dev/null || true
           git diff --staged --quiet || git commit -m "chore: update scheduled videos + playlist cache [skip ci]"
-          git push
+          git push || true
 
       - name: Reddit auto-post (r/personalfinance + r/financialindependence)
         if: success()
