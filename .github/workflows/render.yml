@@ -951,7 +951,11 @@ jobs:
             npx remotion render src/index.jsx ${DAY} out/${DAY}_final.mp4 \
               --browser-executable="$BROWSER" \
               --codec=h264 \
-              --concurrency=2 \
+              --concurrency=1 \
+              --image-format=jpeg \
+              --jpeg-quality=100 \
+              --crf=14 \
+              --scale=1 \
               --public-dir "$(pwd)/public" 
 
             EXIT_CODE=$?
@@ -1391,9 +1395,24 @@ jobs:
           const fs      = require('fs');
           const path    = require('path');
           const https   = require('https');
+
+          // Reddit credentials
+          const CLIENT_ID     = process.env.REDDIT_CLIENT_ID     || '';
+          const CLIENT_SECRET = process.env.REDDIT_CLIENT_SECRET || '';
+          const USERNAME      = process.env.REDDIT_USERNAME       || '';
+          const PASSWORD      = process.env.REDDIT_PASSWORD       || '';
+
+          if (!CLIENT_ID || !USERNAME) {
+            console.log('Reddit credentials not set -- skipping.');
+            process.exit(0);
+          }
+
+          // Load week info and upload results
+          let info = {};
+          try { info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8')); } catch(e) {}
           let uploads = [];
           try { uploads = JSON.parse(fs.readFileSync('out/.upload_results.json', 'utf8')); } catch(e) {}
-          const successUploads = uploads.filter(u.status === 'ok');
+          const successUploads = uploads.filter(u => u.status === 'ok');
 
           if (successUploads.length === 0) {
             console.log('No successful uploads -- skipping Reddit post.');
@@ -1553,7 +1572,7 @@ jobs:
             await sendNtfy(lines.join('\n'), 'DWB Week ' + newVideos.length + ' Videos Scheduled', 'default');
 
             // Save updated scheduled-videos.json
-            fs.writeFileSync('scheduled-videos.json', JSON.stringify(scheduled, null, 2));
+            fs.writeFileSync('scheduled-videos.json', JSON.stringify(scheduledVideos, null, 2));
             console.log('Notification schedule sent for ' + newVideos.length + ' videos');
           })();
           EOF
