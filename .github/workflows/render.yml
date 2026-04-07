@@ -175,7 +175,7 @@ jobs:
           for (const entry of entries) {
             if (!entry.id || (!entry.pexelsSearchTerms && !entry.bRollQueries)) continue;
             dayAssets[entry.id] = (entry.bRollQueries || entry.pexelsSearchTerms)
-              .slice(0, 4)
+              .slice(0, 6)
               .map((q, i) => ({ id: entry.id + '_clip' + (i + 1), q }));
           }
 
@@ -805,11 +805,121 @@ jobs:
             }
           }
 
+          // ==========================================================================
+          // PACKSIA GALLERY -- Your personal media library
+          // Upload videos to: public/gallery/<category>/
+          // Categories: hustle | money | lifestyle | emotion | dark | viral | quotes
+          // No renaming needed. Pipeline picks randomly from the right mood folder.
+          // The gallery ALWAYS takes priority over Pixabay/Pexels.
+          // ==========================================================================
+
+          const GALLERY_DIR = 'public/gallery';
+          const VIDEO_EXTS  = ['.mp4', '.mov', '.webm'];
+
+          // Read all clips from a gallery category folder
+          function getGalleryClips(category) {
+            const dir = path.join(GALLERY_DIR, category);
+            if (!fs.existsSync(dir)) return [];
+            return fs.readdirSync(dir)
+              .filter(f => VIDEO_EXTS.some(ext => f.toLowerCase().endsWith(ext)))
+              .map(f => path.join(dir, f));
+          }
+
+          // Load the full gallery index (all categories)
+          function buildGalleryIndex() {
+            const index = {};
+            if (!fs.existsSync(GALLERY_DIR)) return index;
+            for (const cat of fs.readdirSync(GALLERY_DIR)) {
+              const clips = getGalleryClips(cat);
+              if (clips.length > 0) index[cat] = clips;
+            }
+            return index;
+          }
+
+          // Pick N clips from a category, cycling through so all clips get used
+          // Uses a rotation counter stored in out/.gallery_state.json
+          function pickGalleryClips(index, category, count) {
+            const allCats = Object.keys(index);
+            if (allCats.length === 0) return [];
+
+            // Try exact category first, then fall back to any available
+            const clips = index[category] || index[allCats[0]] || [];
+            if (clips.length === 0) return [];
+
+            // Load rotation state so we cycle through all clips fairly
+            let state = {};
+            try { state = JSON.parse(fs.readFileSync('out/.gallery_state.json', 'utf8')); } catch(e) {}
+            const cursor = state[category] || 0;
+
+            const picked = [];
+            for (let i = 0; i < count; i++) {
+              picked.push(clips[(cursor + i) % clips.length]);
+            }
+
+            // Save updated cursor
+            state[category] = (cursor + count) % clips.length;
+            fs.mkdirSync('out', { recursive: true });
+            fs.writeFileSync('out/.gallery_state.json', JSON.stringify(state, null, 2));
+
+            return picked;
+          }
+
+          // Copy a gallery clip to the destination path
+          function copyGalleryClip(src, dest) {
+            try {
+              fs.copyFileSync(src, dest);
+              const size = fs.statSync(dest).size;
+              if (size < 10000) { fs.unlinkSync(dest); return false; }
+              return true;
+            } catch(e) { return false; }
+          }
+
+          const galleryIndex = buildGalleryIndex();
+          const galleryCategories = Object.keys(galleryIndex);
+          if (galleryCategories.length > 0) {
+            console.log('Packsia Gallery loaded: ' + galleryCategories.length + ' categories -- ' +
+              galleryCategories.map(c => c + '(' + galleryIndex[c].length + ')').join(', '));
+          } else {
+            console.log('Packsia Gallery: empty -- using Pixabay/Pexels');
+          }
+
           // -- Main download loop --
           (async () => {
-            let downloaded = 0, skipped = 0, failed = 0, kenBurns = 0;
+            let downloaded = 0, skipped = 0, failed = 0, kenBurns = 0, gallery = 0;
 
             for (const [day, assets] of Object.entries(DAY_ASSETS)) {
+              // Check if this day has a galleryCategory defined
+              const dayInfo = (info.dayMeta || {})[day] || {};
+              const galleryCategory = dayInfo.galleryCategory || null;
+
+              // If gallery category set AND gallery has that category, use it for ALL clips this day
+              if (galleryCategory && galleryIndex[galleryCategory]) {
+                console.log('\n[PACKSIA] ' + day + ' -> category: ' + galleryCategory);
+                const clipsNeeded = assets.length;
+                const pickedFiles = pickGalleryClips(galleryIndex, galleryCategory, clipsNeeded);
+
+                for (let i = 0; i < assets.length; i++) {
+                  const item = assets[i];
+                  const dest = 'public/videos/' + item.id + '.mp4';
+
+                  if (fs.existsSync(dest) && fs.statSync(dest).size > 50000) {
+                    console.log('  SKIP (cached): ' + item.id);
+                    skipped++;
+                    continue;
+                  }
+
+                  const srcFile = pickedFiles[i];
+                  if (srcFile && copyGalleryClip(srcFile, dest)) {
+                    console.log('  [GALLERY] ' + item.id + ' <- ' + path.basename(srcFile));
+                    gallery++;
+                  } else {
+                    console.log('  GALLERY MISS: ' + item.id + ' -- falling back to download');
+                    // Fall through to normal download below (handled by continuing)
+                  }
+                }
+                continue; // Skip to next day
+              }
+
               for (const item of assets) {
                 const dest = 'public/videos/' + item.id + '.mp4';
 
@@ -819,6 +929,26 @@ jobs:
                   continue;
                 }
                 if (fs.existsSync(dest)) fs.unlinkSync(dest);
+
+                // Check if any gallery clips match this day at all (auto-detect by day mood)
+                // Uses galleryIndex to find best-fit category automatically
+                if (galleryCategories.length > 0 && !galleryCategory) {
+                  // Auto-mode: round-robin through ALL gallery clips
+                  const allGalleryFiles = galleryCategories.flatMap(c => galleryIndex[c]);
+                  const stateKey = '_auto_' + day;
+                  let autoState = {};
+                  try { autoState = JSON.parse(fs.readFileSync('out/.gallery_state.json','utf8')); } catch(e){}
+                  const autoCursor = autoState[stateKey] || 0;
+                  const srcFile = allGalleryFiles[autoCursor % allGalleryFiles.length];
+                  autoState[stateKey] = autoCursor + 1;
+                  fs.writeFileSync('out/.gallery_state.json', JSON.stringify(autoState, null, 2));
+
+                  if (srcFile && copyGalleryClip(srcFile, dest)) {
+                    console.log('[GALLERY AUTO] ' + item.id + ' <- ' + path.basename(srcFile));
+                    gallery++;
+                    continue;
+                  }
+                }
 
                 console.log('\nFetching: ' + item.id + ' | query: "' + item.q + '"');
 
@@ -885,7 +1015,7 @@ jobs:
             }
 
             console.log('\n--- Video Download Summary ---');
-            console.log('Downloaded: ' + downloaded + ' | Cached: ' + skipped + ' | KenBurns: ' + kenBurns + ' | Failed: ' + failed);
+            console.log('Gallery: ' + gallery + ' | Downloaded: ' + downloaded + ' | Cached: ' + skipped + ' | KenBurns: ' + kenBurns + ' | Failed: ' + failed);
             if (failed > 0) console.log('WARNING: ' + failed + ' clip(s) failed -- render may have blank backgrounds');
           })();
           EOF
@@ -951,10 +1081,10 @@ jobs:
             npx remotion render src/index.jsx ${DAY} out/${DAY}_final.mp4 \
               --browser-executable="$BROWSER" \
               --codec=h264 \
-              --concurrency=1 \
+              --concurrency=2 \
               --image-format=jpeg \
-              --jpeg-quality=100 \
-              --crf=14 \
+              --jpeg-quality=95 \
+              --crf=16 \
               --scale=1 \
               --public-dir "$(pwd)/public" 
 
@@ -1599,6 +1729,13 @@ jobs:
           const minDay  = dayNums.length ? Math.min(...dayNums) : '?';
           const maxDay  = dayNums.length ? Math.max(...dayNums) : '?';
 
+          // Variables that were undefined -- now declared
+          const today   = new Date().toISOString().split('T')[0];
+          const rendered = (info.days || []).filter(d => fs.existsSync('out/' + d + '_final.mp4'));
+          const runId   = process.env.GITHUB_RUN_ID    || '0';
+          const runNum  = process.env.GITHUB_RUN_NUMBER || '0';
+          const repo    = process.env.GITHUB_REPOSITORY || 'dailywealthbuilding/DWB-Videos';
+
           const badge = (label, msg, color) =>
             '![' + label + '](https://img.shields.io/badge/' +
             encodeURIComponent(label) + '-' + encodeURIComponent(msg) + '-' + color + ')';
@@ -1629,8 +1766,7 @@ jobs:
             '- Remotion 4.0 -> GitHub Actions (Monday 6AM UTC)',
             '- 1080x1920 @ 30fps | 900 frames | h264',
             '- Music: Jamendo trending -> FMA -> Pixabay fallback',
-            '- SFX: Mixkit (fresh random per render)',
-            '- Video: Pixabay + Unsplash Ken Burns fallback',
+            '- Video: Pixabay + Pexels + Custom Gallery',
             '- YouTube auto-upload with title, description, pinned comment',
             '- Push notifications via ntfy',
             '',
