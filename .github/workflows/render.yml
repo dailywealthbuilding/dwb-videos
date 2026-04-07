@@ -175,7 +175,7 @@ jobs:
           for (const entry of entries) {
             if (!entry.id || (!entry.pexelsSearchTerms && !entry.bRollQueries)) continue;
             dayAssets[entry.id] = (entry.bRollQueries || entry.pexelsSearchTerms)
-              .slice(0, 6)
+              .slice(0, 4)
               .map((q, i) => ({ id: entry.id + '_clip' + (i + 1), q }));
           }
 
