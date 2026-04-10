@@ -333,58 +333,63 @@ jobs:
       # =========================================================================
       - name: Detect active week from content files
         run: |
-          if [ -f "out/.week_info.json" ] && [ "${{ github.event.inputs.skip_groq_gen }}" != "true" ] && [ -z "${{ github.event.inputs.days_override }}" ]; then
-            echo "Using Groq-generated week info"
-            node << 'JSEOF'
-            const fs = require('fs');
-            const info = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
+          node << 'EOF'
+          const fs   = require('fs');
+          const path = require('path');
+ 
+          const skipGroq     = '${{ github.event.inputs.skip_groq_gen }}' === 'true';
+          const daysOverride = '${{ github.event.inputs.days_override }}' || '';
+          const hasWeekInfo  = fs.existsSync('out/.week_info.json');
+          const useGroq      = hasWeekInfo && !skipGroq && !daysOverride;
+ 
+          if (useGroq) {
+            // Groq already wrote out/.week_info.json -- just export env vars
+            console.log('Using Groq-generated week info');
+            const info    = JSON.parse(fs.readFileSync('out/.week_info.json', 'utf8'));
             const envFile = process.env.GITHUB_ENV;
             if (envFile) {
               fs.appendFileSync(envFile, 'ACTIVE_WEEK=' + info.week + '\n');
               fs.appendFileSync(envFile, 'ACTIVE_DAYS=' + info.days.join(' ') + '\n');
             }
             console.log('Active week: ' + info.week + ' | Days: ' + info.days.join(', '));
-            JSEOF
-          else
-            echo "Auto-detecting from content files"
-            node << 'EOF'
-            const fs   = require('fs');
-            const path = require('path');
-            const srcDir      = path.join(process.cwd(), 'src');
-            const allFiles    = fs.existsSync(srcDir) ? fs.readdirSync(srcDir) : [];
+          } else {
+            // Auto-detect from week content files
+            console.log('Auto-detecting from content files');
+            const srcDir       = path.join(process.cwd(), 'src');
+            const allFiles     = fs.existsSync(srcDir) ? fs.readdirSync(srcDir) : [];
             const contentFiles = allFiles.filter(function(f) { return f.match(/^week\d+-content\.js$/); });
-
+ 
             if (contentFiles.length === 0) {
               console.log('ERROR: No week content files found in src/');
               process.exit(1);
             }
-
+ 
             const weekNums = contentFiles
               .map(function(f) { return parseInt(f.match(/week(\d+)/)[1]); })
               .sort(function(a, b) { return b - a; });
             const activeWeek = weekNums[0];
             const activeFile = path.join(srcDir, 'week' + activeWeek + '-content.js');
             console.log('Active week file: ' + activeFile);
-
+ 
             const source = fs.readFileSync(activeFile, 'utf8');
-            let entries = [];
-            const defaultMatch = source.match(/export\s+default\s+(\[[\s\S]*?\]);?\s*$/m);
-            const namedMatch   = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/m);
-            const arrayStr     = defaultMatch ? defaultMatch[1] : (namedMatch ? namedMatch[1] : null);
-
-            if (!arrayStr) {
+            let entries  = [];
+            const dm     = source.match(/export\s+default\s+(\[[\s\S]*?\]);?\s*$/m);
+            const nm     = source.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/m);
+            const arr    = dm ? dm[1] : (nm ? nm[1] : null);
+ 
+            if (!arr) {
               console.log('ERROR: Could not parse content array from ' + activeFile);
               process.exit(1);
             }
-
-            try { entries = eval(arrayStr); } catch(e) {
+ 
+            try { entries = eval(arr); } catch(e) {
               console.log('ERROR: eval failed: ' + e.message);
               process.exit(1);
             }
-
+ 
             const days = entries.map(function(e) { return e.id; }).filter(Boolean);
             console.log('Days detected: ' + days.join(', '));
-
+ 
             const dayAssets = {};
             for (const entry of entries) {
               if (!entry.id || (!entry.pexelsSearchTerms && !entry.bRollQueries)) continue;
@@ -392,7 +397,7 @@ jobs:
                 .slice(0, 6)
                 .map(function(q, i) { return { id: entry.id + '_clip' + (i + 1), q: q }; });
             }
-
+ 
             const dayMeta = {};
             for (const entry of entries) {
               if (!entry.id) continue;
@@ -405,25 +410,26 @@ jobs:
                 musicMood:          entry.musicMood          || '',
               };
             }
-
+ 
             fs.mkdirSync('out', { recursive: true });
             fs.writeFileSync('out/.week_info.json', JSON.stringify({
-              week: 'week' + activeWeek,
-              days,
-              dayAssets,
-              dayMeta,
+              week:     'week' + activeWeek,
+              days:     days,
+              dayAssets: dayAssets,
+              dayMeta:   dayMeta,
             }, null, 2));
-
+ 
             const envFile = process.env.GITHUB_ENV;
             if (envFile) {
               fs.appendFileSync(envFile, 'ACTIVE_WEEK=week' + activeWeek + '\n');
               fs.appendFileSync(envFile, 'ACTIVE_DAYS=' + days.join(' ') + '\n');
             }
-
+ 
             console.log('Active week: week' + activeWeek);
             console.log('Week info written to out/.week_info.json');
-            EOF
-          fi
+          }
+          EOF
+ 
 
       # =========================================================================
       # STEP: DOWNLOAD SFX
