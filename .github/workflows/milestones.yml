@@ -1,15 +1,13 @@
 name: Subscriber Milestones + Scoreboard
 
-# -----------------------------------------------------------------------------
-# Runs daily at 7PM EAT (4PM UTC)
-# Checks subscriber count against milestones
+# Runs daily 4PM UTC = 7PM EAT
+# Checks sub count against milestones
 # Fires ntfy alert when milestone hit
-# Regenerates 90-day scoreboard HTML page
-# -----------------------------------------------------------------------------
+# Generates live scoreboard at docs/index.html (GitHub Pages)
 
 on:
   schedule:
-    - cron: '0 16 * * *'  # Daily 4PM UTC = 7PM EAT
+    - cron: '0 16 * * *'
   workflow_dispatch: {}
 
 jobs:
@@ -28,18 +26,41 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Check milestones + update scoreboard
+      - name: Check milestones and update scoreboard
         env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_ID:     ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_TOPIC:            ${{ secrets.NTFY_TOPIC }}
         run: |
-          node  {
-              const req = https.request(options, res => {
+          node << 'MILESTONESEOF'
+          const https = require('https');
+          const fs    = require('fs');
+
+          const CLIENT_ID     = process.env.YOUTUBE_CLIENT_ID     || '';
+          const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || '';
+          const REFRESH_TOKEN = process.env.YOUTUBE_REFRESH_TOKEN || '';
+          const NTFY          = process.env.NTFY_TOPIC            || '';
+
+          const MILESTONES = [100, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
+
+          function safeTitle(s) {
+            return (s || '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim().slice(0, 100);
+          }
+
+          function fmt(n) {
+            const num = parseInt(n || 0);
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000)    return (num / 1000).toFixed(1) + 'K';
+            return num.toLocaleString();
+          }
+
+          function httpsRequest(options, body) {
+            return new Promise(function(resolve, reject) {
+              const req = https.request(options, function(res) {
                 let data = '';
-                res.on('data', d => data += d);
-                res.on('end', () => resolve({ status: res.statusCode, body: data }));
+                res.on('data', function(d) { data += d; });
+                res.on('end', function() { resolve({ status: res.statusCode, body: data }); });
               });
               req.on('error', reject);
               if (body) req.write(body);
@@ -47,181 +68,159 @@ jobs:
             });
           }
 
+          function sendNtfy(message, title, priority, tags) {
+            if (!NTFY) return Promise.resolve();
+            const data = Buffer.from(message);
+            return new Promise(function(resolve) {
+              const req = https.request({
+                hostname: 'ntfy.sh', port: 443, path: '/' + NTFY, method: 'POST',
+                headers: {
+                  'Content-Type': 'text/plain', 'Content-Length': data.length,
+                  'Title': safeTitle(title), 'Tags': tags || 'tada',
+                  'Priority': priority || 'default',
+                },
+              }, function(res) { console.log('ntfy: ' + res.statusCode); resolve(); });
+              req.on('error', function() { resolve(); });
+              req.write(data); req.end();
+            });
+          }
+
           async function getAccessToken() {
-            const body = new URLSearchParams({
-              client_id: CLIENT_ID, client_secret: CLIENT_SECRET,
-              refresh_token: REFRESH_TOKEN, grant_type: 'refresh_token',
-            }).toString();
+            const body = 'client_id=' + encodeURIComponent(CLIENT_ID) +
+              '&client_secret=' + encodeURIComponent(CLIENT_SECRET) +
+              '&refresh_token=' + encodeURIComponent(REFRESH_TOKEN) +
+              '&grant_type=refresh_token';
             const res  = await httpsRequest({
               hostname: 'oauth2.googleapis.com', path: '/token', method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
             }, body);
             const data = JSON.parse(res.body);
-            if (!data.access_token) throw new Error('Token failed');
+            if (!data.access_token) {
+              let ed = {};
+              try { ed = JSON.parse(res.body); } catch(e) {}
+              if (ed.error === 'invalid_grant') {
+                await sendNtfy(
+                  'YouTube token expired.\n\nFix: developers.google.com/oauthplayground\nGet new refresh token -> update YOUTUBE_REFRESH_TOKEN secret.',
+                  'ACTION REQUIRED YouTube Token Expired', 'urgent', 'x,warning'
+                );
+              }
+              throw new Error('Token failed');
+            }
             return data.access_token;
           }
 
           async function getChannelStats(token) {
             const res  = await httpsRequest({
               hostname: 'www.googleapis.com',
-              path:     '/youtube/v3/channels?part=statistics,snippet&mine=true',
-              method:   'GET',
-              headers:  { 'Authorization': 'Bearer ' + token }
+              path: '/youtube/v3/channels?part=statistics,snippet&mine=true',
+              method: 'GET', headers: { 'Authorization': 'Bearer ' + token }
             });
             const data = JSON.parse(res.body);
-            const item = (data.items || [])[0];
+            const item = (data.items || [])[0] || {};
             return {
-              subs:   parseInt(item?.statistics?.subscriberCount || 0),
-              views:  parseInt(item?.statistics?.viewCount       || 0),
-              videos: parseInt(item?.statistics?.videoCount      || 0),
-              title:  item?.snippet?.title || '@DailyWealthBuilding',
+              subs:   parseInt((item.statistics || {}).subscriberCount || 0),
+              views:  parseInt((item.statistics || {}).viewCount       || 0),
+              videos: parseInt((item.statistics || {}).videoCount      || 0),
             };
           }
 
-          async function sendNtfy(message, title, priority, tags) {
-            if (!NTFY) return;
-            const data = Buffer.from(message);
-            return new Promise((resolve) => {
-              const req = https.request({
-                hostname: 'ntfy.sh', port: 443, path: '/' + NTFY, method: 'POST',
-                headers: {
-                  'Content-Type': 'text/plain', 'Content-Length': data.length,
-                  'Title': title, 'Tags': tags || 'tada', 'Priority': priority || 'default',
-                },
-              }, res => { resolve(); });
-              req.on('error', () => resolve());
-              req.write(data);
-              req.end();
-            });
-          }
-
-          // -- Calculate challenge day --
           function getChallengeDay() {
-            // Day 1 = Feb 11, 2026 (based on day36 = March 18)
             const start = new Date('2026-02-11');
             const today = new Date();
             const diff  = Math.floor((today - start) / (1000 * 60 * 60 * 24));
             return Math.max(1, Math.min(90, diff + 1));
           }
 
-          // -- Generate scoreboard HTML --
-          function generateScoreboard(stats, day, milestoneHit, history) {
-            const pct       = Math.round((day / 90) * 100);
-            const nextMs    = MILESTONES.find(function(m) { return m > stats.subs; }) || stats.subs;
-            const msProgress= Math.round((stats.subs / nextMs) * 100);
-            const today     = new Date().toISOString().slice(0, 10);
-
-            const chartData = history.slice(-8).map(function(h) {
-              return {
-                week:  (h.week || '').split(' to ')[0].slice(5) || h.date.slice(5) || '',
-                views: h.views || 0,
-                subs:  h.netSubs || 0,
-              };
-            });
-            const maxViews = Math.max.apply(null, chartData.map(function(d) { return d.views; }).concat([1]));
-
-            var chartBars = '';
-            chartData.forEach(function(d) {
-              var h = Math.round((d.views / maxViews) * 76);
-              chartBars += '' + d.week + '';
-            });
-
-            var chartSection = '';
-            if (chartData.length > 0) {
-              chartSection = 'Weekly Views' + chartBars + '';
-            }
+          function generateScoreboard(stats, day, history) {
+            const pct     = Math.round((day / 90) * 100);
+            const nextMs  = MILESTONES.find(function(m) { return m > stats.subs; }) || stats.subs;
+            const msPct   = Math.min(100, Math.round((stats.subs / nextMs) * 100));
+            const today   = new Date().toISOString().slice(0, 10);
 
             var milestoneItems = '';
             MILESTONES.forEach(function(m) {
-              if (m checkmark ' + m.toLocaleString() + '';
+              if (m <= stats.subs) {
+                milestoneItems += '<span class="ms-done">OK ' + m.toLocaleString() + '</span>';
               } else if (m === nextMs) {
-                milestoneItems += 'next ' + m.toLocaleString() + '';
+                milestoneItems += '<span class="ms-next">NEXT ' + m.toLocaleString() + '</span>';
               } else {
-                milestoneItems += '' + m.toLocaleString() + '';
+                milestoneItems += '<span class="ms-future">' + m.toLocaleString() + '</span>';
               }
             });
 
-            var subsRemaining = (nextMs - stats.subs).toLocaleString();
-            var viewsK = (stats.views / 1000).toFixed(1);
+            var chartBars = '';
+            var chartData = history.slice(-8);
+            var maxViews  = 1;
+            chartData.forEach(function(h) { if ((h.views || 0) > maxViews) maxViews = h.views; });
+            chartData.forEach(function(h) {
+              var ht = Math.max(2, Math.round(((h.views || 0) / maxViews) * 76));
+              var lbl = (h.week || h.date || '').slice(5, 10) || '';
+              chartBars += '<div class="bar-col"><div class="bar-v" style="height:' + ht + 'px"></div><div class="bar-label">' + lbl + '</div></div>';
+            });
 
-            return '\n'
-              + '\n\n'
-              + '\n'
-              + '\n'
-              + '\n'
-              + 'DWB -- 90 Day Challenge Live Scoreboard\n'
-              + '\n'
-              + '\n'
-              + '*{box-sizing:border-box;margin:0;padding:0}\n'
-              + 'body{background:#020304;color:#e8edf2;font-family:Syne,sans-serif;min-height:100vh;padding:24px 16px 48px}\n'
-              + 'body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(240,180,41,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(240,180,41,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}\n'
-              + '.container{max-width:700px;margin:0 auto;position:relative;z-index:1}\n'
-              + '.header{text-align:center;margin-bottom:32px;padding:32px 24px;background:linear-gradient(135deg,#050a0f,#040710);border:1px solid #1e2d3d;border-radius:16px}\n'
-              + '.day-badge{font-family:Space Mono,monospace;font-size:11px;letter-spacing:5px;color:#f0b429;text-transform:uppercase;margin-bottom:8px}\n'
-              + '.title{font-family:Bebas Neue,sans-serif;font-size:clamp(36px,8vw,64px);letter-spacing:3px;line-height:0.95;margin-bottom:8px}\n'
-              + '.g{color:#f0b429}.w{color:#e8edf2}.b{color:#4cc9f0}\n'
-              + '.subtitle{font-family:Space Mono,monospace;font-size:10px;color:#7a8fa0;letter-spacing:3px}\n'
-              + '.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}\n'
-              + '@media(min-width:500px){.cards{grid-template-columns:repeat(4,1fr)}}\n'
-              + '.card{background:#0c1014;border:1px solid #1e2d3d;border-radius:12px;padding:16px;text-align:center}\n'
-              + '.card-num{font-family:Bebas Neue,sans-serif;font-size:36px;letter-spacing:2px;color:#f0b429;line-height:1}\n'
-              + '.card-label{font-family:Space Mono,monospace;font-size:9px;color:#7a8fa0;letter-spacing:2px;text-transform:uppercase;margin-top:4px}\n'
-              + '.progress-section{background:#0c1014;border:1px solid #1e2d3d;border-radius:12px;padding:20px;margin-bottom:12px}\n'
-              + '.prog-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}\n'
-              + '.prog-title{font-family:Space Mono,monospace;font-size:10px;color:#7a8fa0;letter-spacing:2px;text-transform:uppercase}\n'
-              + '.prog-val{font-family:Bebas Neue,sans-serif;font-size:22px;color:#f0b429;letter-spacing:2px}\n'
-              + '.bar{height:8px;background:#1e2d3d;border-radius:100px;overflow:hidden;margin-bottom:6px}\n'
-              + '.bar-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,#d4941a,#ffd166)}\n'
-              + '.bar-fill.blue{background:linear-gradient(90deg,#1a6fd4,#4cc9f0)}\n'
-              + '.prog-sub{font-family:Space Mono,monospace;font-size:9px;color:#3a4f60}\n'
-              + '.chart{background:#0c1014;border:1px solid #1e2d3d;border-radius:12px;padding:20px;margin-bottom:12px}\n'
-              + '.chart-title{font-family:Space Mono,monospace;font-size:10px;color:#7a8fa0;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px}\n'
-              + '.bars{display:flex;align-items:flex-end;gap:6px;height:80px}\n'
-              + '.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}\n'
-              + '.bar-v{width:100%;background:#f0b429;border-radius:4px 4px 0 0;min-height:2px}\n'
-              + '.bar-label{font-family:Space Mono,monospace;font-size:7px;color:#3a4f60;text-align:center}\n'
-              + '.milestone{background:#0c1014;border:1px solid #1e2d3d;border-radius:12px;padding:16px;margin-bottom:12px}\n'
-              + '.ms-title{font-family:Space Mono,monospace;font-size:10px;color:#7a8fa0;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}\n'
-              + '.ms-list{display:flex;flex-wrap:wrap;gap:6px}\n'
-              + '.ms-item{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-family:Space Mono,monospace;font-size:10px;font-weight:700}\n'
-              + '.ms-done{background:rgba(6,214,160,0.12);color:#06d6a0;border:1px solid rgba(6,214,160,0.25)}\n'
-              + '.ms-next{background:rgba(240,180,41,0.15);color:#f0b429;border:1px solid rgba(240,180,41,0.3)}\n'
-              + '.ms-future{background:#111820;color:#3a4f60;border:1px solid #1e2d3d}\n'
-              + '.footer{text-align:center;font-family:Space Mono,monospace;font-size:9px;color:#3a4f60;margin-top:20px;letter-spacing:2px}\n'
-              + '.live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#06d6a0;margin-right:4px;animation:pulse 2s infinite}\n'
-              + '@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}\n'
-              + '\n\n\n'
-              + '\n'
-              + '\n'
-              + 'Live -- Updated ' + today + '\n'
-              + 'DAY ' + day + 'OF90\n'
-              + '@DailyWealthBuilding -- 90-Day Public Challenge\n'
-              + '\n'
-              + '\n'
-              + '' + day + 'Day / 90\n'
-              + '' + stats.subs.toLocaleString() + 'Subscribers\n'
-              + '' + viewsK + 'KTotal Views\n'
-              + '' + stats.videos + 'Videos Live\n'
-              + '\n'
-              + '\n'
-              + 'Challenge Progress' + pct + '%\n'
-              + '\n'
-              + '' + (90 - day) + ' days remaining\n'
-              + '\n'
-              + '\n'
-              + 'Next Milestone: ' + nextMs.toLocaleString() + ' subs' + msProgress + '%\n'
-              + '\n'
-              + '' + subsRemaining + ' subscribers to go\n'
-              + '\n'
-              + chartSection + '\n'
-              + 'Subscriber Milestones' + milestoneItems + '\n'
-              + 'Auto-updates daily -- @DailyWealthBuilding -- 90-Day Public Challenge\n'
-              + '\n\n';
+            return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n' +
+              '<meta name="viewport" content="width=device-width,initial-scale=1">\n' +
+              '<title>DWB -- 90 Day Challenge Scoreboard</title>\n' +
+              '<link rel="preconnect" href="https://fonts.googleapis.com">\n' +
+              '<link href="https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">\n' +
+              '<style>\n' +
+              '*{box-sizing:border-box;margin:0;padding:0}\n' +
+              'body{background:#050507;color:#e8e8f0;font-family:"JetBrains Mono",monospace;min-height:100vh;padding:24px 16px 48px}\n' +
+              '.container{max-width:680px;margin:0 auto}\n' +
+              '.header{text-align:center;margin-bottom:28px;padding:28px 20px;background:#0a0a0c;border:1px solid rgba(202,255,0,0.15)}\n' +
+              '.day-badge{font-size:10px;letter-spacing:4px;color:#CAFF00;margin-bottom:8px}\n' +
+              '.title{font-family:Anton,sans-serif;font-size:clamp(32px,7vw,56px);letter-spacing:2px;color:#fff;margin-bottom:6px}\n' +
+              '.subtitle{font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:3px}\n' +
+              '.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}\n' +
+              '@media(min-width:480px){.cards{grid-template-columns:repeat(4,1fr)}}\n' +
+              '.card{background:#0a0a0c;border:1px solid rgba(255,255,255,0.07);padding:14px;text-align:center}\n' +
+              '.card-num{font-family:Anton,sans-serif;font-size:32px;color:#CAFF00;line-height:1}\n' +
+              '.card-label{font-size:8px;color:rgba(255,255,255,0.4);letter-spacing:2px;margin-top:4px}\n' +
+              '.section{background:#0a0a0c;border:1px solid rgba(255,255,255,0.07);padding:18px;margin-bottom:12px}\n' +
+              '.section-title{font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:2px;margin-bottom:12px}\n' +
+              '.bar{height:6px;background:rgba(255,255,255,0.08);margin-bottom:6px}\n' +
+              '.bar-fill{height:100%;background:#CAFF00}\n' +
+              '.bar-label-row{display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:12px}\n' +
+              '.bars{display:flex;align-items:flex-end;gap:5px;height:80px}\n' +
+              '.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}\n' +
+              '.bar-v{width:100%;background:#CAFF00;border-radius:2px 2px 0 0;min-height:2px}\n' +
+              '.bar-label{font-size:7px;color:rgba(255,255,255,0.3);text-align:center}\n' +
+              '.ms-list{display:flex;flex-wrap:wrap;gap:6px}\n' +
+              '.ms-done{background:rgba(0,255,136,0.1);color:#00ff88;border:1px solid rgba(0,255,136,0.2);padding:4px 10px;font-size:9px;font-weight:700}\n' +
+              '.ms-next{background:rgba(202,255,0,0.1);color:#CAFF00;border:1px solid rgba(202,255,0,0.3);padding:4px 10px;font-size:9px;font-weight:700}\n' +
+              '.ms-future{background:#0a0a0c;color:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.07);padding:4px 10px;font-size:9px}\n' +
+              '.live{display:inline-block;width:5px;height:5px;border-radius:50%;background:#00ff88;margin-right:5px;animation:pulse 2s infinite}\n' +
+              '@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}\n' +
+              '.footer{text-align:center;font-size:8px;color:rgba(255,255,255,0.2);margin-top:20px;letter-spacing:2px}\n' +
+              '</style>\n</head>\n<body>\n<div class="container">\n' +
+              '<div class="header">\n' +
+              '<div class="day-badge"><span class="live"></span>LIVE -- Updated ' + today + '</div>\n' +
+              '<div class="title">DAY ' + day + ' <span style="color:#CAFF00">/ 90</span></div>\n' +
+              '<div class="subtitle">@DailyWealthBuilding -- 90-Day Public Challenge</div>\n' +
+              '</div>\n' +
+              '<div class="cards">\n' +
+              '<div class="card"><div class="card-num">' + day + '</div><div class="card-label">Day / 90</div></div>\n' +
+              '<div class="card"><div class="card-num">' + fmt(stats.subs) + '</div><div class="card-label">Subscribers</div></div>\n' +
+              '<div class="card"><div class="card-num">' + fmt(stats.views) + '</div><div class="card-label">Total Views</div></div>\n' +
+              '<div class="card"><div class="card-num">' + stats.videos + '</div><div class="card-label">Videos Live</div></div>\n' +
+              '</div>\n' +
+              '<div class="section">\n' +
+              '<div class="section-title">CHALLENGE PROGRESS</div>\n' +
+              '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>\n' +
+              '<div class="bar-label-row"><span>' + pct + '% complete</span><span>' + (90 - day) + ' days remaining</span></div>\n' +
+              '<div class="section-title">NEXT MILESTONE: ' + nextMs.toLocaleString() + ' SUBS</div>\n' +
+              '<div class="bar"><div class="bar-fill" style="width:' + msPct + '%"></div></div>\n' +
+              '<div class="bar-label-row"><span>' + msPct + '%</span><span>' + (nextMs - stats.subs).toLocaleString() + ' to go</span></div>\n' +
+              '</div>\n' +
+              (chartBars ? '<div class="section"><div class="section-title">WEEKLY VIEWS</div><div class="bars">' + chartBars + '</div></div>\n' : '') +
+              '<div class="section"><div class="section-title">SUBSCRIBER MILESTONES</div><div class="ms-list">' + milestoneItems + '</div></div>\n' +
+              '<div class="footer">Auto-updates daily -- @DailyWealthBuilding -- 90-Day Public Challenge</div>\n' +
+              '</div>\n</body>\n</html>';
           }
 
-          (async () => {
-            if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
-              console.log('YouTube secrets not configured -- skipping milestone check.');
+          (async function() {
+            if (!CLIENT_ID || !REFRESH_TOKEN) {
+              console.log('YouTube secrets not configured -- skipping');
               process.exit(0);
             }
 
@@ -229,61 +228,72 @@ jobs:
             try {
               token = await getAccessToken();
               stats = await getChannelStats(token);
-              console.log('Channel stats: ' + stats.subs + ' subs | ' + stats.views + ' views | ' + stats.videos + ' videos');
+              console.log('Stats: ' + stats.subs + ' subs | ' + stats.views + ' views | ' + stats.videos + ' videos');
             } catch(e) {
-              console.log('Could not fetch channel stats: ' + e.message);
+              console.log('Could not fetch stats: ' + e.message);
               process.exit(0);
             }
 
-            // -- Load previous milestone state --
-            let prevState = { subs: 0, milestonesHit: [] };
+            // Load previous state
+            let prevState = { subs: 0, milestonesHit: [], lastCheck: '' };
             try { prevState = JSON.parse(fs.readFileSync('milestone-state.json', 'utf8')); } catch(e) {}
 
-            // -- Check for new milestone hits --
-            const newMilestones = MILESTONES.filter(m =>
-              stats.subs >= m && !prevState.milestonesHit.includes(m)
-            );
+            // Check new milestones
+            const newMilestones = MILESTONES.filter(function(m) {
+              return stats.subs >= m && (prevState.milestonesHit || []).indexOf(m) === -1;
+            });
 
-            if (newMilestones.length > 0) {
-              for (const ms of newMilestones) {
-                console.log(' MILESTONE HIT: ' + ms + ' subscribers!');
-                await sendNtfy(
-                  '@DailyWealthBuilding just hit ' + ms.toLocaleString() + ' subscribers! \n\n'
-                  + 'Total views: ' + stats.views.toLocaleString() + '\n'
-                  + 'Videos live: ' + stats.videos + '\n\n'
-                  + 'Keep going My King ',
-                  ' ' + ms.toLocaleString() + ' SUBSCRIBERS HIT!',
-                  'high',
-                  'tada,trophy,fire'
-                );
-                prevState.milestonesHit.push(ms);
-              }
+            for (var i = 0; i < newMilestones.length; i++) {
+              var ms = newMilestones[i];
+              console.log('MILESTONE HIT: ' + ms + ' subscribers!');
+              await sendNtfy(
+                '@DailyWealthBuilding just hit ' + ms.toLocaleString() + ' subscribers!\n\n' +
+                'Total views: ' + stats.views.toLocaleString() + '\n' +
+                'Videos live: ' + stats.videos + '\n\n' +
+                'Keep going My King!',
+                'MILESTONE ' + ms.toLocaleString() + ' SUBSCRIBERS HIT', 'urgent', 'tada,trophy,fire'
+              );
+              prevState.milestonesHit = prevState.milestonesHit || [];
+              prevState.milestonesHit.push(ms);
             }
 
-            // -- Update milestone state --
-            prevState.subs    = stats.subs;
+            // Also send daily check-in (not milestone) every day
+            if (newMilestones.length === 0) {
+              const nextMs    = MILESTONES.find(function(m) { return m > stats.subs; }) || '?';
+              const remaining = typeof nextMs === 'number' ? (nextMs - stats.subs) : '?';
+              await sendNtfy(
+                'Daily check-in:\n' +
+                'Subscribers: ' + stats.subs.toLocaleString() + '\n' +
+                'Total views:  ' + fmt(stats.views) + '\n' +
+                'Videos live:  ' + stats.videos + '\n\n' +
+                'Next milestone: ' + (typeof nextMs === 'number' ? nextMs.toLocaleString() : nextMs) + ' (' + remaining + ' to go)',
+                'DWB Daily Stats', 'low', 'chart_with_upwards_trend'
+              );
+            }
+
+            // Update state
+            prevState.subs      = stats.subs;
             prevState.lastCheck = new Date().toISOString();
             fs.writeFileSync('milestone-state.json', JSON.stringify(prevState, null, 2));
 
-            // -- Generate scoreboard page --
-            const day     = getChallengeDay();
-            let   history = [];
+            // Generate scoreboard
+            const day = getChallengeDay();
+            let history = [];
             try { history = JSON.parse(fs.readFileSync('analytics-history.json', 'utf8')); } catch(e) {}
 
-            const html = generateScoreboard(stats, day, newMilestones, history);
+            const html = generateScoreboard(stats, day, history);
             fs.mkdirSync('docs', { recursive: true });
             fs.writeFileSync('docs/index.html', html);
             console.log('Scoreboard updated: docs/index.html');
-            console.log('Live at: https://dailywealthbuilding.github.io/dwb-videos/');
-
+            console.log('Day ' + day + ' | Subs: ' + stats.subs);
           })();
-          EOF
+          MILESTONESEOF
 
-      - name: Commit scoreboard + milestone state
+      - name: Commit scoreboard and milestone state
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin main || true
-          git add docs/index.html milestone-state.json || true
-          git diff --staged --quiet || git commit -m "chore: update scoreboard + milestone state [skip ci]"
+          git add docs/index.html milestone-state.json 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "chore: update scoreboard [skip ci]"
           git push || true
