@@ -1,19 +1,17 @@
 name: Auto-Generate Next Week Content (Groq AI)
 
-# -----------------------------------------------------------------------------
-# Runs every Saturday 9PM EAT (6PM UTC) -- after competitor tracker
-# Uses Groq (free) to draft next week's content file
-# Commits draft to repo as weekN-content-DRAFT.js for your review
-# You review  rename to weekN-content.js  pipeline picks it up Monday
-# -----------------------------------------------------------------------------
+# Runs every Saturday 6PM UTC = 9PM EAT (after competitor tracker at 3PM UTC)
+# Uses Groq to draft next week's content file with 7 videos
+# Commits as weekN-content-DRAFT.js for your review
+# YOU review it, rename to weekN-content.js -> pipeline picks it up automatically
 
 on:
   schedule:
-    - cron: '0 18 * * 6'  # Saturday 6PM UTC = 9PM EAT
+    - cron: '0 18 * * 6'
   workflow_dispatch:
     inputs:
       week_number:
-        description: 'Week number to generate (e.g. 7). Leave blank for auto-detect.'
+        description: 'Week number to generate (e.g. 8). Leave blank for auto-detect.'
         required: false
         default: ''
 
@@ -33,182 +31,228 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Generate next week content file
+      - name: Generate next week content draft
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_TOPIC:   ${{ secrets.NTFY_TOPIC }}
         run: |
-          node  f.match(/^week\d+-content\.js$/));
-          const wNums    = files.map(f => parseInt(f.match(/week(\d+)/)[1])).sort((a,b) => b-a);
-          const override = '${{ github.event.inputs.week_number }}';
-          const nextWeek = override ? parseInt(override) : (wNums[0] || 6) + 1;
+          node << 'CONTENTGENEOF'
+          const https = require('https');
+          const fs    = require('fs');
+          const path  = require('path');
+
+          const GROQ_KEY = process.env.GROQ_API_KEY || '';
+          const NTFY     = process.env.NTFY_TOPIC    || '';
+
+          function safeTitle(s) {
+            return (s || '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim().slice(0, 100);
+          }
+
+          if (!GROQ_KEY) {
+            console.log('GROQ_API_KEY not set -- skipping content generation');
+            process.exit(0);
+          }
+
+          // Auto-detect next week number
+          const srcDir = path.join(process.cwd(), 'src');
+          const allFiles = fs.existsSync(srcDir) ? fs.readdirSync(srcDir) : [];
+          const contentFiles = allFiles.filter(function(f) { return f.match(/^week\d+-content\.js$/); });
+          const wNums = contentFiles.map(function(f) { return parseInt(f.match(/week(\d+)/)[1]); }).sort(function(a,b) { return b-a; });
+          const overrideWeek = '${{ github.event.inputs.week_number }}';
+          const nextWeek = overrideWeek ? parseInt(overrideWeek) : ((wNums[0] || 7) + 1);
           const startDay = (nextWeek - 1) * 7 + 1;
           const endDay   = nextWeek * 7;
 
-          console.log('Generating content for Week ' + nextWeek + ' (Days ' + startDay + '-' + endDay + ')');
+          console.log('Generating Week ' + nextWeek + ' (Days ' + startDay + '-' + endDay + ')');
 
-          // -- Load competitor report for context --
-          let competitorContext = '';
+          // Load competitor context
+          let competitorCtx = '';
           try {
             const report = JSON.parse(fs.readFileSync('competitor-report.json', 'utf8'));
             if (report.analysis) {
-              competitorContext = '\nTrending topics this week: ' + report.analysis.trends.join(', ')
-                + '\nContent gaps to fill: ' + report.analysis.gaps.join(', ')
-                + '\nRecommended angle: ' + report.analysis.recommendation;
+              competitorCtx = '\nTRENDING TOPICS THIS WEEK: ' + (report.analysis.trends || []).join(', ') +
+                '\nCONTENT GAPS TO FILL: ' + (report.analysis.gaps || []).join(', ') +
+                '\nGROQ RECOMMENDATION: ' + (report.analysis.recommendation || '');
             }
-          } catch(e) { /* no competitor report yet */ }
+          } catch(e) { console.log('No competitor report -- generating without context'); }
 
-          // -- Load analytics for context --
-          let analyticsContext = '';
+          // Load analytics context
+          let analyticsCtx = '';
           try {
             const history = JSON.parse(fs.readFileSync('analytics-history.json', 'utf8'));
             if (history.length > 0) {
               const last = history[history.length - 1];
-              analyticsContext = '\nLast week analytics: ' + last.views + ' views, '
-                + last.netSubs + ' net subscribers, avg duration ' + last.avgDuration + 's';
+              analyticsCtx = '\nLAST WEEK PERFORMANCE: ' + last.views + ' views, ' +
+                last.netSubs + ' net subs, avg duration ' + Math.round(last.avgDuration) + 's';
             }
-          } catch(e) { /* no analytics yet */ }
+          } catch(e) {}
 
-          // -- Hook formulas reference --
-          const HOOK_TYPES = [
-            'myth-bust: "Everything you know about X is wrong"',
-            'identity: "If you earn under $XK/month, watch this"',
-            'expose: "What banks/schools/bosses don\'t want you to know"',
-            'contrarian: "Stop doing X -- here\'s why it\'s keeping you broke"',
-            'curiosity-gap: "The one thing wealthy people never tell you about X"',
-            'transformation: "From broke to X -- the exact method"',
-            'shocking-stat: "97% of people get X wrong -- here\'s the truth"',
-          ];
-
-          // -- Week themes --
-          const WEEK_THEMES = {
+          // Week themes
+          const THEMES = {
             6:  'Money Myths & The Wealth Gap',
-            7:  'Income Streams & Side Hustles',
-            8:  'Investing for Beginners',
-            9:  'Debt, Credit & Financial Freedom',
-            10: 'Trust, Conversion & Building Authority',
-            11: 'Advanced Wealth Strategies',
+            7:  'Unaware Audience -- Level 4 Hooks',
+            8:  'Income Streams & Side Hustles',
+            9:  'Investing for Beginners',
+            10: 'Debt, Credit & Financial Freedom',
+            11: 'Building Authority & Trust',
             12: 'Passive Income & Affiliate Marketing',
             13: 'Grand Finale -- Results & Proof',
           };
-          const theme = WEEK_THEMES[nextWeek] || 'Financial Freedom & Wealth Building';
+          const theme = THEMES[nextWeek] || 'Financial Freedom & Wealth Building';
 
-          // -- Whether to use default or named export --
-          const exportType = nextWeek  {
+          // Named export for week 7+ (default export for week 6 and below)
+          const exportName   = 'week' + nextWeek + 'Videos';
+          const exportSyntax = nextWeek <= 6 ? 'export default' : ('export const ' + exportName + ' =');
+
+          const HOOK_ANIMS = ['zoom-punch', 'stamp-impact', 'word-pop', 'kinetic-mixed', 'spotlight-reveal', 'neon-flicker', 'elastic-snap', 'glitch'];
+          const BODY_ANIMS = ['stagger', 'word-bounce', 'blur-in', 'split-reveal', 'fade', 'flip-up', 'letter-drop', 'multi-line'];
+          const CTA_ANIMS  = ['kinetic', 'word-bounce', 'stamp-impact', 'word-pop', 'caps', 'bounce'];
+
+          const prompt = 'You are Ashley, AI content director for @DailyWealthBuilding -- a faceless automated personal finance YouTube Shorts channel.\n\n' +
+            'Generate a COMPLETE week content file for Week ' + nextWeek + ' (Days ' + startDay + ' to ' + endDay + ').\n' +
+            'Theme: ' + theme + '\n' +
+            competitorCtx + '\n' + analyticsCtx + '\n\n' +
+            'RULES FOR EACH OF 7 VIDEOS:\n' +
+            '- Level 4 Unaware Audience (they do not know they have a money problem)\n' +
+            '- Hook works WITHOUT sound in first 2 seconds\n' +
+            '- Exactly 5 overlays per video\n' +
+            '- Overlay timing: HOOK(0-90), TRUTH(90-270), PROOF(270-450), SYSTEM(450-720), CTA(720-900)\n' +
+            '- All overlays need stroke: Anton/Bebas = size 3, Montserrat = size 2\n' +
+            '- Hook font: Anton 84-92px. Body font: Montserrat 68-78px. CTA: Anton 80-88px.\n' +
+            '- Accent color for week 7+: #CAFF00\n' +
+            '- NO highlight-box animation. NO income promises.\n' +
+            '- Hook animations: ' + HOOK_ANIMS.join(', ') + '\n' +
+            '- Body animations: ' + BODY_ANIMS.join(', ') + '\n' +
+            '- CTA animations: ' + CTA_ANIMS.join(', ') + '\n' +
+            '- 6 bRollQueries per video (aligned to overlay sections, each ending with "vertical")\n' +
+            '- Be SPECIFIC in bRollQueries: "person shocked checking phone salary vertical" not "money vertical"\n' +
+            '- musicMood: punchy/motivational/confident/dramatic/focused/rebellious/uplifting\n\n' +
+            'OUTPUT FORMAT:\n' +
+            'Return ONLY the JavaScript array (no markdown, no backticks, no explanation).\n' +
+            'Start with: ' + exportSyntax + ' [\n' +
+            'End with: ];\n\n' +
+            'Each entry:\n' +
+            '{ id: "day' + startDay + '", filename: "day' + startDay + '_final.mp4", music: "day' + startDay + '.mp3", musicMood: "punchy",\n' +
+            '  title: "internal title",\n' +
+            '  bRollQueries: ["q1 vertical","q2 vertical","q3 vertical","q4 vertical","q5 vertical","q6 vertical"],\n' +
+            '  overlays: [\n' +
+            '    { text: "HOOK", font: "Anton", color: "#CAFF00", stroke: {size:3,color:"#000000"}, animation: "zoom-punch", startFrame: 0, endFrame: 90, position: "middle", fontSize: 88, letterSpacing: "0.02em" },\n' +
+            '    { text: "truth", font: "Montserrat", color: "#FFFFFF", stroke: {size:2,color:"#000000"}, animation: "word-bounce", startFrame: 90, endFrame: 270, position: "middle", fontSize: 76 },\n' +
+            '    { text: "proof", font: "Montserrat", color: "#FFD700", stroke: {size:2,color:"#000000"}, animation: "stagger", startFrame: 270, endFrame: 450, position: "middle", fontSize: 72 },\n' +
+            '    { text: "system", font: "Montserrat", color: "#FFFFFF", stroke: {size:2,color:"#000000"}, animation: "blur-in", startFrame: 450, endFrame: 720, position: "middle", fontSize: 68 },\n' +
+            '    { text: "CTA 👇", font: "Anton", color: "#CAFF00", stroke: {size:3,color:"#000000"}, animation: "kinetic", startFrame: 720, endFrame: 900, position: "bottom-center", fontSize: 84, letterSpacing: "0.02em" }\n' +
+            '  ],\n' +
+            '  tiktokCaption: "caption 👇 #personalfinance #day' + startDay + 'of90",\n' +
+            '  youtubeTitle: "Title | Day ' + startDay + '/90 | Daily Wealth Building",\n' +
+            '  youtubeDescription: "Day ' + startDay + ' of 90 -- description with arrow bullets...",\n' +
+            '  pinnedComment: "key insight that adds value"\n' +
+            '}';
+
+          function callGroq(p) {
+            return new Promise(function(resolve, reject) {
               const body = JSON.stringify({
-                model:       'llama-3.1-70b-versatile',
-                max_tokens:  4000,
-                temperature: 0.7,
-                messages:    [{ role: 'user', content: prompt }],
+                model: 'llama-3.3-70b-versatile',
+                max_tokens: 6000, temperature: 0.75,
+                messages: [{ role: 'user', content: p }],
               });
               const req = https.request({
-                hostname: 'api.groq.com',
-                path:     '/openai/v1/chat/completions',
-                method:   'POST',
-                headers:  {
-                  'Content-Type':   'application/json',
-                  'Content-Length': Buffer.byteLength(body),
-                  'Authorization':  'Bearer ' + GROQ_KEY,
+                hostname: 'api.groq.com', path: '/openai/v1/chat/completions', method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body),
+                  'Authorization': 'Bearer ' + GROQ_KEY,
                 },
-              }, res => {
-                let data = '';
-                res.on('data', d => data += d);
-                res.on('end', () => resolve({ status: res.statusCode, body: data }));
+              }, function(res) {
+                let d = '';
+                res.on('data', function(c) { d += c; });
+                res.on('end', function() { resolve({ status: res.statusCode, body: d }); });
               });
               req.on('error', reject);
-              req.write(body);
-              req.end();
+              req.write(body); req.end();
             });
           }
 
-          async function sendNtfy(message, title, priority) {
-            if (!NTFY) return;
+          function sendNtfy(message, title, priority) {
+            if (!NTFY) return Promise.resolve();
             const data = Buffer.from(message);
-            return new Promise((resolve) => {
+            return new Promise(function(resolve) {
               const req = https.request({
                 hostname: 'ntfy.sh', port: 443, path: '/' + NTFY, method: 'POST',
-                headers:  {
-                  'Content-Type':   'text/plain',
-                  'Content-Length': data.length,
-                  'Title':          title,
-                  'Tags':           'robot,pencil',
-                  'Priority':       priority || 'default',
+                headers: {
+                  'Content-Type': 'text/plain', 'Content-Length': data.length,
+                  'Title': safeTitle(title), 'Tags': 'robot,pencil',
+                  'Priority': priority || 'default',
                 },
-              }, res => { console.log('ntfy: HTTP ' + res.statusCode); resolve(); });
-              req.on('error', () => resolve());
-              req.write(data);
-              req.end();
+              }, function(res) { console.log('ntfy: ' + res.statusCode); resolve(); });
+              req.on('error', function() { resolve(); });
+              req.write(data); req.end();
             });
           }
 
-          (async () => {
+          (async function() {
             try {
-              console.log('Calling Groq API...');
+              console.log('Calling Groq...');
               const res  = await callGroq(prompt);
               const data = JSON.parse(res.body);
 
               if (res.status !== 200) {
-                console.log('Groq error: ' + res.status + ' -- ' + res.body.slice(0, 200));
+                console.log('Groq error: HTTP ' + res.status);
+                console.log(res.body.slice(0, 300));
                 process.exit(0);
               }
 
-              let content = data.choices?.[0]?.message?.content || '';
-
-              // Strip any accidental markdown fences
+              let content = (((data.choices || [])[0] || {}).message || {}).content || '';
               content = content.replace(/^```javascript\n?|^```js\n?|^```\n?|```$/gm, '').trim();
 
               if (!content.includes('export') || !content.includes('day' + startDay)) {
-                console.log('Generated content looks invalid -- not saving');
-                console.log('Preview: ' + content.slice(0, 300));
+                console.log('Generated content looks invalid');
+                console.log('Preview: ' + content.slice(0, 400));
+                await sendNtfy(
+                  'Week ' + nextWeek + ' content generation produced invalid output.\nCheck Actions logs.',
+                  'DWB Content Gen Invalid Output', 'high'
+                );
                 process.exit(0);
               }
 
-              // Add header comment
-              const header = '// -----------------------------------------------------------------------------\n'
-                + '// src/week' + nextWeek + '-content.js -- DWB Week ' + nextWeek + ' -- Days ' + startDay + '-' + endDay + '\n'
-                + '// Theme: ' + theme + '\n'
-                + '// AUTO-GENERATED by Groq AI (Llama 3.1 70B) -- REVIEW BEFORE USE\n'
-                + '// Generated: ' + new Date().toISOString().slice(0,10) + '\n'
-                + '// -----------------------------------------------------------------------------\n\n';
-              const finalContent = header + content;
+              const header = '// src/week' + nextWeek + '-content.js -- DWB Week ' + nextWeek + ' -- Days ' + startDay + '-' + endDay + '\n' +
+                '// Theme: ' + theme + '\n' +
+                '// AUTO-GENERATED by Groq AI (llama-3.3-70b-versatile)\n' +
+                '// Generated: ' + new Date().toISOString().slice(0, 10) + '\n' +
+                '// REVIEW BEFORE USE -- rename to week' + nextWeek + '-content.js when ready\n\n';
 
-              // Save as DRAFT -- you review and rename
+              const finalContent = header + content;
               const draftPath = path.join(srcDir, 'week' + nextWeek + '-content-DRAFT.js');
               fs.writeFileSync(draftPath, finalContent);
-              console.log('Draft saved to: ' + draftPath);
 
-              // Count videos generated
               const dayMatches = (finalContent.match(/id:\s*["']day\d+["']/g) || []);
+              console.log('Draft saved: ' + draftPath);
               console.log('Videos in draft: ' + dayMatches.length);
 
               await sendNtfy(
-                'Week ' + nextWeek + ' draft generated by Groq AI.\n\n'
-                + 'Theme: ' + theme + '\n'
-                + 'Days: ' + startDay + '-' + endDay + '\n'
-                + 'Videos: ' + dayMatches.length + '/7\n\n'
-                + 'Review src/week' + nextWeek + '-content-DRAFT.js\n'
-                + 'Rename to week' + nextWeek + '-content.js when ready.\n'
-                + 'Pipeline auto-picks it up Monday 6AM.',
-                'Week ' + nextWeek + ' Content Draft Ready -- Review Needed',
-                'default'
+                'Week ' + nextWeek + ' content draft generated.\n\n' +
+                'Theme: ' + theme + '\n' +
+                'Days: ' + startDay + '-' + endDay + '\n' +
+                'Videos: ' + dayMatches.length + '/7\n\n' +
+                'Review: src/week' + nextWeek + '-content-DRAFT.js\n' +
+                'Rename to week' + nextWeek + '-content.js when ready.\n' +
+                'Then uncomment import in src/index.jsx.',
+                'Week ' + nextWeek + ' Content Draft Ready', 'default'
               );
 
             } catch(e) {
               console.log('Content generation error: ' + e.message);
               await sendNtfy(
                 'Content generation failed: ' + e.message,
-                'DWB Content Gen FAILED',
-                'high'
+                'DWB Content Gen FAILED', 'high'
               );
             }
           })();
-          EOF
+          CONTENTGENEOF
 
       - name: Commit draft content file
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin main || true
-          git add src/week*-content-DRAFT.js || true
-          git diff --staged --quiet || git commit -m "chore: add AI-generated week content draft [skip ci]"
+          git add "src/week*-content-DRAFT.js" 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "chore: add Week content draft for review [skip ci]"
           git push || true
