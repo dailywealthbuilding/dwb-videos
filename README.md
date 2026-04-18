@@ -8,10 +8,10 @@
 
 | | |
 |---|---|
-| Week | groq-generated |
-| Days | day50 |
+| Week | override |
+| Days | day37 |
 | Rendered | 0/1 |
-| Run | [#40](https://github.com/dailywealthbuilding/DWB-Videos/actions/runs/24609174203) |
+| Run | [#41](https://github.com/dailywealthbuilding/DWB-Videos/actions/runs/24612741673) |
 
 
 
