@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       days_override:
-        description: 'Specific days comma-separated (e.g. day37,day38,day39). Leave blank for Groq auto-generate.'
+        description: 'Specific days comma-separated (e.g. day43,day44,day45). Leave blank for Groq auto-generate.'
         required: false
         default: ''
       skip_groq_gen:
@@ -48,8 +48,6 @@ jobs:
 
       # =========================================================================
       # GROQ SCRIPT GENERATION
-      # Runs only when: no days_override AND skip_groq_gen != true
-      # Writes src/current-video.js and out/.week_info.json
       # =========================================================================
       - name: Generate video script via Groq AI
         if: ${{ github.event.inputs.days_override == '' && github.event.inputs.skip_groq_gen != 'true' }}
@@ -113,9 +111,9 @@ jobs:
             'Why people who earn $200K still go broke -- lifestyle creep explained',
             'The only 3 financial metrics that matter and how to track them',
           ];
-          const HOOK_ANIMS = ['zoom-punch','stamp-impact','word-pop','stacked-giant','kinetic-mixed','spotlight-reveal','comic-impact','neon-flicker','elastic-snap','glitch'];
-          const BODY_ANIMS = ['stagger','word-bounce','blur-in','split-reveal','fade','flip-up','letter-drop','multi-line','wave-cascade','slide-up'];
-          const CTA_ANIMS  = ['kinetic','word-bounce','stamp-impact','word-pop','neon-flicker','caps','bounce'];
+          const HOOK_ANIMS = ['zoom-punch','stamp-impact','word-pop','stacked-giant','kinetic-mixed','spotlight-reveal','comic-impact','neon-flicker','elastic-snap','glitch','accent-reveal','mixed-weight'];
+          const BODY_ANIMS = ['stagger','word-bounce','blur-in','split-reveal','fade','flip-up','letter-drop','multi-line','wave-cascade','slide-up','elegant-rise','editorial-body','fade-word'];
+          const CTA_ANIMS  = ['kinetic','word-bounce','stamp-impact','word-pop','neon-flicker','caps','bounce','accent-reveal'];
           const FONTS = [
             {hookFont:'Anton',bodyFont:'Montserrat'},{hookFont:'Bebas',bodyFont:'Archivo'},
             {hookFont:'Barlow',bodyFont:'Grotesk'},{hookFont:'Anton',bodyFont:'Mono'},
@@ -159,22 +157,18 @@ jobs:
             '- Identity targeting when possible ("If you earn under X...")\n' +
             '- No income promises\n' +
             '- CTA creates personal stake\n\n' +
+            'TEXT STYLE RULES:\n' +
+            '- lineHeight 1.65 for body text -- breathing room between lines\n' +
+            '- Hook fontSize 84-92px. Body 64-72px. CTA 78-86px.\n' +
+            '- Stroke on every overlay. Anton/Bebas size 3. Montserrat size 2. Color #000000.\n' +
+            '- No stroke needed on elegant-rise, editorial-body, fade-word animations\n\n' +
             'B-ROLL QUERIES (exactly 6, aligned to overlay sections):\n' +
-            '- Query 1: matches HOOK visually (shocking, surprising)\n' +
-            '- Query 2: matches TRUTH (pain point, relatable)\n' +
-            '- Query 3: matches PROOF (contrast, data visualization)\n' +
-            '- Query 4: matches SYSTEM (action, planning, working)\n' +
-            '- Query 5: ASPIRATION outcome footage\n' +
-            '- Query 6: ENERGY/engagement (city life, reaction)\n' +
             '- Every query MUST end with "vertical"\n' +
             '- Be SPECIFIC: "person shocked bank statement phone vertical" NOT "money vertical"\n\n' +
-            'STROKE: Anton/Bebas/Barlow: size 3 | Montserrat/Arquivo/Grotesk: size 2. ALL overlays need stroke.\n' +
-            'SIZES: hook 84-92px, body 68-78px, cta 80-88px. Never same size twice.\n' +
-            'letterSpacing "0.02em" on hook and CTA.\n\n' +
             'HASHTAGS (pick 4-5): ' + HASHTAGS.join(', ') + ', day' + dayNum + 'of90\n\n' +
             'musicMood: one of punchy/motivational/confident/dramatic/focused/rebellious/uplifting\n\n' +
             'Return ONLY valid JSON. No markdown. No backticks. No explanation.\n\n' +
-            '{"title":"short title","musicMood":"punchy","bRollQueries":["specific query vertical","specific query vertical","specific query vertical","specific query vertical","specific query vertical","specific query vertical"],"overlays":[{"text":"HOOK TEXT","font":"Anton","color":"#CAFF00","stroke":{"size":3,"color":"#000000"},"animation":"zoom-punch","startFrame":0,"endFrame":90,"position":"middle","fontSize":88,"letterSpacing":"0.02em"},{"text":"truth text","font":"Montserrat","color":"#FFFFFF","stroke":{"size":2,"color":"#000000"},"animation":"word-bounce","startFrame":90,"endFrame":270,"position":"middle","fontSize":76},{"text":"proof text","font":"Montserrat","color":"#FFD700","stroke":{"size":2,"color":"#000000"},"animation":"stagger","startFrame":270,"endFrame":450,"position":"middle","fontSize":72},{"text":"system text","font":"Montserrat","color":"#FFFFFF","stroke":{"size":2,"color":"#000000"},"animation":"blur-in","startFrame":450,"endFrame":720,"position":"middle","fontSize":68},{"text":"CTA text 👇","font":"Anton","color":"#CAFF00","stroke":{"size":3,"color":"#000000"},"animation":"kinetic","startFrame":720,"endFrame":900,"position":"bottom-center","fontSize":84,"letterSpacing":"0.02em"}],"youtubeTitle":"Title | Day ' + dayNum + '/90 | Daily Wealth Building","youtubeDescription":"Day ' + dayNum + ' of 90 -- description with arrow bullets\\n\\n🔔 Subscribe\\n@DailyWealthBuilding","tiktokCaption":"caption 👇 #personalfinance #day' + dayNum + 'of90","pinnedComment":"key insight"}';
+            '{"title":"short title","musicMood":"punchy","bRollQueries":["specific query vertical","specific query vertical","specific query vertical","specific query vertical","specific query vertical","specific query vertical"],"overlays":[{"text":"HOOK TEXT","font":"Anton","color":"#CAFF00","stroke":{"size":3,"color":"#000000"},"animation":"zoom-punch","startFrame":0,"endFrame":90,"position":"middle","fontSize":88,"letterSpacing":"0.02em"},{"text":"truth text","font":"Montserrat","color":"#FFFFFF","stroke":{"size":2,"color":"#000000"},"animation":"elegant-rise","startFrame":90,"endFrame":270,"position":"middle","fontSize":68},{"text":"proof text","font":"Montserrat","color":"#FFD700","stroke":{"size":2,"color":"#000000"},"animation":"fade-word","startFrame":270,"endFrame":450,"position":"middle","fontSize":66},{"text":"system text","font":"Montserrat","color":"#FFFFFF","stroke":{"size":2,"color":"#000000"},"animation":"editorial-body","startFrame":450,"endFrame":720,"position":"middle","fontSize":64},{"text":"CTA text 👇","font":"Anton","color":"#CAFF00","stroke":{"size":3,"color":"#000000"},"animation":"kinetic","startFrame":720,"endFrame":900,"position":"bottom-center","fontSize":82,"letterSpacing":"0.02em"}],"youtubeTitle":"Title | Day ' + dayNum + '/90 | Daily Wealth Building","youtubeDescription":"Day ' + dayNum + ' of 90 -- description with arrow bullets\\n\\n🔔 Subscribe\\n@DailyWealthBuilding","tiktokCaption":"caption 👇 #personalfinance #day' + dayNum + 'of90","pinnedComment":"key insight"}';
 
           function callGroq(p) {
             return new Promise(function(resolve, reject) {
@@ -235,7 +229,6 @@ jobs:
 
               console.log('Generated: ' + dayId + ' | ' + vd.title);
               console.log('Hook: ' + ((vd.overlays[0]||{}).text||'').replace(/\n/g,' ').slice(0,80));
-              console.log('bRollQueries: ' + vd.bRollQueries.join(' | '));
 
               await sendNtfy(
                 'Script ready: ' + dayId + '\nTitle: ' + (vd.title||'') + '\nHook: ' + ((vd.overlays[0]||{}).text||'').replace(/\n/g,' ').slice(0,80) + '\nClips: ' + vd.bRollQueries.length,
@@ -247,8 +240,6 @@ jobs:
 
       # =========================================================================
       # DETECT ACTIVE WEEK
-      # KEY FIX: When days_override is set, searches ALL content files for
-      # matching day IDs. Prevents week7 being picked when rendering week6 days.
       # =========================================================================
       - name: Detect active week from content files
         run: |
@@ -272,7 +263,6 @@ jobs:
             process.exit(0);
           }
 
-          // Load ALL content files and collect ALL entries
           const srcDir       = path.join(process.cwd(), 'src');
           const allFiles     = fs.existsSync(srcDir) ? fs.readdirSync(srcDir) : [];
           const contentFiles = allFiles.filter(function(f) { return f.match(/^week\d+-content\.js$/); });
@@ -282,7 +272,6 @@ jobs:
             process.exit(1);
           }
 
-          // Collect ALL entries from ALL week files
           let allEntries = [];
           for (const file of contentFiles) {
             try {
@@ -302,14 +291,11 @@ jobs:
             process.exit(1);
           }
 
-          // Determine which days are active
           let activeDays;
           if (daysOverride) {
-            // CRITICAL: Use exactly the override days, not the highest week
             activeDays = daysOverride.split(',').map(function(d) { return d.trim(); }).filter(Boolean);
             console.log('Override days: ' + activeDays.join(', '));
           } else {
-            // No override: use highest week file
             const weekNums = contentFiles
               .map(function(f) { return parseInt(f.match(/week(\d+)/)[1]); })
               .sort(function(a,b) { return b-a; });
@@ -323,7 +309,6 @@ jobs:
             console.log('Auto week' + weekNums[0] + ': ' + activeDays.join(', '));
           }
 
-          // Filter allEntries to ONLY the active days
           const activeEntries = allEntries.filter(function(e) {
             return e.id && activeDays.indexOf(e.id) !== -1;
           });
@@ -336,7 +321,6 @@ jobs:
 
           console.log('Active entries: ' + activeEntries.map(function(e){return e.id;}).join(', '));
 
-          // Build dayAssets (always 6 clips, pad if needed)
           const dayAssets = {};
           const FALLBACK_QUERIES = [
             'person working laptop city lifestyle vertical',
@@ -350,7 +334,6 @@ jobs:
             dayAssets[entry.id] = padded.map(function(q, i) { return { id: entry.id + '_clip' + (i+1), q: q }; });
           }
 
-          // Build dayMeta
           const dayMeta = {};
           for (const entry of activeEntries) {
             if (!entry.id) continue;
@@ -439,7 +422,6 @@ jobs:
 
       # =========================================================================
       # AI HOOK SCORER
-      # FIX: safeTitle() strips emoji from ntfy Title header
       # =========================================================================
       - name: AI Hook Scorer (Groq quality gate)
         continue-on-error: true
@@ -453,7 +435,7 @@ jobs:
           function safeTitle(s){return (s||'').replace(/[^\x20-\x7E]/g,'').replace(/\s+/g,' ').trim().slice(0,100);}
           let entries=[];
           if(fs.existsSync('src/current-video.js')){try{const src=fs.readFileSync('src/current-video.js','utf8');const m=src.match(/export const currentVideo = ([\s\S]+);[\s\n]*$/);if(m)entries=[JSON.parse(m[1])];}catch(e){}}
-          if(!entries.length){const sd=path.join(process.cwd(),'src');const files=fs.existsSync(sd)?fs.readdirSync(sd).filter(function(f){return f.match(/^week\d+-content\.js$/)}):[];const wn=files.map(function(f){return parseInt(f.match(/week(\d+)/)[1]);}).sort(function(a,b){return b-a;});if(wn.length){try{const src=fs.readFileSync(path.join(sd,'week'+wn[0]+'-content.js'),'utf8');const dm=src.match(/export\s+default\s+(\[[\s\S]*?\]);?\s*$/m);const nm=src.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/m);const arr=dm?dm[1]:(nm?nm[1]:null);if(arr)entries=eval(arr);}catch(e){}}}
+          if(!entries.length){const sd=path.join(process.cwd(),'src');const files=fs.existsSync(sd)?fs.readdirSync(sd).filter(function(f){return f.match(/^week\d+-content\.js$/)}):[];const wn=files.map(function(f){return parseInt(f.match(/week(\d+)/)[1]);}).sort(function(a,b){return b-a;});if(wn.length){try{const src=fs.readFileSync(path.join(sd,'week'+wn[0]+'-content.js'),'utf8');const dm=src.match(/export\s+default\s+([\s\S]*?\]);?\s*$/m);const nm=src.match(/export\s+const\s+\w+\s*=\s*([\s\S]*?\]);\s*(?=export|$)/m);const arr=dm?dm[1]:(nm?nm[1]:null);if(arr)entries=eval(arr);}catch(e){}}}
           if(!entries.length){console.log('No entries -- skipping scorer');process.exit(0);}
           const hooks=entries.map(function(e){return{id:e.id,hook:((e.overlays||[])[0]||{}).text||'N/A',topic:e.title||e.id};});
           const hookLines=hooks.map(function(h,i){return (i+1)+'. ['+h.id+'] Hook: "'+h.hook.replace(/\n/g,' ')+'" | Topic: "'+h.topic+'"';}).join('\n');
@@ -464,7 +446,7 @@ jobs:
           SCOREREOF
 
       # =========================================================================
-      # DOWNLOAD BACKGROUND VIDEOS (6 clips per video)
+      # DOWNLOAD BACKGROUND VIDEOS
       # =========================================================================
       - name: Download background videos (6 clips per day)
         env:
@@ -478,6 +460,21 @@ jobs:
           const PXB=process.env.PIXABAY_API_KEY||'', PXL=process.env.PEXELS_API_KEY||'', UNS=process.env.UNSPLASH_ACCESS_KEY||'';
           let info={dayAssets:{}};try{info=JSON.parse(fs.readFileSync('out/.week_info.json','utf8'));}catch(e){}
           const DA=info.dayAssets||{};if(!Object.keys(DA).length){console.log('No dayAssets -- skipping');process.exit(0);}
+
+          // Check for custom clips first -- skip download if customClips defined
+          let contentEntries=[];
+          const srcDir=path.join(process.cwd(),'src');
+          const contentFiles=fs.existsSync(srcDir)?fs.readdirSync(srcDir).filter(function(f){return f.match(/^week\d+-content\.js$/);}):[]; 
+          for(const file of contentFiles){
+            try{
+              const src=fs.readFileSync(path.join(srcDir,file),'utf8');
+              const dm=src.match(/export\s+default\s+([\s\S]*?\]);?\s*$/m);
+              const nm=src.match(/export\s+const\s+\w+\s*=\s*([\s\S]*?\]);\s*(?=export|$)/m);
+              const arr=dm?dm[1]:(nm?nm[1]:null);
+              if(arr)contentEntries=contentEntries.concat(eval(arr));
+            }catch(e){}
+          }
+
           function score(c){let s=0;const w=c.width||0,h=c.height||0;if(w>=1080&&h>=1920)s+=50;else if(h>=w)s+=30;else if(w>=1920)s+=20;else s+=5;if(h>w)s+=20;const d=c.duration||0;if(d>=8&&d<=15)s+=15;else if(d>=5)s+=8;else if(d>0)s+=3;const sz=c.fileSize||0;if(sz>5000000)s+=15;else if(sz>1000000)s+=8;return s;}
           function fetchJSON(url,headers){return new Promise(function(resolve,reject){const lib=url.startsWith('https')?https:http;lib.get(url,{headers:Object.assign({'User-Agent':'DWB/1.0'},headers||{})},function(res){if(res.statusCode===301||res.statusCode===302)return fetchJSON(res.headers.location,headers).then(resolve).catch(reject);let d='';res.on('data',function(c){d+=c;});res.on('end',function(){try{resolve(JSON.parse(d));}catch(e){reject(new Error('JSON parse failed'));}});}).on('error',reject);});}
           function dlFile(url,dest){return new Promise(function(resolve,reject){const f=fs.createWriteStream(dest);const get=function(u){const lib=u.startsWith('https')?https:http;lib.get(u,{headers:{'User-Agent':'DWB/1.0'}},function(res){if(res.statusCode===301||res.statusCode===302){f.close();return get(res.headers.location);}if(res.statusCode!==200){f.close();reject(new Error('HTTP '+res.statusCode));return;}res.pipe(f);f.on('finish',function(){f.close();resolve();});}).on('error',function(e){f.close();reject(e);});};get(url);});}
@@ -485,30 +482,93 @@ jobs:
           async function fetchPixabay(q){if(!PXB)return[];try{let data=await fetchJSON('https://pixabay.com/api/videos/?key='+PXB+'&q='+encodeURIComponent(q)+'&orientation=vertical&per_page=15&video_type=film&min_height=720');let hits=data.hits||[];if(!hits.length){data=await fetchJSON('https://pixabay.com/api/videos/?key='+PXB+'&q='+encodeURIComponent(q)+'&per_page=15&video_type=film');hits=data.hits||[];}return hits.map(function(hit){const v=hit.videos||{},best=v.large||v.medium||v.small||{};if(!best.url)return null;return{source:'Pixabay',url:best.url,width:best.width||0,height:best.height||0,duration:hit.duration||0,fileSize:best.size||0,score:0};}).filter(Boolean);}catch(e){console.log('Pixabay fail: '+e.message);return[];}}
           async function fetchPexels(q){if(!PXL)return[];try{const data=await fetchJSON('https://api.pexels.com/videos/search?query='+encodeURIComponent(q)+'&per_page=15&orientation=portrait&min_width=720',{'Authorization':PXL});const cands=[];for(const vid of (data.videos||[])){const files=(vid.video_files||[]).filter(function(f){return f.file_type==='video/mp4';}).sort(function(a,b){return(b.width*b.height)-(a.width*a.height);});if(!files.length)continue;const best=files[0];cands.push({source:'Pexels',url:best.link,width:best.width||vid.width||0,height:best.height||vid.height||0,duration:vid.duration||0,fileSize:0,score:0});}return cands;}catch(e){console.log('Pexels fail: '+e.message);return[];}}
           async function makeKenBurns(q,dest){const tmp=dest+'_tmp.jpg';try{const cq=encodeURIComponent(q.replace(/vertical/gi,'').trim());let imgUrl='https://source.unsplash.com/1080x1920/?'+cq;if(UNS){try{const ud=await fetchJSON('https://api.unsplash.com/search/photos?query='+cq+'&per_page=3&orientation=portrait&client_id='+UNS);const r=(ud.results||[])[0];if(r)imgUrl=r.urls.regular||r.urls.small;}catch(e){}}await dlFile(imgUrl,tmp);if(!fs.existsSync(tmp)||fs.statSync(tmp).size<10000)throw new Error('img too small');const{execSync}=require('child_process');execSync('ffmpeg -loop 1 -i "'+tmp+'" -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920" -t 10 -c:v libx264 -pix_fmt yuv420p -y "'+dest+'" 2>/dev/null',{stdio:'pipe'});if(fs.existsSync(tmp))fs.unlinkSync(tmp);const vs=fs.existsSync(dest)?fs.statSync(dest).size:0;if(vs<10000)throw new Error('kb too small');console.log('KenBurns OK: '+path.basename(dest));return true;}catch(e){console.log('KenBurns fail: '+e.message);if(fs.existsSync(tmp))fs.unlinkSync(tmp);return false;}}
-          (async function(){let dl=0,skip=0,fail=0,kb=0;for(const day of Object.keys(DA)){const assets=DA[day];console.log('\n=== '+day+' ('+assets.length+' clips expected) ===');for(const item of assets){const dest='public/videos/'+item.id+'.mp4';if(fs.existsSync(dest)&&fs.statSync(dest).size>50000){console.log('SKIP: '+item.id);skip++;continue;}if(fs.existsSync(dest))fs.unlinkSync(dest);console.log('Fetching: '+item.id+' | "'+item.q+'"');const[pc,xc]=await Promise.all([fetchPixabay(item.q),fetchPexels(item.q)]);const all=pc.concat(xc);all.forEach(function(c){c.score=score(c);});all.sort(function(a,b){return b.score-a.score;});let ok=false;for(const clip of all){try{await dlFile(clip.url,dest);const sz=fs.existsSync(dest)?fs.statSync(dest).size:0;if(sz>50000){console.log('OK: '+item.id+' from '+clip.source+' score='+clip.score);dl++;ok=true;break;}if(fs.existsSync(dest))fs.unlinkSync(dest);}catch(e){if(fs.existsSync(dest))fs.unlinkSync(dest);}}if(!ok){ok=await makeKenBurns(item.q,dest);if(ok)kb++;}if(!ok){try{const{execSync}=require('child_process');execSync('ffmpeg -f lavfi -i color=c=0x080c14:size=1080x1920:rate=30 -t 5 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -an "'+dest+'" -y -loglevel error',{stdio:'pipe'});if(fs.existsSync(dest)&&fs.statSync(dest).size>1000){console.log('Placeholder: '+item.id);dl++;}else{console.log('FAIL: '+item.id);fail++;}}catch(fe){console.log('FAIL: '+item.id);fail++;}}await sleep(300);}};console.log('\n--- Video Summary ---\nDownloaded: '+dl+' | Cached: '+skip+' | KenBurns: '+kb+' | Failed: '+fail);})();
+
+          (async function(){
+            let dl=0,skip=0,fail=0,kb=0;
+            for(const day of Object.keys(DA)){
+              const assets=DA[day];
+              console.log('\n=== '+day+' ('+assets.length+' clips expected) ===');
+
+              // Check if this day has customClips defined
+              const dayEntry=contentEntries.find(function(e){return e.id===day;});
+              if(dayEntry&&dayEntry.customClips&&dayEntry.customClips.length>0){
+                console.log(day+': customClips defined -- skipping API download');
+                // Verify each custom clip exists
+                for(const clip of dayEntry.customClips){
+                  const clipPath='public/videos/'+clip;
+                  if(fs.existsSync(clipPath)){console.log('CUSTOM OK: '+clip);}
+                  else{console.log('CUSTOM MISSING: '+clip+' -- not found in public/videos/');}
+                }
+                continue;
+              }
+
+              for(const item of assets){
+                const dest='public/videos/'+item.id+'.mp4';
+                if(fs.existsSync(dest)&&fs.statSync(dest).size>50000){console.log('SKIP: '+item.id);skip++;continue;}
+                if(fs.existsSync(dest))fs.unlinkSync(dest);
+                console.log('Fetching: '+item.id+' | "'+item.q+'"');
+                const[pc,xc]=await Promise.all([fetchPixabay(item.q),fetchPexels(item.q)]);
+                const all=pc.concat(xc);
+                all.forEach(function(c){c.score=score(c);});
+                all.sort(function(a,b){return b.score-a.score;});
+                let ok=false;
+                for(const clip of all){try{await dlFile(clip.url,dest);const sz=fs.existsSync(dest)?fs.statSync(dest).size:0;if(sz>50000){console.log('OK: '+item.id+' from '+clip.source+' score='+clip.score);dl++;ok=true;break;}if(fs.existsSync(dest))fs.unlinkSync(dest);}catch(e){if(fs.existsSync(dest))fs.unlinkSync(dest);}}
+                if(!ok){ok=await makeKenBurns(item.q,dest);if(ok)kb++;}
+                if(!ok){try{const{execSync}=require('child_process');execSync('ffmpeg -f lavfi -i color=c=0x080c14:size=1080x1920:rate=30 -t 5 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -an "'+dest+'" -y -loglevel error',{stdio:'pipe'});if(fs.existsSync(dest)&&fs.statSync(dest).size>1000){console.log('Placeholder: '+item.id);dl++;}else{console.log('FAIL: '+item.id);fail++;}}catch(fe){console.log('FAIL: '+item.id);fail++;}}
+                await sleep(300);
+              }
+            }
+            console.log('\n--- Video Summary ---\nDownloaded: '+dl+' | Cached: '+skip+' | KenBurns: '+kb+' | Failed: '+fail);
+          })();
           VIDEOEOF
 
       - name: Verify clips and create placeholders for any missing
         run: |
           node << 'VERIFYEOF'
-          const fs=require('fs'),{execSync}=require('child_process');
+          const fs=require('fs'),path=require('path'),{execSync}=require('child_process');
           let info={};try{info=JSON.parse(fs.readFileSync('out/.week_info.json','utf8'));}catch(e){process.exit(0);}
+
+          // Load content files to find customClips
+          let contentEntries=[];
+          const srcDir=path.join(process.cwd(),'src');
+          const contentFiles=fs.existsSync(srcDir)?fs.readdirSync(srcDir).filter(function(f){return f.match(/^week\d+-content\.js$/);}):[]; 
+          for(const file of contentFiles){
+            try{
+              const src=fs.readFileSync(path.join(srcDir,file),'utf8');
+              const dm=src.match(/export\s+default\s+([\s\S]*?\]);?\s*$/m);
+              const nm=src.match(/export\s+const\s+\w+\s*=\s*([\s\S]*?\]);\s*(?=export|$)/m);
+              const arr=dm?dm[1]:(nm?nm[1]:null);
+              if(arr)contentEntries=contentEntries.concat(eval(arr));
+            }catch(e){}
+          }
+
           const allAssets=Object.values(info.dayAssets||{}).flat();
-          let created=0,ok=0;
-          for(const item of allAssets){const dest='public/videos/'+item.id+'.mp4';if(fs.existsSync(dest)&&fs.statSync(dest).size>5000){ok++;continue;}console.log('Creating placeholder: '+dest);try{execSync('ffmpeg -f lavfi -i color=c=0x080c14:size=1080x1920:rate=30 -t 5 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -an "'+dest+'" -y -loglevel error');created++;}catch(e){console.log('FAILED: '+dest);}}
-          console.log('Clips OK: '+ok+' | Placeholders: '+created);
+          let created=0,ok=0,customOk=0;
+
+          // Check custom clips
+          for(const entry of contentEntries){
+            if(!entry.customClips||!entry.customClips.length)continue;
+            for(const clip of entry.customClips){
+              const dest='public/videos/'+clip;
+              if(fs.existsSync(dest)&&fs.statSync(dest).size>5000){customOk++;console.log('CUSTOM CLIP OK: '+clip);}
+              else{console.log('CUSTOM CLIP MISSING: '+clip);}
+            }
+          }
+
+          for(const item of allAssets){
+            const dest='public/videos/'+item.id+'.mp4';
+            if(fs.existsSync(dest)&&fs.statSync(dest).size>5000){ok++;continue;}
+            console.log('Creating placeholder: '+dest);
+            try{execSync('ffmpeg -f lavfi -i color=c=0x080c14:size=1080x1920:rate=30 -t 5 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -an "'+dest+'" -y -loglevel error');created++;}catch(e){console.log('FAILED: '+dest);}
+          }
+          console.log('Clips OK: '+ok+' | Custom: '+customOk+' | Placeholders: '+created);
           VERIFYEOF
           echo "=== Clip inventory ==="
-          find public/videos -name "*.mp4" -size +1k 2>/dev/null | sort | head -20
+          find public/videos -name "*.mp4" -size +1k 2>/dev/null | sort | head -30
           find public/videos -name "*.mp4" -size +1k 2>/dev/null | wc -l | xargs echo "Total valid clips:"
 
       # =========================================================================
       # RENDER
-      # KEY FIX: Removed --public-dir flag entirely.
-      # Remotion auto-detects public/ from project root.
-      # With --public-dir "$(pwd)/public", Remotion served files at /videos/clip.mp4
-      # but staticFile() returned /public/videos/clip.mp4 causing 404.
-      # Without --public-dir, Remotion uses repo root, matching staticFile() output.
       # =========================================================================
       - name: Render all videos
         run: |
@@ -594,7 +654,7 @@ jobs:
           const fs=require('fs'),path=require('path');
           let entries=[];
           if(fs.existsSync('src/current-video.js')){try{const src=fs.readFileSync('src/current-video.js','utf8');const m=src.match(/export const currentVideo = ([\s\S]+);[\s\n]*$/);if(m)entries=[JSON.parse(m[1])];}catch(e){}}
-          if(!entries.length){const sd=path.join(process.cwd(),'src');const files=fs.existsSync(sd)?fs.readdirSync(sd).filter(function(f){return f.match(/^week\d+-content\.js$/)}):[];const wn=files.map(function(f){return parseInt(f.match(/week(\d+)/)[1]);}).sort(function(a,b){return b-a;});if(wn.length){try{const src=fs.readFileSync(path.join(sd,'week'+wn[0]+'-content.js'),'utf8');const dm=src.match(/export\s+default\s+(\[[\s\S]*?\]);?\s*$/m);const nm=src.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*?\]);\s*(?=export|$)/m);const arr=dm?dm[1]:(nm?nm[1]:null);if(arr)entries=eval(arr);}catch(e){}}}
+          if(!entries.length){const sd=path.join(process.cwd(),'src');const files=fs.existsSync(sd)?fs.readdirSync(sd).filter(function(f){return f.match(/^week\d+-content\.js$/)}):[];const wn=files.map(function(f){return parseInt(f.match(/week(\d+)/)[1]);}).sort(function(a,b){return b-a;});if(wn.length){try{const src=fs.readFileSync(path.join(sd,'week'+wn[0]+'-content.js'),'utf8');const dm=src.match(/export\s+default\s+([\s\S]*?\]);?\s*$/m);const nm=src.match(/export\s+const\s+\w+\s*=\s*([\s\S]*?\]);\s*(?=export|$)/m);const arr=dm?dm[1]:(nm?nm[1]:null);if(arr)entries=eval(arr);}catch(e){}}}
           function toSRT(f){const ms=Math.round((f/30)*1000);const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000),ms2=ms%1000;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+','+String(ms2).padStart(3,'0');}
           let gen=0;for(const e of entries){if(!e.overlays||!e.id)continue;const lines=[];let idx=1;for(const o of e.overlays){if(!o.text||o.startFrame===undefined||o.endFrame===undefined)continue;lines.push(String(idx));lines.push(toSRT(o.startFrame)+' --> '+toSRT(o.endFrame));lines.push(o.text.replace(/\n/g,' '));lines.push('');idx++;}if(lines.length){fs.mkdirSync('out/srt',{recursive:true});fs.writeFileSync('out/srt/'+e.id+'.srt',lines.join('\n'));gen++;}}
           console.log('Generated '+gen+' SRT files');
@@ -602,7 +662,6 @@ jobs:
 
       # =========================================================================
       # YOUTUBE UPLOAD
-      # FIX: invalid_grant detected specifically, sends ntfy with fix steps
       # =========================================================================
       - name: Upload to YouTube (scheduled publishing)
         env:
@@ -625,7 +684,7 @@ jobs:
           async function getToken(){const body='client_id='+encodeURIComponent(CID)+'&client_secret='+encodeURIComponent(CS)+'&refresh_token='+encodeURIComponent(RT)+'&grant_type=refresh_token';const res=await httpsReq({hostname:'oauth2.googleapis.com',path:'/token',method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','Content-Length':Buffer.byteLength(body)}},body);if(res.status!==200){let ed={};try{ed=JSON.parse(res.body);}catch(e){}if(ed.error==='invalid_grant'){await sendNtfy('YouTube Token EXPIRED.\n\nFIX:\n1. Go to developers.google.com/oauthplayground\n2. Select YouTube Data API v3\n3. Authorize and get new refresh token\n4. Update YOUTUBE_REFRESH_TOKEN in GitHub Secrets\n5. Re-run\n\nVideos saved as artifacts -- not lost.','ACTION REQUIRED YouTube Token Expired','urgent','x,warning');console.log('ERROR: invalid_grant -- see ntfy');fs.writeFileSync('out/.upload_results.json','[]');process.exit(1);}throw new Error('Token failed: '+res.body.slice(0,200));}return JSON.parse(res.body).access_token;}
           async function uploadVideo(token,filePath,meta,publishAt){const fileSize=fs.statSync(filePath).size;const initBody=JSON.stringify({snippet:{title:meta.title||'Daily Wealth Building',description:meta.description||'',tags:meta.tags||['personalfinance','wealthbuilding'],categoryId:'27'},status:{privacyStatus:'private',publishAt:publishAt,selfDeclaredMadeForKids:false}});const initRes=await httpsReq({hostname:'www.googleapis.com',path:'/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','Content-Length':Buffer.byteLength(initBody),'X-Upload-Content-Type':'video/mp4','X-Upload-Content-Length':fileSize}},initBody);if(initRes.status!==200)throw new Error('Init HTTP '+initRes.status);const uploadUrl=initRes.headers.location;if(!uploadUrl)throw new Error('No upload URL');const CHUNK=8*1024*1024,fd=fs.openSync(filePath,'r');let uploaded=0,videoId=null;while(uploaded<fileSize){const cs=Math.min(CHUNK,fileSize-uploaded),buf=Buffer.alloc(cs);fs.readSync(fd,buf,0,cs,uploaded);const uo=new URL(uploadUrl);const cr=await httpsReq({hostname:uo.hostname,path:uo.pathname+uo.search,method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Length':cs,'Content-Range':'bytes '+uploaded+'-'+(uploaded+cs-1)+'/'+fileSize}},buf);uploaded+=cs;if(cr.status===200||cr.status===201){videoId=JSON.parse(cr.body).id;break;}if(cr.status!==308)throw new Error('Chunk HTTP '+cr.status);console.log('Uploading... '+Math.round((uploaded/fileSize)*100)+'%');}fs.closeSync(fd);return videoId;}
           function getPublishAt(idx){const now=new Date();const base=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+1,16,0,0));return new Date(base.getTime()+idx*86400000).toISOString();}
-          (async function(){let uploaded=0,failed=0;const results=[],scheduled=[];let token;try{token=await getToken();console.log('Token OK');}catch(e){console.log('ERROR: '+e.message);fs.writeFileSync('out/.upload_results.json','[]');process.exit(1);}for(let i=0;i<days.length;i++){const day=days[i],filePath='out/'+day+'_final.mp4';if(!fs.existsSync(filePath)){console.log('SKIP: '+day+' not found');results.push({day:day,status:'failed',error:'not found'});failed++;continue;}const meta=dayMeta[day]||{},publishAt=getPublishAt(i);console.log('\nUploading: '+day+' -> '+publishAt);try{const vid=await uploadVideo(token,filePath,{title:meta.youtubeTitle||day+' | Daily Wealth Building',description:meta.youtubeDescription||'',tags:['personalfinance','wealthbuilding','financialfreedom','moneytips']},publishAt);console.log('UPLOADED: '+day+' -> https://youtu.be/'+vid);results.push({day:day,videoId:vid,url:'https://youtu.be/'+vid,status:'ok',publishAt:publishAt});scheduled.push({day:day,videoId:vid,url:'https://youtu.be/'+vid,publishAt:publishAt,notifScheduled:false,pinnedComment:meta.pinnedComment||''});uploaded++;}catch(e){console.log('FAIL: '+day+': '+e.message);results.push({day:day,status:'failed',error:e.message});failed++;}}fs.writeFileSync('out/.upload_results.json',JSON.stringify(results,null,2));let existing=[];try{existing=JSON.parse(fs.readFileSync('scheduled-videos.json','utf8'));}catch(e){}fs.writeFileSync('scheduled-videos.json',JSON.stringify(existing.filter(function(v){return days.indexOf(v.day)===-1;}).concat(scheduled),null,2));console.log('\nUploaded: '+uploaded+' | Failed: '+failed);})();
+          (async function(){let uploaded=0,failed=0;const results=[],scheduledVideos=[];let token;try{token=await getToken();console.log('Token OK');}catch(e){console.log('ERROR: '+e.message);fs.writeFileSync('out/.upload_results.json','[]');process.exit(1);}for(let i=0;i<days.length;i++){const day=days[i],filePath='out/'+day+'_final.mp4';if(!fs.existsSync(filePath)){console.log('SKIP: '+day+' not found');results.push({day:day,status:'failed',error:'not found'});failed++;continue;}const meta=dayMeta[day]||{},publishAt=getPublishAt(i);console.log('\nUploading: '+day+' -> '+publishAt);try{const vid=await uploadVideo(token,filePath,{title:meta.youtubeTitle||day+' | Daily Wealth Building',description:meta.youtubeDescription||'',tags:['personalfinance','wealthbuilding','financialfreedom','moneytips']},publishAt);console.log('UPLOADED: '+day+' -> https://youtu.be/'+vid);results.push({day:day,videoId:vid,url:'https://youtu.be/'+vid,status:'ok',publishAt:publishAt});scheduledVideos.push({day:day,videoId:vid,url:'https://youtu.be/'+vid,publishAt:publishAt,notifScheduled:false,pinnedComment:meta.pinnedComment||''});uploaded++;}catch(e){console.log('FAIL: '+day+': '+e.message);results.push({day:day,status:'failed',error:e.message});failed++;}}fs.writeFileSync('out/.upload_results.json',JSON.stringify(results,null,2));let existing=[];try{existing=JSON.parse(fs.readFileSync('scheduled-videos.json','utf8'));}catch(e){}fs.writeFileSync('scheduled-videos.json',JSON.stringify(existing.filter(function(v){return days.indexOf(v.day)===-1;}).concat(scheduledVideos),null,2));console.log('\nUploaded: '+uploaded+' | Failed: '+failed);})();
           YTEOF
 
       - name: Commit scheduled-videos.json
@@ -633,10 +692,12 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main || true
+          git stash --include-untracked 2>/dev/null || true
+          git pull --rebase origin main 2>/dev/null || true
+          git stash pop 2>/dev/null || true
           git add scheduled-videos.json out/.week_info.json 2>/dev/null || true
           git diff --staged --quiet || git commit -m "chore: update scheduled videos [skip ci]"
-          git push || true
+          git push 2>/dev/null || true
 
       - name: Commit video counter and content history
         if: success()
@@ -651,10 +712,12 @@ jobs:
           COUNTEREOF
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main || true
+          git stash --include-untracked 2>/dev/null || true
+          git pull --rebase origin main 2>/dev/null || true
+          git stash pop 2>/dev/null || true
           git add video-counter.json content-history.json src/current-video.js 2>/dev/null || true
           git diff --staged --quiet || git commit -m "chore: video counter update [skip ci]"
-          git push || true
+          git push 2>/dev/null || true
 
       - name: Reddit auto-post
         if: success()
@@ -692,24 +755,63 @@ jobs:
           (async function(){const lines=['DWB Schedule:',''];nv.forEach(function(v){const d=new Date(v.publishAt);lines.push(v.day+' -> '+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getUTCDay()]+' '+d.getUTCHours()+':00 UTC -> '+v.url);v.notifScheduled=true;});await sendNtfy(lines.join('\n'),'DWB '+nv.length+' Videos Scheduled');fs.writeFileSync('scheduled-videos.json',JSON.stringify(sv,null,2));})();
           NOTIFEOF
 
+      # =========================================================================
+      # UPDATE README -- FIXED: git stash resolves unstaged changes conflict
+      # =========================================================================
       - name: Update README
-        if: success()
+        if: always()
         run: |
           node << 'READMEEOF'
           const fs=require('fs');
-          const today=new Date().toISOString().split('T')[0],runId=process.env.GITHUB_RUN_ID||'0',runNum=process.env.GITHUB_RUN_NUMBER||'0',repo=process.env.GITHUB_REPOSITORY||'dailywealthbuilding/DWB-Videos';
-          let info={week:'unknown',days:[]},uploads=[];try{info=JSON.parse(fs.readFileSync('out/.week_info.json','utf8'));}catch(e){}try{uploads=JSON.parse(fs.readFileSync('out/.upload_results.json','utf8'));}catch(e){}
+          const today=new Date().toISOString().split('T')[0];
+          const runId=process.env.GITHUB_RUN_ID||'0';
+          const runNum=process.env.GITHUB_RUN_NUMBER||'0';
+          const repo=process.env.GITHUB_REPOSITORY||'dailywealthbuilding/DWB-Videos';
+          let info={week:'unknown',days:[]},uploads=[];
+          try{info=JSON.parse(fs.readFileSync('out/.week_info.json','utf8'));}catch(e){}
+          try{uploads=JSON.parse(fs.readFileSync('out/.upload_results.json','utf8'));}catch(e){}
           const rendered=(info.days||[]).filter(function(d){return fs.existsSync('out/'+d+'_final.mp4');});
           const links=uploads.filter(function(u){return u.status==='ok';}).map(function(u){return '- ['+u.day+']('+u.url+')';}).join('\n');
-          const readme=['# DWB -- Daily Wealth Building','','@DailyWealthBuilding | 90-Day Public Affiliate Challenge','','![Render](https://img.shields.io/badge/Last_Render-'+today+'-gold) ![Videos](https://img.shields.io/badge/Videos-'+rendered.length+'/'+(info.days||[]).length+'-'+(rendered.length===(info.days||[]).length?'brightgreen':'orange')+')',  '','## Latest -- '+today,'','| | |','|---|---|','| Week | '+info.week+' |','| Days | '+(info.days||[]).join(', ')+' |','| Rendered | '+rendered.length+'/'+(info.days||[]).length+' |','| Run | [#'+runNum+'](https://github.com/'+repo+'/actions/runs/'+runId+') |','',links?'## YouTube Links\n\n'+links:'','','## Pipeline','','- Groq AI auto-generates fresh script each run','- Remotion 4.0 + GitHub Actions | 7PM EAT daily','- 1080x1920 30fps | CRF 18 | h264','- 6 clips/video | Pixabay + Pexels + KenBurns fallback','- safeTitle() on all ntfy headers -- no emoji crashes','','---','_Auto-updated '+today+'_'].filter(function(l){return l!==undefined;}).join('\n');
-          fs.writeFileSync('README.md',readme);console.log('README updated');
+          const readme=[
+            '# DWB -- Daily Wealth Building',
+            '',
+            '@DailyWealthBuilding | 90-Day Public Affiliate Challenge',
+            '',
+            '![Render](https://img.shields.io/badge/Last_Render-'+today+'-gold) ![Videos](https://img.shields.io/badge/Videos-'+rendered.length+'/'+(info.days||[]).length+'-'+(rendered.length===(info.days||[]).length?'brightgreen':'orange')+')',
+            '',
+            '## Latest -- '+today,
+            '',
+            '| | |',
+            '|---|---|',
+            '| Week | '+info.week+' |',
+            '| Days | '+(info.days||[]).join(', ')+' |',
+            '| Rendered | '+rendered.length+'/'+(info.days||[]).length+' |',
+            '| Run | [#'+runNum+'](https://github.com/'+repo+'/actions/runs/'+runId+') |',
+            '',
+            links?'## YouTube Links\n\n'+links:'',
+            '',
+            '## Pipeline',
+            '',
+            '- Groq AI auto-generates fresh script each run',
+            '- Remotion 4.0 + GitHub Actions | 7PM EAT daily',
+            '- 1080x1920 30fps | CRF 18 | h264',
+            '- 6 clips/video | Custom phone videos + Pixabay + Pexels fallback',
+            '- safeTitle() on all ntfy headers -- no emoji crashes',
+            '',
+            '---',
+            '_Auto-updated '+today+'_'
+          ].filter(function(l){return l!==undefined;}).join('\n');
+          fs.writeFileSync('README.md',readme);
+          console.log('README updated');
           READMEEOF
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git stash --include-untracked 2>/dev/null || true
+          git pull --rebase origin main 2>/dev/null || true
+          git stash pop 2>/dev/null || true
           git add README.md
           git diff --staged --quiet || git commit -m "chore: update README [skip ci]"
-          git pull --rebase origin main || true
-          git push
+          git push 2>/dev/null || echo "Push skipped"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -736,7 +838,7 @@ jobs:
           let info={week:'unknown',days:[]},uploads=[],music=[],trending=[];
           try{info=JSON.parse(fs.readFileSync('out/.week_info.json','utf8'));}catch(e){}try{uploads=JSON.parse(fs.readFileSync('out/.upload_results.json','utf8'));}catch(e){}try{music=JSON.parse(fs.readFileSync('out/.music_results.json','utf8'));}catch(e){}try{trending=JSON.parse(fs.readFileSync('out/.trending_sounds.json','utf8'));}catch(e){}
           const lines=['DWB Pipeline '+(isOk?'COMPLETE':'FAILED'),info.week+' | '+new Date().toISOString().slice(0,10),''];
-          let passed=0;for(const day of (info.days||[])){const mp4='out/'+day+'_final.mp4',sz=fs.existsSync(mp4)?Math.round(fs.statSync(mp4).size/1024/1024):0;if(sz>0){const u=uploads.find(function(x){return x.day===day;}),m=music.find(function(x){return x.day===day;});lines.push(day+' OK '+sz+'MB'+(m?' ['+m.mood+']':'')+((u&&u.status==='ok')?' -> '+u.url:''));passed++;}else lines.push(day+' FAILED');}
+          let passed=0;for(const day of (info.days||[])){const mp4='out/'+day+'_final.mp4',sz=fs.existsSync(mp4)?Math.round(fs.statSync(mp4).size/1024/1024):0;if(sz>0){const u=uploads.find(function(x){return x.day===day;}),m=music.find(function(x){return x.day===day;});lines.push(day+' OK '+sz+'MB'+(m?' ['+m.mood+']':'')+(u&&u.status==='ok'?' -> '+u.url:''));passed++;}else lines.push(day+' FAILED');}
           lines.push('','Result: '+passed+'/'+(info.days||[]).length);
           const ytc=uploads.filter(function(u){return u.status==='ok';}).length;if(ytc>0)lines.push('YouTube: '+ytc+' uploaded');
           if(trending.length){lines.push('','Trending:');trending.slice(0,3).forEach(function(s){lines.push('  '+s.rank+'. '+s.title);});}
